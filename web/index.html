@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>mini-faceIQ</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101114;
+      --panel: #17191f;
+      --line: #2b2f3a;
+      --text: #f6f7fb;
+      --muted: #aab1c2;
+      --cyan: #2dd4bf;
+      --blue: #60a5fa;
+      --red: #fb7185;
+      --green: #86efac;
+      --amber: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    main {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+    }
+    aside {
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      padding: 20px;
+      overflow-y: auto;
+      max-height: 100vh;
+    }
+    section { padding: 20px; min-width: 0; }
+    h1, h2, p { margin: 0; }
+    h1 { font-size: 24px; line-height: 1.1; }
+    h2 { font-size: 16px; margin-top: 22px; margin-bottom: 10px; }
+    p { color: var(--muted); margin-top: 8px; line-height: 1.45; }
+    label { display: block; color: var(--muted); font-size: 13px; margin: 14px 0 6px; }
+    select, input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--line);
+      background: #0f1218;
+      color: var(--text);
+      border-radius: 6px;
+    }
+    button {
+      border: 1px solid var(--line);
+      background: #242936;
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    button.primary { background: var(--cyan); color: #051312; border-color: transparent; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .row > * { flex: 1; }
+    .current {
+      margin-top: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #11141a;
+    }
+    .current strong { color: var(--cyan); }
+    .progress {
+      height: 8px;
+      background: #0f1218;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+    .bar { height: 100%; width: 0; background: var(--cyan); }
+    .canvasWrap {
+      height: min(72vh, 760px);
+      min-height: 420px;
+      border: 1px solid var(--line);
+      background: #08090d;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+    .metrics {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: visible;
+    }
+    .metric {
+      display: grid;
+      grid-template-columns: minmax(170px, 1.25fr) 90px 70px 90px;
+      gap: 12px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--line);
+      align-items: center;
+      font-size: 13px;
+    }
+    .metric:first-child { border-top: 0; }
+    .metric:not(.header) { cursor: default; }
+    .metric:not(.header):hover, .metric.active { background: #17202a; }
+    .metric.header { color: var(--muted); background: #141821; font-weight: 700; }
+    .metricName {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+    .metricName span:first-child {
+      overflow-wrap: anywhere;
+    }
+    .help {
+      position: relative;
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 17px;
+      height: 17px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      color: var(--cyan);
+      background: #0f1218;
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1;
+      cursor: help;
+    }
+    .help:hover::after, .help:focus::after {
+      content: attr(data-tip);
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      z-index: 5;
+      width: min(260px, 72vw);
+      transform: translateX(-50%);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #08090d;
+      color: var(--text);
+      padding: 9px 10px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.35;
+      white-space: normal;
+    }
+    .measurementCatalog {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #11141a;
+    }
+    .catalogHeader {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      background: #141821;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .catalogItem {
+      display: grid;
+      grid-template-columns: minmax(180px, 0.9fr) minmax(220px, 1.4fr) 84px;
+      gap: 12px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--line);
+      align-items: start;
+      font-size: 13px;
+    }
+    .catalogItem:first-child { border-top: 0; }
+    .catalogName { font-weight: 700; }
+    .catalogDesc { color: var(--muted); line-height: 1.35; }
+    .pill {
+      display: inline-flex;
+      justify-content: center;
+      min-width: 58px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #242936;
+      color: var(--muted);
+    }
+    .ideal { color: var(--green); }
+    .low, .high { color: var(--amber); }
+    .ready { color: var(--green); }
+    .waiting { color: var(--amber); }
+    .score {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: var(--panel);
+    }
+    .stat b { font-size: 24px; display: block; }
+    .stat span { color: var(--muted); font-size: 12px; }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #0f1218;
+      color: var(--text);
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+    }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      aside { max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
+      .metric { grid-template-columns: 1fr 80px; }
+      .catalogItem { grid-template-columns: 1fr; }
+      .metric .hideMobile { display: none; }
+      .score { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <aside>
+    <h1>mini-faceIQ</h1>
+    <p>Place the front landmarks, then calculate the 30 front profile metrics.</p>
+
+    <label for="imageInput">Front face image</label>
+    <input id="imageInput" type="file" accept="image/*">
+    <button id="autoBtn" style="width:100%; margin-top:8px">Auto-detect landmarks</button>
+
+    <div class="row">
+      <div>
+        <label for="gender">Gender</label>
+        <select id="gender">
+          <option value="male">male</option>
+          <option value="female">female</option>
+        </select>
+      </div>
+      <div>
+        <label for="ethnicity">Ethnicity</label>
+        <select id="ethnicity">
+          <option value="asian">asian</option>
+          <option value="caucasian">caucasian</option>
+          <option value="black">black</option>
+          <option value="hispanic">hispanic</option>
+          <option value="middle_eastern">middle_eastern</option>
+          <option value="south_asian">south_asian</option>
+          <option value="mixed">mixed</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="current">
+      <span id="stepText">Load an image to begin.</span>
+      <p id="stepHint">Your clicks are stored as normalized x/y points, so image size does not matter.</p>
+      <div class="progress"><div id="progressBar" class="bar"></div></div>
+    </div>
+
+    <h2>Controls</h2>
+    <div class="row">
+      <button id="prevBtn">Back</button>
+      <button id="nextBtn">Next</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button id="undoBtn">Undo point</button>
+      <button id="clearBtn">Clear all</button>
+    </div>
+    <button id="calcBtn" class="primary" style="width:100%; margin-top:8px">Calculate metrics</button>
+
+    <h2>Landmark JSON</h2>
+    <textarea id="jsonBox" spellcheck="false"></textarea>
+    <button id="loadJsonBtn" style="width:100%; margin-top:8px">Load JSON into canvas</button>
+  </aside>
+
+  <section>
+    <div class="canvasWrap"><canvas id="canvas"></canvas></div>
+    <div id="score" class="score"></div>
+    <div id="measurementCatalog" class="measurementCatalog"></div>
+    <div id="metrics" class="metrics"></div>
+  </section>
+</main>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const imageInput = document.getElementById("imageInput");
+const stepText = document.getElementById("stepText");
+const stepHint = document.getElementById("stepHint");
+const progressBar = document.getElementById("progressBar");
+const jsonBox = document.getElementById("jsonBox");
+const metricsEl = document.getElementById("metrics");
+const measurementCatalogEl = document.getElementById("measurementCatalog");
+const scoreEl = document.getElementById("score");
+const calcBtn = document.getElementById("calcBtn");
+const autoBtn = document.getElementById("autoBtn");
+const measurementDefs = [
+  {id: "lateral_canthal_tilt", name: "Lateral Canthal Tilt", category: "Eyes", description: "Eye angle relative to horizontal.", requires: ["left_medial_canthus", "left_lateral_canthus", "right_medial_canthus", "right_lateral_canthus"]},
+  {id: "nose_bridge_to_width", name: "Nose Bridge to Nose Width Ratio", category: "Nose", description: "Nose side width compared with nose bridge width.", requires: ["left_nose_side", "right_nose_side", "left_nose_bridge", "right_nose_bridge"]},
+  {id: "bitemporal_width", name: "Bitemporal Width", category: "Head", description: "Temple width compared with cheekbone face width.", requires: ["left_temple", "right_temple", "left_cheekbone", "right_cheekbone"]},
+  {id: "cheekbone_height", name: "Cheekbone Height", category: "Cheeks", description: "Vertical positioning of cheekbones.", requires: ["cupids_bow", "left_cheekbone", "right_cheekbone", "left_pupil", "right_pupil"]},
+  {id: "cupids_bow_depth", name: "Cupid's Bow Depth", category: "Mouth", description: "Vertical depth of the cupid's bow.", requires: ["cupids_bow", "inner_cupids_bow"]},
+  {id: "bigonial_width", name: "Bigonial Width", category: "Jaw", description: "Jaw width compared with cheekbone face width.", requires: ["left_upper_jaw_angle", "right_upper_jaw_angle", "left_cheekbone", "right_cheekbone"]},
+  {id: "jaw_slope", name: "Jaw Slope", category: "Jaw", description: "Average left and right jaw slope angles.", requires: ["left_cheekbone", "left_upper_jaw_angle", "left_lower_jaw_angle", "left_chin", "right_cheekbone", "right_upper_jaw_angle", "right_lower_jaw_angle", "right_chin"]},
+  {id: "middle_third", name: "Middle Third", category: "Proportions", description: "Middle facial third relative to total face height.", requires: ["right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner", "nasal_base", "hairline", "chin_bottom"]},
+  {id: "eye_aspect_ratio", name: "Eye Aspect Ratio", category: "Eyes", description: "Width-to-height ratio of eyes.", requires: ["left_medial_canthus", "left_lateral_canthus", "left_upper_eyelid", "left_lower_eyelid", "right_medial_canthus", "right_lateral_canthus", "right_upper_eyelid", "right_lower_eyelid"]},
+  {id: "mouth_corner_position", name: "Mouth Corner Position", category: "Mouth", description: "Mouth corner height relative to mouth middle.", requires: ["mouth_middle", "left_mouth_corner", "right_mouth_corner"]},
+  {id: "eye_separation_ratio", name: "Eye Separation Ratio", category: "Eyes", description: "Interpupillary distance vs face width.", requires: ["left_pupil", "right_pupil", "left_cheekbone", "right_cheekbone"]},
+  {id: "eyebrow_tilt", name: "Eyebrow Tilt", category: "Brows", description: "Brow angle from horizontal.", requires: ["left_brow_head", "left_brow_inner_corner", "left_brow_arch", "left_brow_peak", "right_brow_head", "right_brow_inner_corner", "right_brow_arch", "right_brow_peak"]},
+  {id: "lower_third", name: "Lower Third", category: "Proportions", description: "Lower facial third relative to total face height.", requires: ["chin_bottom", "nasal_base", "hairline"]},
+  {id: "face_width_to_height", name: "Face Width to Height Ratio", category: "Proportions", description: "Cheekbone width compared with midface height.", requires: ["left_cheekbone", "right_cheekbone", "cupids_bow", "right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner"]},
+  {id: "interpupillary_mouth_width", name: "Interpupillary-Mouth Width Ratio", category: "Proportions", description: "Mouth width compared with interpupillary distance.", requires: ["left_mouth_corner", "right_mouth_corner", "left_pupil", "right_pupil"]},
+  {id: "jaw_frontal_angle", name: "Jaw Frontal Angle", category: "Jaw", description: "Angle between the left and right lower jaw lines.", requires: ["left_lower_jaw_angle", "left_chin", "right_lower_jaw_angle", "right_chin"]},
+  {id: "intercanthal_nasal_width", name: "Intercanthal-Nasal Width Ratio", category: "Proportions", description: "Nasal width compared with inner eye corner spacing.", requires: ["left_nose_side", "right_nose_side", "left_medial_canthus", "right_medial_canthus"]},
+  {id: "top_third", name: "Top Third", category: "Proportions", description: "Upper facial third relative to total face height.", requires: ["hairline", "right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner", "chin_bottom"]},
+  {id: "one_eye_apart", name: "One Eye Apart Test", category: "Proportions", description: "Intercanthal spacing validation.", requires: ["left_medial_canthus", "right_medial_canthus", "left_lateral_canthus", "right_lateral_canthus"]},
+  {id: "midface_ratio", name: "Midface Ratio", category: "Proportions", description: "Interpupillary distance compared with midface height.", requires: ["left_pupil", "right_pupil", "inner_cupids_bow"]},
+  {id: "ipsilateral_alar_angle", name: "Ipsilateral Alar Angle", category: "Nose", description: "Nasal base angle using eyelid hood endpoints.", requires: ["nasal_base", "left_eyelid_hood_end", "right_eyelid_hood_end"]},
+  {id: "mouth_width_to_nose_width", name: "Mouth Width to Nose Width Ratio", category: "Proportions", description: "Mouth width compared with nose width.", requires: ["left_mouth_corner", "right_mouth_corner", "left_nose_side", "right_nose_side"]},
+  {id: "total_facial_width_to_height", name: "Total Facial Width to Height Ratio", category: "Proportions", description: "Cheekbone width compared with full face height.", requires: ["hairline", "chin_bottom", "left_cheekbone", "right_cheekbone"]},
+  {id: "chin_to_philtrum", name: "Chin to Philtrum Ratio", category: "Proportions", description: "Chin height compared with philtrum length.", requires: ["chin_bottom", "lower_lip_center", "cupids_bow", "nasal_base"]},
+  {id: "eyebrow_low_setedness", name: "Eyebrow Low Setedness", category: "Brows", description: "Brow-to-eye distance ratio.", requires: ["left_pupil", "right_pupil", "left_brow_inner_corner", "right_brow_inner_corner", "left_lower_eyelid", "left_upper_eyelid", "right_lower_eyelid", "right_upper_eyelid"]},
+  {id: "brow_length_to_face_width", name: "Brow Length to Face Width Ratio", category: "Brows", description: "Combined brow span divided by face width.", requires: ["left_cheekbone", "right_cheekbone", "left_brow_inner_corner", "left_brow_tail", "right_brow_inner_corner", "right_brow_tail"]},
+  {id: "nose_tip_position", name: "Nose Tip Position", category: "Nose", description: "Distance from nasal base to nose bottom.", requires: ["nasal_base", "nose_bottom"]},
+  {id: "deviation_iaa_jfa", name: "Deviation of IAA & JFA", category: "Proportions", description: "Difference between jaw frontal angle and ipsilateral alar angle.", requires: ["nasal_base", "left_eyelid_hood_end", "right_eyelid_hood_end", "left_lower_jaw_angle", "left_chin", "right_lower_jaw_angle", "right_chin"]},
+  {id: "lower_lip_to_upper_lip", name: "Lower Lip to Upper Lip Ratio", category: "Mouth", description: "Lower lip height compared with upper lip height.", requires: ["lower_lip_center", "mouth_middle", "cupids_bow"]},
+  {id: "lower_third_proportion", name: "Lower Third Proportion", category: "Proportions", description: "Nasal base to mouth middle as a share of lower face height.", requires: ["nasal_base", "mouth_middle", "chin_bottom"]}
+];
+let defs = [];
+let landmarks = [];
+let index = 0;
+let image = new Image();
+let imageLoaded = false;
+let drawBox = {x: 0, y: 0, w: 1, h: 1};
+let activeMetricId = null;
+
+const MEASUREMENT_GUIDES = {
+  lateral_canthal_tilt: {lines: [["left_medial_canthus", "left_lateral_canthus"], ["right_medial_canthus", "right_lateral_canthus"]]},
+  nose_bridge_to_width: {lines: [["left_nose_side", "right_nose_side"], ["left_nose_bridge", "right_nose_bridge"]]},
+  bitemporal_width: {lines: [["left_temple", "right_temple"], ["left_cheekbone", "right_cheekbone"]]},
+  cheekbone_height: {lines: [["left_cheekbone", "right_cheekbone"], ["left_pupil", "right_pupil"], ["cupids_bow", "left_cheekbone"], ["cupids_bow", "left_pupil"]], points: ["cupids_bow"]},
+  cupids_bow_depth: {lines: [["cupids_bow", "inner_cupids_bow"]]},
+  bigonial_width: {lines: [["left_upper_jaw_angle", "right_upper_jaw_angle"], ["left_cheekbone", "right_cheekbone"]]},
+  jaw_slope: {lines: [["left_cheekbone", "left_upper_jaw_angle"], ["left_lower_jaw_angle", "left_chin"], ["right_cheekbone", "right_upper_jaw_angle"], ["right_lower_jaw_angle", "right_chin"]]},
+  middle_third: {lines: [["hairline", "chin_bottom"], ["left_brow_head", "nasal_base"], ["right_brow_head", "nasal_base"]]},
+  eye_aspect_ratio: {lines: [["left_medial_canthus", "left_lateral_canthus"], ["left_upper_eyelid", "left_lower_eyelid"], ["right_medial_canthus", "right_lateral_canthus"], ["right_upper_eyelid", "right_lower_eyelid"]]},
+  mouth_corner_position: {lines: [["left_mouth_corner", "mouth_middle"], ["right_mouth_corner", "mouth_middle"]]},
+  eye_separation_ratio: {lines: [["left_pupil", "right_pupil"], ["left_cheekbone", "right_cheekbone"]]},
+  eyebrow_tilt: {lines: [["left_brow_head", "left_brow_peak"], ["right_brow_head", "right_brow_peak"]]},
+  lower_third: {lines: [["nasal_base", "chin_bottom"], ["hairline", "chin_bottom"]]},
+  face_width_to_height: {lines: [["left_cheekbone", "right_cheekbone"], ["cupids_bow", "left_brow_head"], ["cupids_bow", "right_brow_head"]]},
+  interpupillary_mouth_width: {lines: [["left_mouth_corner", "right_mouth_corner"], ["left_pupil", "right_pupil"]]},
+  jaw_frontal_angle: {lines: [["left_lower_jaw_angle", "left_chin"], ["right_lower_jaw_angle", "right_chin"]]},
+  intercanthal_nasal_width: {lines: [["left_nose_side", "right_nose_side"], ["left_medial_canthus", "right_medial_canthus"]]},
+  top_third: {lines: [["hairline", "left_brow_head"], ["hairline", "right_brow_head"], ["hairline", "chin_bottom"]]},
+  one_eye_apart: {lines: [["left_medial_canthus", "right_medial_canthus"], ["left_medial_canthus", "left_lateral_canthus"], ["right_medial_canthus", "right_lateral_canthus"]]},
+  midface_ratio: {lines: [["left_pupil", "right_pupil"], ["inner_cupids_bow", "left_pupil"], ["inner_cupids_bow", "right_pupil"]]},
+  ipsilateral_alar_angle: {lines: [["nasal_base", "left_eyelid_hood_end"], ["nasal_base", "right_eyelid_hood_end"]]},
+  mouth_width_to_nose_width: {lines: [["left_mouth_corner", "right_mouth_corner"], ["left_nose_side", "right_nose_side"]]},
+  total_facial_width_to_height: {lines: [["left_cheekbone", "right_cheekbone"], ["hairline", "chin_bottom"]]},
+  chin_to_philtrum: {lines: [["lower_lip_center", "chin_bottom"], ["nasal_base", "cupids_bow"]]},
+  eyebrow_low_setedness: {lines: [["left_pupil", "left_brow_inner_corner"], ["right_pupil", "right_brow_inner_corner"], ["left_upper_eyelid", "left_lower_eyelid"], ["right_upper_eyelid", "right_lower_eyelid"]]},
+  brow_length_to_face_width: {lines: [["left_brow_inner_corner", "left_brow_tail"], ["right_brow_inner_corner", "right_brow_tail"], ["left_cheekbone", "right_cheekbone"]]},
+  nose_tip_position: {lines: [["nasal_base", "nose_bottom"]]},
+  deviation_iaa_jfa: {lines: [["nasal_base", "left_eyelid_hood_end"], ["nasal_base", "right_eyelid_hood_end"], ["left_lower_jaw_angle", "left_chin"], ["right_lower_jaw_angle", "right_chin"]]},
+  lower_lip_to_upper_lip: {lines: [["lower_lip_center", "mouth_middle"], ["mouth_middle", "cupids_bow"]]},
+  lower_third_proportion: {lines: [["nasal_base", "mouth_middle"], ["nasal_base", "chin_bottom"]]}
+};
+
+function fitCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+  canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  draw();
+}
+
+function getDrawBox() {
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  if (!imageLoaded || !image.width || !image.height) return {x: 0, y: 0, w: cw, h: ch};
+  const ar = image.width / image.height;
+  const car = cw / ch;
+  if (ar > car) {
+    const w = cw;
+    const h = w / ar;
+    return {x: 0, y: (ch - h) / 2, w, h};
+  }
+  const h = ch;
+  const w = h * ar;
+  return {x: (cw - w) / 2, y: 0, w, h};
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+  drawBox = getDrawBox();
+  ctx.fillStyle = "#08090d";
+  ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+  if (imageLoaded) ctx.drawImage(image, drawBox.x, drawBox.y, drawBox.w, drawBox.h);
+
+  landmarks.forEach((lm, i) => {
+    const def = defs.find(d => d.id === lm.id) || {};
+    const x = drawBox.x + lm.x * drawBox.w;
+    const y = drawBox.y + lm.y * drawBox.h;
+    const color = def.color || "#2dd4bf";
+    ctx.beginPath();
+    ctx.arc(x, y, i === index ? 7 : 5, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#fff";
+    ctx.stroke();
+    ctx.font = "700 11px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#fff";
+    ctx.fillText(String(i + 1), x, y - 12);
+  });
+
+  drawActiveMeasurement();
+}
+
+function getLandmark(id) {
+  return landmarks.find(lm => lm.id === id && Number.isFinite(Number(lm.x)) && Number.isFinite(Number(lm.y)));
+}
+
+function toCanvasPoint(lm) {
+  return {
+    x: drawBox.x + Number(lm.x) * drawBox.w,
+    y: drawBox.y + Number(lm.y) * drawBox.h
+  };
+}
+
+function drawGuidePoint(lm, label) {
+  const point = toCanvasPoint(lm);
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(45, 212, 191, 0.95)";
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#051312";
+  ctx.stroke();
+  if (label) {
+    ctx.font = "800 11px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#f6f7fb";
+    ctx.fillText(label, point.x, point.y - 13);
+  }
+}
+
+function drawGuideLine(a, b, index) {
+  const start = getLandmark(a);
+  const end = getLandmark(b);
+  if (!start || !end) return;
+  const p1 = toCanvasPoint(start);
+  const p2 = toCanvasPoint(end);
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.55)";
+  ctx.beginPath();
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.stroke();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = index === 0 ? "#2dd4bf" : "#fbbf24";
+  ctx.setLineDash(index === 0 ? [] : [8, 6]);
+  ctx.beginPath();
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.stroke();
+  ctx.restore();
+  drawGuidePoint(start);
+  drawGuidePoint(end);
+}
+
+function drawActiveMeasurement() {
+  const guide = MEASUREMENT_GUIDES[activeMetricId];
+  if (!guide || !imageLoaded) return;
+  (guide.lines || []).forEach((line, i) => drawGuideLine(line[0], line[1], i));
+  (guide.points || []).forEach((id) => {
+    const lm = getLandmark(id);
+    if (lm) drawGuidePoint(lm);
+  });
+}
+
+function syncUi() {
+  const def = defs[index];
+  const placed = landmarks.length;
+  progressBar.style.width = defs.length ? `${placed / defs.length * 100}%` : "0%";
+  calcBtn.disabled = defs.length === 0 || getMissingLandmarks().length > 0;
+  autoBtn.disabled = !imageLoaded;
+  if (def) {
+    stepText.innerHTML = `<strong>${index + 1}/${defs.length}</strong> ${def.label}`;
+    stepHint.textContent = "Click the image to place or replace this point.";
+  }
+  jsonBox.value = JSON.stringify(landmarks, null, 2);
+  renderMeasurementCatalog();
+  draw();
+}
+
+function getMissingLandmarks() {
+  const placedIds = new Set(
+    landmarks
+      .filter(lm => lm && Number.isFinite(Number(lm.x)) && Number.isFinite(Number(lm.y)))
+      .map(lm => lm.id)
+  );
+  return defs.filter(def => !placedIds.has(def.id));
+}
+
+function hasPlacedLandmark(id) {
+  return landmarks.some(lm => lm && lm.id === id && Number.isFinite(Number(lm.x)) && Number.isFinite(Number(lm.y)));
+}
+
+function renderMeasurementCatalog() {
+  const readyCount = measurementDefs.filter(item => item.requires.every(hasPlacedLandmark)).length;
+  measurementCatalogEl.innerHTML = `
+    <div class="catalogHeader">
+      <span>Measurement checklist</span>
+      <span>${readyCount}/${measurementDefs.length} ready</span>
+    </div>
+    ${measurementDefs.map(item => {
+      const missing = item.requires.filter(id => !hasPlacedLandmark(id));
+      const state = missing.length === 0 ? "ready" : "waiting";
+      const label = missing.length === 0 ? "ready" : `${missing.length} missing`;
+      return `
+        <div class="catalogItem">
+          <div>
+            <div class="catalogName">${item.name}</div>
+            <div class="catalogDesc">${item.category}</div>
+          </div>
+          <div class="catalogDesc">${item.description}</div>
+          <span class="pill ${state}">${label}</span>
+        </div>
+      `;
+    }).join("")}
+  `;
+}
+
+function setPoint(nx, ny) {
+  if (!defs[index]) return;
+  const def = defs[index];
+  const next = landmarks.filter(l => l.id !== def.id);
+  next.push({id: def.id, x: Number(nx.toFixed(6)), y: Number(ny.toFixed(6)), label: def.label});
+  landmarks = next.sort((a, b) => defs.findIndex(d => d.id === a.id) - defs.findIndex(d => d.id === b.id));
+  if (index < defs.length - 1) index += 1;
+  syncUi();
+}
+
+canvas.addEventListener("click", (event) => {
+  if (!imageLoaded) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const nx = (x - drawBox.x) / drawBox.w;
+  const ny = (y - drawBox.y) / drawBox.h;
+  if (nx < 0 || nx > 1 || ny < 0 || ny > 1) return;
+  setPoint(nx, ny);
+});
+
+imageInput.addEventListener("change", () => {
+  const file = imageInput.files && imageInput.files[0];
+  if (!file) return;
+  activeMetricId = null;
+  metricsEl.innerHTML = "";
+  scoreEl.innerHTML = "";
+  const url = URL.createObjectURL(file);
+  image = new Image();
+  image.onload = () => { imageLoaded = true; fitCanvas(); syncUi(); };
+  image.src = url;
+});
+
+autoBtn.onclick = async () => {
+  const file = imageInput.files && imageInput.files[0];
+  if (!file) {
+    alert("Upload an image first.");
+    return;
+  }
+
+  const previousText = autoBtn.textContent;
+  autoBtn.disabled = true;
+  autoBtn.textContent = "Detecting...";
+
+  try {
+    const form = new FormData();
+    form.append("image", file);
+
+    const res = await fetch("/api/front-autolandmarks", {
+      method: "POST",
+      body: form
+    });
+    const payload = await res.json();
+    if (!payload.success) {
+      alert(payload.error || "Auto-detect failed");
+      return;
+    }
+
+    landmarks = (payload.landmarks || []).sort((a, b) => defs.findIndex(d => d.id === a.id) - defs.findIndex(d => d.id === b.id));
+    const missing = getMissingLandmarks();
+    const nextMissing = missing[0];
+    index = nextMissing ? defs.findIndex(def => def.id === nextMissing.id) : Math.max(0, defs.length - 1);
+    activeMetricId = null;
+    metricsEl.innerHTML = "";
+    scoreEl.innerHTML = "";
+    syncUi();
+
+    if (missing.length > 0) {
+      alert(`Auto-detected ${landmarks.length} landmarks. Missing ${missing.length}; place the remaining points manually.`);
+    }
+  } catch (err) {
+    alert(err.message || "Auto-detect failed");
+  } finally {
+    autoBtn.textContent = previousText;
+    syncUi();
+  }
+};
+
+document.getElementById("prevBtn").onclick = () => { index = Math.max(0, index - 1); syncUi(); };
+document.getElementById("nextBtn").onclick = () => { index = Math.min(defs.length - 1, index + 1); syncUi(); };
+document.getElementById("undoBtn").onclick = () => {
+  const def = defs[index];
+  if (!def) return;
+  landmarks = landmarks.filter(l => l.id !== def.id);
+  syncUi();
+};
+document.getElementById("clearBtn").onclick = () => {
+  landmarks = [];
+  index = 0;
+  activeMetricId = null;
+  metricsEl.innerHTML = "";
+  scoreEl.innerHTML = "";
+  syncUi();
+};
+document.getElementById("loadJsonBtn").onclick = () => {
+  try {
+    const parsed = JSON.parse(jsonBox.value);
+    landmarks = Array.isArray(parsed) ? parsed : [];
+    activeMetricId = null;
+    syncUi();
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
+calcBtn.onclick = async () => {
+  const missing = getMissingLandmarks();
+  if (missing.length > 0) {
+    alert(`Place all landmarks first. Missing ${missing.length}: ${missing.map(item => item.label).join(", ")}`);
+    return;
+  }
+
+  const res = await fetch("/api/front-metrics", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      gender: document.getElementById("gender").value,
+      ethnicity: document.getElementById("ethnicity").value,
+      landmarks,
+      frontAspect: imageLoaded ? image.width / image.height : 1
+    })
+  });
+  const payload = await res.json();
+  if (!payload.success) {
+    alert(payload.error || "Calculation failed");
+    return;
+  }
+  renderResults(payload.data);
+};
+
+function renderResults(data) {
+  activeMetricId = null;
+  const m = data.frontMeasurements || [];
+  scoreEl.innerHTML = `
+    <div class="stat"><b>${data.frontScore}</b><span>front score</span></div>
+    <div class="stat"><b>${m.length}/30</b><span>metrics calculated</span></div>
+    <div class="stat"><b>${data.groups.G_F1}</b><span>proportions</span></div>
+    <div class="stat"><b>${data.groups.G_F2}</b><span>eyes/brows</span></div>
+  `;
+  metricsEl.innerHTML = `
+    <div class="metric header"><span>Metric</span><span>Value</span><span class="hideMobile">Score</span><span>State</span></div>
+    ${m.map(item => `
+      <div class="metric" data-metric-id="${item.id}">
+        <span class="metricName">
+          <span>${item.name}</span>
+          <span class="help" tabindex="0" aria-label="${idealTip(item)}" data-tip="${idealTip(item)}">?</span>
+        </span>
+        <span>${item.value} ${unitLabel(item.unit)}</span>
+        <span class="hideMobile">${item.score}/10</span>
+        <span class="pill ${item.deviation}">${item.deviation}</span>
+      </div>
+    `).join("")}
+  `;
+  bindMetricHover();
+}
+
+function unitLabel(unit) {
+  if (unit === "percentage") return "%";
+  if (unit === "degrees") return "deg";
+  if (unit === "ratio") return "x";
+  return "px";
+}
+
+function idealTip(item) {
+  const ideal = item.idealRange || [];
+  const range = item.range || [];
+  const unit = unitLabel(item.unit);
+  return escapeAttr(`Ideal: ${formatRange(ideal, unit)}. Scored range: ${formatRange(range, unit)}. ${item.description || ""}`);
+}
+
+function formatRange(range, unit) {
+  if (!Array.isArray(range) || range.length < 2) return "unknown";
+  return `${Number(range[0]).toFixed(2)}-${Number(range[1]).toFixed(2)} ${unit}`;
+}
+
+function escapeAttr(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function bindMetricHover() {
+  metricsEl.querySelectorAll(".metric[data-metric-id]").forEach((row) => {
+    row.addEventListener("mouseenter", () => {
+      activeMetricId = row.dataset.metricId;
+      metricsEl.querySelectorAll(".metric.active").forEach(item => item.classList.remove("active"));
+      row.classList.add("active");
+      draw();
+    });
+    row.addEventListener("mouseleave", () => {
+      activeMetricId = null;
+      row.classList.remove("active");
+      draw();
+    });
+  });
+}
+
+async function boot() {
+  const res = await fetch("/api/front-landmarks");
+  const payload = await res.json();
+  defs = payload.landmarks || [];
+  syncUi();
+  fitCanvas();
+}
+
+window.addEventListener("resize", fitCanvas);
+boot();
+</script>
+</body>
+</html>
