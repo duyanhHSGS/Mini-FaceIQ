@@ -140,10 +140,42 @@
     }
     canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
     .metrics {
-      margin-top: 18px;
+      margin-top: 10px;
       border: 1px solid var(--line);
       border-radius: 8px;
       overflow: visible;
+    }
+    .resultsToolbar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 18px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    .resultsToolbar.active { display: flex; }
+    .resultsToolbar label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .toolbarControls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toolbarControls select {
+      width: min(220px, 100%);
+      padding: 8px 10px;
+    }
+    .copyScoresBtn {
+      flex: 0 0 auto;
+      padding: 8px 10px;
+      white-space: nowrap;
     }
     .metric {
       display: grid;
@@ -301,6 +333,9 @@
       .viewerPane { position: static; }
       .canvasWrap { height: min(68vh, 620px); min-height: 360px; }
       .metric { grid-template-columns: 1fr 80px; }
+      .resultsToolbar { align-items: stretch; flex-direction: column; }
+      .toolbarControls { align-items: stretch; flex-direction: column; }
+      .toolbarControls select, .copyScoresBtn { width: 100%; }
       .catalogItem { grid-template-columns: 1fr; }
       .metric .hideMobile { display: none; }
       .score { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -376,6 +411,17 @@
       <div class="resultsPane">
         <div id="score" class="score"></div>
         <div id="measurementCatalog" class="measurementCatalog"></div>
+        <div id="resultsToolbar" class="resultsToolbar">
+          <label for="metricSort">Scoring</label>
+          <div class="toolbarControls">
+            <select id="metricSort">
+              <option value="default">default order</option>
+              <option value="score-desc">highest score first</option>
+              <option value="score-asc">lowest score first</option>
+            </select>
+            <button id="copyScoresBtn" class="copyScoresBtn" type="button">Copy scores</button>
+          </div>
+        </div>
         <div id="metrics" class="metrics"></div>
       </div>
     </div>
@@ -395,8 +441,12 @@ const jsonBox = document.getElementById("jsonBox");
 const metricsEl = document.getElementById("metrics");
 const measurementCatalogEl = document.getElementById("measurementCatalog");
 const scoreEl = document.getElementById("score");
+const resultsToolbar = document.getElementById("resultsToolbar");
+const metricSort = document.getElementById("metricSort");
+const copyScoresBtn = document.getElementById("copyScoresBtn");
 const calcBtn = document.getElementById("calcBtn");
 const autoBtn = document.getElementById("autoBtn");
+let currentMeasurements = [];
 const measurementDefs = [
   {id: "lateral_canthal_tilt", name: "Lateral Canthal Tilt", category: "Eyes", description: "Eye angle relative to horizontal.", requires: ["left_medial_canthus", "left_lateral_canthus", "right_medial_canthus", "right_lateral_canthus"]},
   {id: "nose_bridge_to_width", name: "Nose Bridge to Nose Width Ratio", category: "Nose", description: "Nose side width compared with nose bridge width.", requires: ["left_nose_side", "right_nose_side", "left_nose_bridge", "right_nose_bridge"]},
@@ -798,16 +848,33 @@ calcBtn.onclick = async () => {
 
 function renderResults(data) {
   activeMetricId = null;
-  const m = data.frontMeasurements || [];
+  currentMeasurements = data.frontMeasurements || [];
   scoreEl.innerHTML = `
     <div class="stat"><b>${data.frontScore}</b><span>front score</span></div>
-    <div class="stat"><b>${m.length}/30</b><span>metrics calculated</span></div>
+    <div class="stat"><b>${currentMeasurements.length}/30</b><span>metrics calculated</span></div>
     <div class="stat"><b>${data.groups.G_F1}</b><span>proportions</span></div>
     <div class="stat"><b>${data.groups.G_F2}</b><span>eyes/brows</span></div>
   `;
+  resultsToolbar.classList.add("active");
+  renderMetricRows();
+}
+
+function getSortedMeasurements() {
+  const mode = metricSort.value;
+  const ranked = currentMeasurements.map((item, order) => ({item, order}));
+  if (mode === "score-desc") {
+    ranked.sort((a, b) => (b.item.score - a.item.score) || a.order - b.order);
+  } else if (mode === "score-asc") {
+    ranked.sort((a, b) => (a.item.score - b.item.score) || a.order - b.order);
+  }
+  return ranked.map(entry => entry.item);
+}
+
+function renderMetricRows() {
+  const sortedMeasurements = getSortedMeasurements();
   metricsEl.innerHTML = `
     <div class="metric header"><span>Metric</span><span>Value</span><span class="hideMobile">Score</span><span>State</span></div>
-    ${m.map(item => `
+    ${sortedMeasurements.map(item => `
       <div class="metric" data-metric-id="${item.id}">
         <span class="metricName">
           <span>${item.name}</span>
@@ -821,6 +888,39 @@ function renderResults(data) {
   `;
   bindMetricHover();
 }
+
+function formatMetricCopyLine(item) {
+  return `${item.name} : ${item.value} ${unitLabel(item.unit)} ${item.score}/10`;
+}
+
+async function copyScores() {
+  if (!currentMeasurements.length) return;
+  const text = getSortedMeasurements().map(formatMetricCopyLine).join("\n");
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const copyBox = document.createElement("textarea");
+    copyBox.value = text;
+    copyBox.setAttribute("readonly", "");
+    copyBox.style.position = "fixed";
+    copyBox.style.left = "-9999px";
+    document.body.appendChild(copyBox);
+    copyBox.select();
+    document.execCommand("copy");
+    copyBox.remove();
+  }
+  const oldText = copyScoresBtn.textContent;
+  copyScoresBtn.textContent = "Copied";
+  window.setTimeout(() => { copyScoresBtn.textContent = oldText; }, 1200);
+}
+
+metricSort.addEventListener("change", () => {
+  activeMetricId = null;
+  renderMetricRows();
+  draw();
+});
+
+copyScoresBtn.addEventListener("click", copyScores);
 
 function unitLabel(unit) {
   if (unit === "percentage") return "%";
