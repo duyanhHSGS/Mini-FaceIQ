@@ -5,5 +5,3 @@ outputs/
 *.png
 *.jpg
 *.jpeg
-*.weight
-*.task
