@@ -69,6 +69,7 @@
       font-weight: 700;
     }
     button.primary { background: var(--cyan); color: #051312; border-color: transparent; }
+    button.success { background: var(--green); color: #06140b; border-color: transparent; }
     button:disabled { opacity: 0.45; cursor: not-allowed; }
     .row { display: flex; gap: 8px; align-items: center; }
     .row > * { flex: 1; }
@@ -179,13 +180,14 @@
     }
     .metric {
       display: grid;
-      grid-template-columns: minmax(150px, 1.25fr) 84px 62px 108px;
-      gap: 12px;
+      grid-template-columns: minmax(150px, 1.35fr) minmax(70px, 0.45fr) 56px minmax(112px, 0.6fr);
+      gap: 8px;
       padding: 10px 12px;
       border-top: 1px solid var(--line);
       align-items: center;
       font-size: 13px;
     }
+    .metric > span { min-width: 0; }
     .metric:first-child { border-top: 0; }
     .metric:not(.header) { cursor: default; }
     .metric:not(.header):hover, .metric.active { background: #17202a; }
@@ -274,11 +276,15 @@
     .pill {
       display: inline-flex;
       justify-content: center;
-      min-width: 58px;
+      width: fit-content;
+      max-width: 100%;
+      min-width: 0;
       padding: 3px 8px;
       border-radius: 999px;
       background: #242936;
       color: var(--muted);
+      text-align: center;
+      white-space: normal;
     }
     .ideal { color: var(--green); }
     .low, .high { color: var(--amber); }
@@ -338,7 +344,7 @@
       main.uploadCollapsed .analysisLayout { grid-template-columns: 1fr; }
       .viewerPane { position: static; }
       .canvasWrap { height: min(68vh, 620px); min-height: 360px; }
-      .metric { grid-template-columns: 1fr 98px; }
+      .metric { grid-template-columns: minmax(0, 1fr) minmax(64px, 0.35fr) minmax(88px, 0.45fr); }
       .resultsToolbar { align-items: stretch; flex-direction: column; }
       .toolbarControls { align-items: stretch; flex-direction: column; }
       .toolbarControls select, .copyScoresBtn { width: 100%; }
@@ -366,9 +372,11 @@
         <option value="side">side profile</option>
       </select>
 
-      <label id="imageLabel" for="imageInput">Front face image</label>
-      <input id="imageInput" type="file" accept="image/*">
-      <button id="autoBtn" style="width:100%; margin-top:8px">Auto-detect landmarks</button>
+      <label id="frontImageLabel" for="frontImageInput">Front profile image</label>
+      <input id="frontImageInput" type="file" accept="image/*">
+      <label id="sideImageLabel" for="sideImageInput">Side profile image</label>
+      <input id="sideImageInput" type="file" accept="image/*">
+      <button id="autoBtn" class="success" style="width:100%; margin-top:8px">Auto-detect landmarks</button>
 
       <div class="row">
         <div>
@@ -408,6 +416,7 @@
         <button id="clearBtn">Clear all</button>
       </div>
       <button id="calcBtn" class="primary" style="width:100%; margin-top:8px">Calculate metrics</button>
+      <button id="calcAllBtn" class="primary" style="width:100%; margin-top:8px">Calculate both profiles</button>
 
       <h2>Landmark JSON</h2>
       <textarea id="jsonBox" spellcheck="false"></textarea>
@@ -447,8 +456,8 @@ const appShell = document.getElementById("appShell");
 const uploadToggle = document.getElementById("uploadToggle");
 const profileModeInput = document.getElementById("profileMode");
 const introCopy = document.getElementById("introCopy");
-const imageLabel = document.getElementById("imageLabel");
-const imageInput = document.getElementById("imageInput");
+const frontImageInput = document.getElementById("frontImageInput");
+const sideImageInput = document.getElementById("sideImageInput");
 const stepText = document.getElementById("stepText");
 const stepHint = document.getElementById("stepHint");
 const progressBar = document.getElementById("progressBar");
@@ -460,6 +469,7 @@ const resultsToolbar = document.getElementById("resultsToolbar");
 const metricSort = document.getElementById("metricSort");
 const copyScoresBtn = document.getElementById("copyScoresBtn");
 const calcBtn = document.getElementById("calcBtn");
+const calcAllBtn = document.getElementById("calcAllBtn");
 const autoBtn = document.getElementById("autoBtn");
 let currentMeasurements = [];
 let hasCalculatedResults = false;
@@ -532,11 +542,16 @@ const sideMeasurementDefs = [
 ];
 let measurementDefs = frontMeasurementDefs;
 let defs = [];
+let defsByProfile = {front: null, side: null};
 let landmarks = [];
 let landmarksByProfile = {front: [], side: []};
+let filesByProfile = {front: null, side: null};
+let imagesByProfile = {front: new Image(), side: new Image()};
+let imageLoadedByProfile = {front: false, side: false};
+let resultsByProfile = {front: null, side: null};
 let profileMode = "front";
 let index = 0;
-let image = new Image();
+let image = imagesByProfile.front;
 let imageLoaded = false;
 let drawBox = {x: 0, y: 0, w: 1, h: 1};
 let activeMetricId = null;
@@ -608,7 +623,7 @@ function draw() {
 
   const focusedIds = getActiveMeasurementLandmarkIds();
   const visibleLandmarks = focusedIds
-    ? landmarks.filter(lm => focusedIds.has(lm.id))
+    ? []
     : landmarks;
 
   visibleLandmarks.forEach((lm) => {
@@ -671,10 +686,10 @@ function toCanvasPoint(lm) {
 function drawGuidePoint(lm, label) {
   const point = toCanvasPoint(lm);
   ctx.beginPath();
-  ctx.arc(point.x, point.y, 5.5, 0, Math.PI * 2);
+  ctx.arc(point.x, point.y, 3.25, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(45, 212, 191, 0.95)";
   ctx.fill();
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 1.75;
   ctx.strokeStyle = "#051312";
   ctx.stroke();
   if (label) {
@@ -694,13 +709,13 @@ function drawGuideLine(a, b, index) {
   ctx.save();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  ctx.lineWidth = 8;
+  ctx.lineWidth = 5;
   ctx.strokeStyle = "rgba(0, 0, 0, 0.55)";
   ctx.beginPath();
   ctx.moveTo(p1.x, p1.y);
   ctx.lineTo(p2.x, p2.y);
   ctx.stroke();
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 2;
   ctx.strokeStyle = index === 0 ? "#2dd4bf" : "#fbbf24";
   ctx.setLineDash(index === 0 ? [] : [8, 6]);
   ctx.beginPath();
@@ -727,10 +742,10 @@ function syncUi() {
   const placed = landmarks.length;
   progressBar.style.width = defs.length ? `${placed / defs.length * 100}%` : "0%";
   calcBtn.disabled = defs.length === 0 || getMissingLandmarks().length > 0;
+  calcAllBtn.disabled = !canCalculateBothProfiles();
   autoBtn.disabled = !imageLoaded;
   autoBtn.textContent = "Auto-detect landmarks";
   calcBtn.textContent = profileMode === "front" ? "Calculate front metrics" : "Calculate side metrics";
-  imageLabel.textContent = profileMode === "front" ? "Front face image" : "Side profile image";
   introCopy.textContent = profileMode === "front"
     ? "Place the front landmarks, then calculate the 30 front profile metrics."
     : "Place the side landmarks, then calculate the side profile metrics.";
@@ -744,6 +759,35 @@ function syncUi() {
   jsonBox.value = JSON.stringify(landmarks, null, 2);
   renderMeasurementCatalog();
   draw();
+}
+
+function getDefsForProfile(mode) {
+  return defsByProfile[mode] || (mode === profileMode ? defs : []);
+}
+
+function getLandmarksForProfile(mode) {
+  return landmarksByProfile[mode] || [];
+}
+
+function getMissingLandmarksForProfile(mode) {
+  const profileDefs = getDefsForProfile(mode);
+  const placedIds = new Set(
+    getLandmarksForProfile(mode)
+      .filter(lm => lm && Number.isFinite(Number(lm.x)) && Number.isFinite(Number(lm.y)))
+      .map(lm => lm.id)
+  );
+  return profileDefs.filter(def => !placedIds.has(def.id));
+}
+
+function canCalculateBothProfiles() {
+  return Boolean(
+    imageLoadedByProfile.front &&
+    imageLoadedByProfile.side &&
+    getDefsForProfile("front").length &&
+    getDefsForProfile("side").length &&
+    getMissingLandmarksForProfile("front").length === 0 &&
+    getMissingLandmarksForProfile("side").length === 0
+  );
 }
 
 function getMissingLandmarks() {
@@ -789,6 +833,7 @@ function renderMeasurementCatalog() {
 function setPoint(nx, ny) {
   if (!defs[index]) return;
   hasCalculatedResults = false;
+  resultsByProfile[profileMode] = null;
   const def = defs[index];
   const next = landmarks.filter(l => l.id !== def.id);
   next.push({id: def.id, x: Number(nx.toFixed(6)), y: Number(ny.toFixed(6)), label: def.label});
@@ -809,26 +854,57 @@ canvas.addEventListener("click", (event) => {
   setPoint(nx, ny);
 });
 
-imageInput.addEventListener("change", () => {
-  const file = imageInput.files && imageInput.files[0];
+async function loadProfileImage(mode, file) {
   if (!file) return;
+  filesByProfile[mode] = file;
+  landmarksByProfile[mode] = [];
+  resultsByProfile[mode] = null;
+  const url = URL.createObjectURL(file);
+  const nextImage = new Image();
+  imagesByProfile[mode] = nextImage;
+  imageLoadedByProfile[mode] = false;
+  nextImage.onload = () => {
+    imageLoadedByProfile[mode] = true;
+    if (profileMode === mode) {
+      image = imagesByProfile[mode];
+      imageLoaded = true;
+      fitCanvas();
+      syncUi();
+    }
+  };
+  nextImage.src = url;
+
+  if (profileMode !== mode) {
+    await loadProfileDefs(mode);
+    return;
+  }
+
   activeMetricId = null;
   hasCalculatedResults = false;
+  resultsByProfile[mode] = null;
   landmarks = [];
-  landmarksByProfile[profileMode] = landmarks;
   index = 0;
+  currentMeasurements = [];
   metricsEl.innerHTML = "";
   scoreEl.innerHTML = "";
-  const url = URL.createObjectURL(file);
-  image = new Image();
-  image.onload = () => { imageLoaded = true; fitCanvas(); syncUi(); };
-  image.src = url;
+  resultsToolbar.classList.remove("active");
+  image = imagesByProfile[mode];
+  imageLoaded = imageLoadedByProfile[mode];
+  syncUi();
+}
+
+frontImageInput.addEventListener("change", () => {
+  loadProfileImage("front", frontImageInput.files && frontImageInput.files[0]);
+});
+
+sideImageInput.addEventListener("change", () => {
+  loadProfileImage("side", sideImageInput.files && sideImageInput.files[0]);
 });
 
 autoBtn.onclick = async () => {
-  const file = imageInput.files && imageInput.files[0];
+  const file = filesByProfile[profileMode];
   if (!file) {
-    alert("Upload an image first.");
+    alert(`Upload a ${profileMode} profile image first.`);
     return;
   }
 
@@ -852,6 +928,7 @@ autoBtn.onclick = async () => {
     }
 
     hasCalculatedResults = false;
+    resultsByProfile[profileMode] = null;
     landmarks = (payload.landmarks || []).sort((a, b) => defs.findIndex(d => d.id === a.id) - defs.findIndex(d => d.id === b.id));
     landmarksByProfile[profileMode] = landmarks;
     const missing = getMissingLandmarks();
@@ -879,12 +956,14 @@ document.getElementById("undoBtn").onclick = () => {
   const def = defs[index];
   if (!def) return;
   hasCalculatedResults = false;
+  resultsByProfile[profileMode] = null;
   landmarks = landmarks.filter(l => l.id !== def.id);
   landmarksByProfile[profileMode] = landmarks;
   syncUi();
 };
 document.getElementById("clearBtn").onclick = () => {
   hasCalculatedResults = false;
+  resultsByProfile[profileMode] = null;
   landmarks = [];
   landmarksByProfile[profileMode] = landmarks;
   index = 0;
@@ -897,6 +976,7 @@ document.getElementById("loadJsonBtn").onclick = () => {
   try {
     const parsed = JSON.parse(jsonBox.value);
     hasCalculatedResults = false;
+    resultsByProfile[profileMode] = null;
     landmarks = Array.isArray(parsed) ? parsed : [];
     landmarksByProfile[profileMode] = landmarks;
     activeMetricId = null;
@@ -913,58 +993,110 @@ uploadToggle.onclick = () => {
   window.setTimeout(fitCanvas, 200);
 };
 
-calcBtn.onclick = async () => {
-  const missing = getMissingLandmarks();
+function getProfileAspect(mode) {
+  const profileImage = imagesByProfile[mode];
+  return imageLoadedByProfile[mode] && profileImage.width && profileImage.height
+    ? profileImage.width / profileImage.height
+    : 1;
+}
+
+async function calculateProfile(mode) {
+  const missing = getMissingLandmarksForProfile(mode);
   if (missing.length > 0) {
-    alert(`Place all landmarks first. Missing ${missing.length}: ${missing.map(item => item.label).join(", ")}`);
-    return;
+    throw new Error(`Place all ${mode} landmarks first. Missing ${missing.length}: ${missing.map(item => item.label).join(", ")}`);
   }
 
-  const aspect = imageLoaded ? image.width / image.height : 1;
   const body = {
     gender: document.getElementById("gender").value,
     ethnicity: document.getElementById("ethnicity").value,
-    landmarks
+    landmarks: getLandmarksForProfile(mode)
   };
-  if (profileMode === "front") {
-    body.frontAspect = aspect;
+  if (mode === "front") {
+    body.frontAspect = getProfileAspect("front");
   } else {
-    body.sideAspect = aspect;
+    body.sideAspect = getProfileAspect("side");
   }
 
-  const res = await fetch(profileMode === "front" ? "/api/front-metrics" : "/api/side-metrics", {
+  const res = await fetch(mode === "front" ? "/api/front-metrics" : "/api/side-metrics", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify(body)
   });
   const payload = await res.json();
   if (!payload.success) {
-    alert(payload.error || "Calculation failed");
-    return;
+    throw new Error(payload.error || "Calculation failed");
   }
-  renderResults(payload.data);
+  return payload.data;
+}
+
+calcBtn.onclick = async () => {
+  try {
+    const data = await calculateProfile(profileMode);
+    renderResults(data, profileMode);
+  } catch (err) {
+    alert(err.message || "Calculation failed");
+  }
 };
 
-function renderResults(data) {
+calcAllBtn.onclick = async () => {
+  try {
+    await fetchDefsForProfile("front");
+    await fetchDefsForProfile("side");
+    if (!canCalculateBothProfiles()) {
+      const frontMissing = getMissingLandmarksForProfile("front").length;
+      const sideMissing = getMissingLandmarksForProfile("side").length;
+      alert(`Both profiles need complete uploads and landmarks first. Front missing: ${frontMissing}. Side missing: ${sideMissing}.`);
+      syncUi();
+      return;
+    }
+    const frontData = await calculateProfile("front");
+    const sideData = await calculateProfile("side");
+    resultsByProfile.front = frontData;
+    resultsByProfile.side = sideData;
+    renderStoredResults();
+  } catch (err) {
+    alert(err.message || "Calculation failed");
+  }
+};
+
+function renderResults(data, mode = profileMode) {
   activeMetricId = null;
   hasCalculatedResults = true;
-  currentMeasurements = profileMode === "front" ? (data.frontMeasurements || []) : (data.sideMeasurements || []);
+  resultsByProfile[mode] = data;
+  renderStoredResults();
+}
+
+function renderStoredResults() {
+  const frontData = resultsByProfile.front;
+  const sideData = resultsByProfile.side;
+  const activeData = resultsByProfile[profileMode];
+  hasCalculatedResults = Boolean(activeData);
+  currentMeasurements = activeData
+    ? (profileMode === "front" ? (activeData.frontMeasurements || []) : (activeData.sideMeasurements || []))
+    : [];
+  const data = activeData || {};
   const metricTotal = profileMode === "front" ? 30 : 33;
-  const groupA = profileMode === "front" ? data.groups.G_F1 : data.groups.G_S1;
-  const groupB = profileMode === "front" ? data.groups.G_F2 : data.groups.G_S2;
+  const groups = data.groups || {};
+  const groupA = profileMode === "front" ? groups.G_F1 : groups.G_S1;
+  const groupB = profileMode === "front" ? groups.G_F2 : groups.G_S2;
   const groupALabel = profileMode === "front" ? "proportions" : "profile";
   const groupBLabel = profileMode === "front" ? "eyes/brows" : "nose";
-  const hasFrontScore = (data.frontMeasurements || []).length > 0;
-  const hasSideScore = (data.sideMeasurements || []).length > 0;
+  const hasFrontScore = Boolean(frontData && (frontData.frontMeasurements || []).length);
+  const hasSideScore = Boolean(sideData && (sideData.sideMeasurements || []).length);
+  const frontScore = hasFrontScore ? frontData.frontScore : null;
+  const sideScore = hasSideScore ? sideData.sideScore : null;
+  const overallScore = hasFrontScore && hasSideScore
+    ? (Number(frontScore) + Number(sideScore)) / 2
+    : (hasFrontScore ? frontScore : sideScore);
   scoreEl.innerHTML = `
-    <div class="stat"><b>${formatScoreValue(data.overallScore, true)}</b><span>overall score</span></div>
-    <div class="stat"><b>${formatScoreValue(data.frontScore, hasFrontScore)}</b><span>front score</span></div>
-    <div class="stat"><b>${formatScoreValue(data.sideScore, hasSideScore)}</b><span>side score</span></div>
+    <div class="stat"><b>${formatScoreValue(overallScore, hasFrontScore || hasSideScore)}</b><span>overall score</span></div>
+    <div class="stat"><b>${formatScoreValue(frontScore, hasFrontScore)}</b><span>front score</span></div>
+    <div class="stat"><b>${formatScoreValue(sideScore, hasSideScore)}</b><span>side score</span></div>
     <div class="stat"><b>${currentMeasurements.length}/${metricTotal}</b><span>metrics calculated</span></div>
-    <div class="stat"><b>${groupA}</b><span>${groupALabel}</span></div>
-    <div class="stat"><b>${groupB}</b><span>${groupBLabel}</span></div>
+    <div class="stat"><b>${formatScoreValue(groupA, Boolean(activeData))}</b><span>${groupALabel}</span></div>
+    <div class="stat"><b>${formatScoreValue(groupB, Boolean(activeData))}</b><span>${groupBLabel}</span></div>
   `;
-  resultsToolbar.classList.add("active");
+  resultsToolbar.classList.toggle("active", currentMeasurements.length > 0);
   renderMeasurementCatalog();
   renderMetricRows();
 }
@@ -1092,26 +1224,38 @@ async function boot() {
   fitCanvas();
 }
 
+async function fetchDefsForProfile(mode) {
+  if (defsByProfile[mode]) return defsByProfile[mode];
+  const res = await fetch(mode === "front" ? "/api/front-landmarks" : "/api/side-landmarks");
+  const payload = await res.json();
+  defsByProfile[mode] = payload.landmarks || [];
+  return defsByProfile[mode];
+}
+
 async function loadProfileDefs(nextMode) {
   landmarksByProfile[profileMode] = landmarks;
   profileMode = nextMode;
   profileModeInput.value = profileMode;
   measurementDefs = profileMode === "front" ? frontMeasurementDefs : sideMeasurementDefs;
-  hasCalculatedResults = false;
-  const res = await fetch(profileMode === "front" ? "/api/front-landmarks" : "/api/side-landmarks");
-  const payload = await res.json();
-  defs = payload.landmarks || [];
+  defs = await fetchDefsForProfile(profileMode);
+  image = imagesByProfile[profileMode];
+  imageLoaded = imageLoadedByProfile[profileMode];
   landmarks = (landmarksByProfile[profileMode] || []).filter(lm => defs.some(def => def.id === lm.id));
   landmarksByProfile[profileMode] = landmarks;
   const missing = getMissingLandmarks();
   const nextMissing = missing[0];
   index = nextMissing ? defs.findIndex(def => def.id === nextMissing.id) : Math.max(0, defs.length - 1);
   activeMetricId = null;
-  currentMeasurements = [];
-  metricsEl.innerHTML = "";
-  scoreEl.innerHTML = "";
-  resultsToolbar.classList.remove("active");
   metricSort.value = "default";
+  if (resultsByProfile[profileMode]) {
+    renderStoredResults();
+  } else {
+    hasCalculatedResults = false;
+    currentMeasurements = [];
+    metricsEl.innerHTML = "";
+    scoreEl.innerHTML = "";
+    resultsToolbar.classList.remove("active");
+  }
   syncUi();
 }
 
