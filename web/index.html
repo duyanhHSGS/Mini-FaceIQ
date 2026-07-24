@@ -179,7 +179,7 @@
     }
     .metric {
       display: grid;
-      grid-template-columns: minmax(150px, 1.25fr) 84px 62px 84px;
+      grid-template-columns: minmax(150px, 1.25fr) 84px 62px 108px;
       gap: 12px;
       padding: 10px 12px;
       border-top: 1px solid var(--line);
@@ -242,6 +242,12 @@
       overflow: hidden;
       background: #11141a;
     }
+    .measurementCatalog.collapsed .catalogHeader {
+      border-bottom: 0;
+    }
+    .measurementCatalog.collapsed .catalogItem {
+      display: none;
+    }
     .catalogHeader {
       display: flex;
       justify-content: space-between;
@@ -280,7 +286,7 @@
     .waiting { color: var(--amber); }
     .score {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
       gap: 10px;
       margin-top: 16px;
     }
@@ -332,7 +338,7 @@
       main.uploadCollapsed .analysisLayout { grid-template-columns: 1fr; }
       .viewerPane { position: static; }
       .canvasWrap { height: min(68vh, 620px); min-height: 360px; }
-      .metric { grid-template-columns: 1fr 80px; }
+      .metric { grid-template-columns: 1fr 98px; }
       .resultsToolbar { align-items: stretch; flex-direction: column; }
       .toolbarControls { align-items: stretch; flex-direction: column; }
       .toolbarControls select, .copyScoresBtn { width: 100%; }
@@ -456,6 +462,7 @@ const copyScoresBtn = document.getElementById("copyScoresBtn");
 const calcBtn = document.getElementById("calcBtn");
 const autoBtn = document.getElementById("autoBtn");
 let currentMeasurements = [];
+let hasCalculatedResults = false;
 const frontMeasurementDefs = [
   {id: "lateral_canthal_tilt", name: "Lateral Canthal Tilt", category: "Eyes", description: "Eye angle relative to horizontal.", requires: ["left_medial_canthus", "left_lateral_canthus", "right_medial_canthus", "right_lateral_canthus"]},
   {id: "nose_bridge_to_width", name: "Nose Bridge to Nose Width Ratio", category: "Nose", description: "Nose side width compared with nose bridge width.", requires: ["left_nose_side", "right_nose_side", "left_nose_bridge", "right_nose_bridge"]},
@@ -720,8 +727,8 @@ function syncUi() {
   const placed = landmarks.length;
   progressBar.style.width = defs.length ? `${placed / defs.length * 100}%` : "0%";
   calcBtn.disabled = defs.length === 0 || getMissingLandmarks().length > 0;
-  autoBtn.disabled = !imageLoaded || profileMode !== "front";
-  autoBtn.textContent = profileMode === "front" ? "Auto-detect landmarks" : "Manual side mode";
+  autoBtn.disabled = !imageLoaded;
+  autoBtn.textContent = "Auto-detect landmarks";
   calcBtn.textContent = profileMode === "front" ? "Calculate front metrics" : "Calculate side metrics";
   imageLabel.textContent = profileMode === "front" ? "Front face image" : "Side profile image";
   introCopy.textContent = profileMode === "front"
@@ -754,10 +761,12 @@ function hasPlacedLandmark(id) {
 
 function renderMeasurementCatalog() {
   const readyCount = measurementDefs.filter(item => item.requires.every(hasPlacedLandmark)).length;
+  const shouldCollapse = hasCalculatedResults && readyCount === measurementDefs.length && currentMeasurements.length > 0;
+  measurementCatalogEl.classList.toggle("collapsed", shouldCollapse);
   measurementCatalogEl.innerHTML = `
     <div class="catalogHeader">
       <span>Measurement checklist</span>
-      <span>${readyCount}/${measurementDefs.length} ready</span>
+      <span>${shouldCollapse ? "all metrics calculated" : `${readyCount}/${measurementDefs.length} ready`}</span>
     </div>
     ${measurementDefs.map(item => {
       const missing = item.requires.filter(id => !hasPlacedLandmark(id));
@@ -779,6 +788,7 @@ function renderMeasurementCatalog() {
 
 function setPoint(nx, ny) {
   if (!defs[index]) return;
+  hasCalculatedResults = false;
   const def = defs[index];
   const next = landmarks.filter(l => l.id !== def.id);
   next.push({id: def.id, x: Number(nx.toFixed(6)), y: Number(ny.toFixed(6)), label: def.label});
@@ -803,6 +813,7 @@ imageInput.addEventListener("change", () => {
   const file = imageInput.files && imageInput.files[0];
   if (!file) return;
   activeMetricId = null;
+  hasCalculatedResults = false;
   landmarks = [];
   landmarksByProfile[profileMode] = landmarks;
   index = 0;
@@ -815,10 +826,6 @@ imageInput.addEventListener("change", () => {
 });
 
 autoBtn.onclick = async () => {
-  if (profileMode !== "front") {
-    alert("Side profile is manual in mini-faceIQ.");
-    return;
-  }
   const file = imageInput.files && imageInput.files[0];
   if (!file) {
     alert("Upload an image first.");
@@ -833,7 +840,8 @@ autoBtn.onclick = async () => {
     const form = new FormData();
     form.append("image", file);
 
-    const res = await fetch("/api/front-autolandmarks", {
+    const endpoint = profileMode === "front" ? "/api/front-autolandmarks" : "/api/side-autolandmarks";
+    const res = await fetch(endpoint, {
       method: "POST",
       body: form
     });
@@ -843,6 +851,7 @@ autoBtn.onclick = async () => {
       return;
     }
 
+    hasCalculatedResults = false;
     landmarks = (payload.landmarks || []).sort((a, b) => defs.findIndex(d => d.id === a.id) - defs.findIndex(d => d.id === b.id));
     landmarksByProfile[profileMode] = landmarks;
     const missing = getMissingLandmarks();
@@ -869,11 +878,13 @@ document.getElementById("nextBtn").onclick = () => { index = Math.min(defs.lengt
 document.getElementById("undoBtn").onclick = () => {
   const def = defs[index];
   if (!def) return;
+  hasCalculatedResults = false;
   landmarks = landmarks.filter(l => l.id !== def.id);
   landmarksByProfile[profileMode] = landmarks;
   syncUi();
 };
 document.getElementById("clearBtn").onclick = () => {
+  hasCalculatedResults = false;
   landmarks = [];
   landmarksByProfile[profileMode] = landmarks;
   index = 0;
@@ -885,6 +896,7 @@ document.getElementById("clearBtn").onclick = () => {
 document.getElementById("loadJsonBtn").onclick = () => {
   try {
     const parsed = JSON.parse(jsonBox.value);
+    hasCalculatedResults = false;
     landmarks = Array.isArray(parsed) ? parsed : [];
     landmarksByProfile[profileMode] = landmarks;
     activeMetricId = null;
@@ -935,22 +947,31 @@ calcBtn.onclick = async () => {
 
 function renderResults(data) {
   activeMetricId = null;
+  hasCalculatedResults = true;
   currentMeasurements = profileMode === "front" ? (data.frontMeasurements || []) : (data.sideMeasurements || []);
   const metricTotal = profileMode === "front" ? 30 : 33;
-  const mainScore = profileMode === "front" ? data.frontScore : data.sideScore;
-  const mainLabel = profileMode === "front" ? "front score" : "side score";
   const groupA = profileMode === "front" ? data.groups.G_F1 : data.groups.G_S1;
   const groupB = profileMode === "front" ? data.groups.G_F2 : data.groups.G_S2;
   const groupALabel = profileMode === "front" ? "proportions" : "profile";
   const groupBLabel = profileMode === "front" ? "eyes/brows" : "nose";
+  const hasFrontScore = (data.frontMeasurements || []).length > 0;
+  const hasSideScore = (data.sideMeasurements || []).length > 0;
   scoreEl.innerHTML = `
-    <div class="stat"><b>${mainScore}</b><span>${mainLabel}</span></div>
+    <div class="stat"><b>${formatScoreValue(data.overallScore, true)}</b><span>overall score</span></div>
+    <div class="stat"><b>${formatScoreValue(data.frontScore, hasFrontScore)}</b><span>front score</span></div>
+    <div class="stat"><b>${formatScoreValue(data.sideScore, hasSideScore)}</b><span>side score</span></div>
     <div class="stat"><b>${currentMeasurements.length}/${metricTotal}</b><span>metrics calculated</span></div>
     <div class="stat"><b>${groupA}</b><span>${groupALabel}</span></div>
     <div class="stat"><b>${groupB}</b><span>${groupBLabel}</span></div>
   `;
   resultsToolbar.classList.add("active");
+  renderMeasurementCatalog();
   renderMetricRows();
+}
+
+function formatScoreValue(score, isAvailable) {
+  if (!isAvailable || score === null || score === undefined) return "--";
+  return Number(score).toFixed(2).replace(/\.?0+$/, "");
 }
 
 function getSortedMeasurements() {
@@ -967,7 +988,7 @@ function getSortedMeasurements() {
 function renderMetricRows() {
   const sortedMeasurements = getSortedMeasurements();
   metricsEl.innerHTML = `
-    <div class="metric header"><span>Metric</span><span>Value</span><span class="hideMobile">Score</span><span>State</span></div>
+    <div class="metric header"><span>Metric</span><span>Value</span><span class="hideMobile">Score</span><span>Ideal fit</span></div>
     ${sortedMeasurements.map(item => `
       <div class="metric" data-metric-id="${item.id}">
         <span class="metricName">
@@ -976,11 +997,18 @@ function renderMetricRows() {
         </span>
         <span>${item.value} ${unitLabel(item.unit)}</span>
         <span class="hideMobile">${item.score}/10</span>
-        <span class="pill ${item.deviation}">${item.deviation}</span>
+        <span class="pill ${item.deviation}">${idealFitLabel(item.deviation)}</span>
       </div>
     `).join("")}
   `;
   bindMetricHover();
+}
+
+function idealFitLabel(deviation) {
+  if (deviation === "ideal") return "ideal";
+  if (deviation === "low") return "below ideal";
+  if (deviation === "high") return "above ideal";
+  return "unknown";
 }
 
 function formatMetricCopyLine(item) {
@@ -1069,6 +1097,7 @@ async function loadProfileDefs(nextMode) {
   profileMode = nextMode;
   profileModeInput.value = profileMode;
   measurementDefs = profileMode === "front" ? frontMeasurementDefs : sideMeasurementDefs;
+  hasCalculatedResults = false;
   const res = await fetch(profileMode === "front" ? "/api/front-landmarks" : "/api/side-landmarks");
   const payload = await res.json();
   defs = payload.landmarks || [];

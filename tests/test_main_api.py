@@ -262,3 +262,59 @@ def test_front_autolandmarks_returns_detector_output(monkeypatch):
 
     assert response.status_code == 200
     assert response.get_json() == {"success": True, "landmarks": detected}
+
+
+def test_side_autolandmarks_rejects_unsupported_upload_extension():
+    client = main.app.test_client()
+
+    response = client.post(
+        "/api/side-autolandmarks",
+        data={"image": (BytesIO(b"not an image"), "face.gif")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {"success": False, "error": "Use jpg, jpeg, png, or webp"}
+
+
+def test_side_autolandmarks_rejects_missing_upload():
+    client = main.app.test_client()
+
+    response = client.post("/api/side-autolandmarks", data={}, content_type="multipart/form-data")
+
+    assert response.status_code == 400
+    assert response.get_json() == {"success": False, "error": "No image file uploaded"}
+
+
+def test_side_autolandmarks_returns_detector_errors_as_json(monkeypatch):
+    client = main.app.test_client()
+
+    def fake_detect_side_landmarks_from_upload(image):
+        raise ValueError("No face detected")
+
+    monkeypatch.setattr(main, "detect_side_landmarks_from_upload", fake_detect_side_landmarks_from_upload)
+
+    response = client.post(
+        "/api/side-autolandmarks",
+        data={"image": (BytesIO(b"pretend image bytes"), "face.png")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 500
+    assert response.get_json() == {"success": False, "error": "No face detected"}
+
+
+def test_side_autolandmarks_returns_detector_output(monkeypatch):
+    client = main.app.test_client()
+    detected = [{"id": "nose_tip", "x": 0.55, "y": 0.32, "label": "Nose Tip"}]
+
+    monkeypatch.setattr(main, "detect_side_landmarks_from_upload", lambda image: detected)
+
+    response = client.post(
+        "/api/side-autolandmarks",
+        data={"image": (BytesIO(b"pretend image bytes"), "face.png")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {"success": True, "landmarks": detected}

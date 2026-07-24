@@ -5,6 +5,7 @@ from flask import Flask, jsonify, render_template, request
 from front_autolandmarks import detect_front_landmarks_from_upload
 from front_calculator import calculate_front_analysis
 from front_landmarks import FRONT_LANDMARK_DEFS
+from side_autolandmarks import detect_side_landmarks_from_upload
 from side_calculator import calculate_side_analysis
 from side_landmarks import SIDE_LANDMARK_DEFS
 
@@ -49,6 +50,25 @@ def front_autolandmarks():
 
     try:
         landmarks = detect_front_landmarks_from_upload(image)
+        return jsonify({"success": True, "landmarks": landmarks})
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/side-autolandmarks", methods=["POST"])
+def side_autolandmarks():
+    if "image" not in request.files:
+        return jsonify({"success": False, "error": "No image file uploaded"}), 400
+
+    image = request.files["image"]
+    if not image.filename:
+        return jsonify({"success": False, "error": "No selected file"}), 400
+
+    if not allowed_file(image.filename):
+        return jsonify({"success": False, "error": "Use jpg, jpeg, png, or webp"}), 400
+
+    try:
+        landmarks = detect_side_landmarks_from_upload(image)
         return jsonify({"success": True, "landmarks": landmarks})
     except Exception as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
