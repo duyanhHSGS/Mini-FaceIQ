@@ -1,8 +1,4 @@
-torch
-torchvision
 numpy
 opencv-python
-pillow
 mediapipe
-scipy
 flask

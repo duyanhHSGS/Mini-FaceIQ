@@ -1,8 +1,8 @@
 # mini-faceIQ
 
-`mini-faceIQ` is the small, standalone version of the FaceIQ scoring stack. It keeps the parts needed for local front/side landmark placement, geometry scoring, and learned attractiveness/feature heatmap scoring, while removing the larger Next.js onboarding/report app.
+`mini-faceIQ` is the small, standalone version of the FaceIQ geometry stack. It keeps the parts needed for local front/side landmark placement and geometry scoring, while removing the larger Next.js onboarding/report app and the learned AI attractiveness scorer.
 
-Think of it like Brain HQ after Uncle Manager cleaned the room: the big app's dashboard machinery is gone, 3DDFA auto side detection is gone, but the front/side geometry calculators and AI feature scorer are alive and useful.
+Think of it like Brain HQ after Uncle Manager cleaned the room: the big dashboard machinery is gone, the SCUT model is gone, heatmaps are gone, and the front/side geometry calculators are the main power source.
 
 ## Current Scope
 
@@ -16,9 +16,6 @@ Think of it like Brain HQ after Uncle Manager cleaned the room: the big app's da
 - Original 30 front-profile geometry metrics.
 - Manual side-profile geometry metrics.
 - Gender and ethnicity adjusted front/side ideal ranges.
-- Learned AI attractiveness score from the SCUT model code.
-- Region occlusion feature analysis for eyes, brows, nose, mouth, skin, and hair.
-- Heatmap output for the learned feature scorer.
 
 ### Not Included
 
@@ -26,9 +23,15 @@ Think of it like Brain HQ after Uncle Manager cleaned the room: the big app's da
 - React/TSX dashboard, onboarding, or routing.
 - 3DDFA side-profile geometric landmark detection.
 - 3DDFA automatic side-profile landmark placement.
+- PyTorch or TorchVision.
+- SCUT model architecture code.
+- Learned model weights.
+- AI attractiveness scoring endpoint.
+- Region occlusion feature analysis.
+- Heatmap generation.
 - Production auth, deployment config, or database storage.
 
-Important side-profile note: side-profile scoring is manual-landmark based in this mini app. The original larger app's 3DDFA automatic side landmark detector is still not included.
+Important side-profile note: side-profile scoring is manual-landmark based in this mini app. MediaPipe auto-landmarking is currently wired for front-facing images only.
 
 ## Architecture
 
@@ -43,14 +46,8 @@ mini-faceIQ/
   side_landmarks.py          Side landmark definitions and normalization
   side_calculator.py         Side-profile geometry metrics and scoring
   side_ideals.py             Gender/ethnicity-adjusted side ideal ranges
-  feature_scorer.py          CLI/API wrapper around learned model analysis
-  face_analyzer.py           Model loading, MediaPipe masks, occlusion, heatmap
+  face_analyzer.py           Minimal MediaPipe FaceLandmarker helper
   face_landmarker.task       Local MediaPipe FaceLandmarker model
-  code/scut/                 SCUT model architecture code
-  code/pretrain_model/       Learned model weights
-  outputs/
-    uploads/                 Saved uploaded images
-    heatmaps/                Saved heatmap PNGs
 ```
 
 ## Data Flow
@@ -73,16 +70,6 @@ mini-faceIQ/
 4. Browser sends normalized landmark coordinates to `/api/side-metrics`.
 5. `side_calculator.py` scales coordinates, computes side metrics, scores each metric, applies group weights and penalties, then returns JSON.
 
-### AI Feature Scoring Flow
-
-1. User uploads an image to `/api/analyze`, or runs `feature_scorer.py` from CLI.
-2. `face_analyzer.py` loads the SCUT model from `code/scut/` and `code/pretrain_model/net_cross_1.weight`.
-3. The image is resized/cropped to the model input shape.
-4. MediaPipe creates region masks for eyes, eyebrows, nose, mouth, skin, and hair.
-5. Each region is blurred/occluded and scored again.
-6. Score deltas estimate which regions helped or hurt the model output.
-7. A heatmap PNG can be saved under `outputs/heatmaps/`.
-
 ## HTTP API
 
 ### `GET /`
@@ -92,17 +79,6 @@ Serves the web UI.
 ### `GET /api/front-landmarks`
 
 Returns the front landmark definitions from `FRONT_LANDMARK_DEFS`.
-
-Response shape:
-
-```json
-{
-  "success": true,
-  "landmarks": [
-    { "id": "hairline", "label": "Hairline", "group": "head", "color": "#3b82f6" }
-  ]
-}
-```
 
 ### `GET /api/side-landmarks`
 
@@ -116,92 +92,15 @@ Form field:
 
 - `image`: `jpg`, `jpeg`, `png`, or `webp`
 
-Response shape:
-
-```json
-{
-  "success": true,
-  "landmarks": [
-    { "id": "left_pupil", "x": 0.38, "y": 0.36, "label": "Left Pupil" }
-  ]
-}
-```
-
 ### `POST /api/front-metrics`
 
 Calculates front-profile geometry metrics. All required front landmarks must be present.
-
-Request shape:
-
-```json
-{
-  "gender": "male",
-  "ethnicity": "asian",
-  "frontAspect": 1.0,
-  "landmarks": [
-    { "id": "hairline", "x": 0.5, "y": 0.08, "label": "Hairline" },
-    { "id": "left_pupil", "x": 0.38, "y": 0.36, "label": "Left Pupil" }
-  ]
-}
-```
-
-Response data includes:
-
-- `frontMeasurements`: metric table with values, units, scores, ideal ranges, deviations, and interpretations.
-- `frontScore`: weighted front-profile geometry score.
-- `overallScore`: front score when only front landmarks are being scored.
-- `sideMeasurements`: empty for this endpoint.
-- `sideScore`: `0` for this endpoint.
-- `groups`: `G_F1`, `G_F2`, `G_F3`, `G_S1`, `G_S2`, `G_S3`, `P_front`, `P_side`.
 
 ### `POST /api/side-metrics`
 
 Calculates side-profile geometry metrics. All required side landmarks must be present.
 
-Request shape:
-
-```json
-{
-  "gender": "male",
-  "ethnicity": "asian",
-  "sideAspect": 1.0,
-  "landmarks": [
-    { "id": "glabella", "x": 0.44, "y": 0.24, "label": "Glabella" },
-    { "id": "nose_tip", "x": 0.67, "y": 0.40, "label": "Nose Tip" }
-  ]
-}
-```
-
-Response data includes:
-
-- `sideMeasurements`: metric table with values, units, scores, ideal ranges, deviations, and interpretations.
-- `sideScore`: weighted side-profile geometry score.
-- `overallScore`: side score when only side landmarks are being scored.
-- `frontMeasurements`: empty for this endpoint.
-- `frontScore`: `0` for this endpoint.
-- `groups`: `G_F1`, `G_F2`, `G_F3`, `G_S1`, `G_S2`, `G_S3`, `P_front`, `P_side`.
-
-### `POST /api/analyze`
-
-Runs learned model attractiveness scoring and region occlusion analysis.
-
-Form field:
-
-- `image`: `jpg`, `jpeg`, `png`, or `webp`
-
-Response data includes:
-
-- `overall_score`: model score scaled to 0-100.
-- `score_10`: model score scaled to 1-10.
-- `features`: per-region contribution estimates.
-- `summary`: text summary from the occlusion run.
-- `region_polygons`: normalized polygons used by the UI.
-- `image_url`: saved upload path under `/outputs/uploads/`.
-- `heatmap_url`: saved heatmap path under `/outputs/heatmaps/`.
-
 ## Front Geometry Specs
-
-### Landmark Model
 
 `front_landmarks.py` defines the required front landmarks. They cover:
 
@@ -219,74 +118,9 @@ Coordinates are normalized browser/image coordinates:
 - `y`: `0.0` top to `1.0` bottom.
 - `frontAspect`: image width divided by image height.
 
-The calculator scales normalized points by `SCALE = 1000`, applies `frontAspect` to x, and computes all distances/angles from that scaled coordinate space.
-
-### Metrics
-
-The current front calculator can produce 30 metrics:
-
-- Lateral Canthal Tilt
-- Nose Bridge to Nose Width Ratio
-- Bitemporal Width
-- Cheekbone Height
-- Cupid's Bow Depth
-- Bigonial Width
-- Jaw Slope
-- Middle Third
-- Eye Aspect Ratio
-- Mouth Corner Position
-- Eye Separation Ratio
-- Eyebrow Tilt
-- Lower Third
-- Face Width to Height Ratio
-- Interpupillary-Mouth Width Ratio
-- Jaw Frontal Angle
-- Intercanthal-Nasal Width Ratio
-- Top Third
-- One Eye Apart Test
-- Midface Ratio
-- Ipsilateral Alar Angle
-- Mouth Width to Nose Width Ratio
-- Total Facial Width to Height Ratio
-- Chin to Philtrum Ratio
-- Eyebrow Low Setedness
-- Brow Length to Face Width Ratio
-- Nose Tip Position
-- Deviation of IAA & JFA
-- Lower Lip to Upper Lip Ratio
-- Lower Third Proportion
-
-### Scoring
-
-Each metric is scored with a plateau Gaussian:
-
-- Values inside the ideal range receive `10.0`.
-- Values outside the ideal range decay smoothly toward a floor score.
-- Very low metric scores contribute to a capped front penalty.
-
-Front group weighting:
-
-- `G_F1`: facial thirds, width/height, midface, jaw/face proportions.
-- `G_F2`: eyes, brows, cheekbone-related measurements.
-- `G_F3`: jaw, mouth, nose, lower-face measurements.
-
-Final front score:
-
-```text
-frontScore = G_F1 * 0.40 + G_F2 * 0.30 + G_F3 * 0.30 - P_front
-```
-
-Mini overall score:
-
-```text
-overallScore = frontScore
-```
-
-The mini endpoints score one profile at a time. Combined front/side report weighting is still a larger-app behavior.
+The current front calculator can produce 30 metrics.
 
 ## Side Geometry Specs
-
-### Landmark Model
 
 `side_landmarks.py` defines the required side landmarks. They cover:
 
@@ -301,30 +135,6 @@ Coordinates use the same normalized browser/image coordinate model as front land
 - `x`: `0.0` left to `1.0` right.
 - `y`: `0.0` top to `1.0` bottom.
 - `sideAspect`: image width divided by image height.
-
-## AI Feature Scoring Specs
-
-`feature_scorer.py` wraps `face_analyzer.analyze_face`.
-
-The learned scorer:
-
-- Uses PyTorch and the SCUT model code under `code/scut/`.
-- Loads `code/pretrain_model/net_cross_1.weight` when present.
-- Uses CUDA if available, otherwise CPU.
-- Uses MediaPipe for face and region landmarks.
-- Falls back to coarse Haar-style masks if MediaPipe landmarks are unavailable.
-- Produces a score plus region occlusion deltas.
-
-Feature regions:
-
-- Left Eye
-- Right Eye
-- Left Eyebrow
-- Right Eyebrow
-- Nose
-- Mouth
-- Skin
-- Hair
 
 ## Usage
 
@@ -344,29 +154,13 @@ http://127.0.0.1:7860
 
 Use the UI to choose front or side mode, upload a photo, place landmarks, choose gender/ethnicity, and calculate metrics. Front mode can use auto-detect as a helper; side mode is manual.
 
-### CLI Feature Scorer
-
-```powershell
-python feature_scorer.py path\to\face.jpg
-```
-
-Save a heatmap:
-
-```powershell
-python feature_scorer.py path\to\face.jpg --heatmap outputs\heatmap.png
-```
-
 ## Dependencies
 
 `requirements.txt` lists the expected Python packages:
 
-- `torch`
-- `torchvision`
 - `numpy`
 - `opencv-python`
-- `pillow`
 - `mediapipe`
-- `scipy`
 - `flask`
 
 Install dependencies only when you choose to:
@@ -381,5 +175,4 @@ pip install -r requirements.txt
 - Side-profile geometry requires a clear side photo.
 - Auto-landmarks are a helper, not a guaranteed final answer; manual correction is still expected.
 - The geometry scorer depends on landmark placement quality.
-- The learned model score is separate from the geometry score.
-- 3DDFA assets and automatic side-profile mesh mapping remain in the larger project, not here.
+- MediaPipe front auto-landmarks do not replace manual side-profile landmark placement.
