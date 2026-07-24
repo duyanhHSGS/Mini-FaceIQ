@@ -1,8 +1,8 @@
 # mini-faceIQ
 
-`mini-faceIQ` is the small, standalone version of the FaceIQ scoring stack. It keeps the parts needed for local front-profile landmark placement, front-profile geometry scoring, and learned attractiveness/feature heatmap scoring, while removing the larger Next.js onboarding/report app.
+`mini-faceIQ` is the small, standalone version of the FaceIQ scoring stack. It keeps the parts needed for local front/side landmark placement, geometry scoring, and learned attractiveness/feature heatmap scoring, while removing the larger Next.js onboarding/report app.
 
-Think of it like Brain HQ after Uncle Manager cleaned the room: the big app's side-profile and dashboard machinery is mostly gone, but the front-profile calculator and AI feature scorer are still alive and useful.
+Think of it like Brain HQ after Uncle Manager cleaned the room: the big app's dashboard machinery is gone, 3DDFA auto side detection is gone, but the front/side geometry calculators and AI feature scorer are alive and useful.
 
 ## Current Scope
 
@@ -10,11 +10,12 @@ Think of it like Brain HQ after Uncle Manager cleaned the room: the big app's si
 
 - Local Flask web app served from `main.py`.
 - Plain HTML/CSS/JavaScript UI in `web/index.html`.
-- Front-facing image upload.
-- Manual front landmark placement on a canvas.
+- Front-facing or side-profile image upload.
+- Manual front and side landmark placement on a canvas.
 - MediaPipe-based front landmark auto-detection helper.
 - Original 30 front-profile geometry metrics.
-- Gender and ethnicity adjusted front-profile ideal ranges.
+- Manual side-profile geometry metrics.
+- Gender and ethnicity adjusted front/side ideal ranges.
 - Learned AI attractiveness score from the SCUT model code.
 - Region occlusion feature analysis for eyes, brows, nose, mouth, skin, and hair.
 - Heatmap output for the learned feature scorer.
@@ -24,10 +25,10 @@ Think of it like Brain HQ after Uncle Manager cleaned the room: the big app's si
 - The full `LooksmaxAI` Next.js app.
 - React/TSX dashboard, onboarding, or routing.
 - 3DDFA side-profile geometric landmark detection.
-- Side-profile geometric measurements.
+- 3DDFA automatic side-profile landmark placement.
 - Production auth, deployment config, or database storage.
 
-Important side-profile note: the original larger app has side-profile scoring, but this mini app does not. In `mini-faceIQ`, `sideMeasurements` is always empty and `sideScore` is currently `0`.
+Important side-profile note: side-profile scoring is manual-landmark based in this mini app. The original larger app's 3DDFA automatic side landmark detector is still not included.
 
 ## Architecture
 
@@ -39,6 +40,9 @@ mini-faceIQ/
   front_autolandmarks.py     MediaPipe-to-front-landmark mapping
   front_calculator.py        30 front-profile geometry metrics and scoring
   front_ideals.py            Gender/ethnicity-adjusted ideal ranges
+  side_landmarks.py          Side landmark definitions and normalization
+  side_calculator.py         Side-profile geometry metrics and scoring
+  side_ideals.py             Gender/ethnicity-adjusted side ideal ranges
   feature_scorer.py          CLI/API wrapper around learned model analysis
   face_analyzer.py           Model loading, MediaPipe masks, occlusion, heatmap
   face_landmarker.task       Local MediaPipe FaceLandmarker model
@@ -60,6 +64,14 @@ mini-faceIQ/
 5. `front_autolandmarks.py` uses MediaPipe landmarks through `face_analyzer.get_landmarks_mp`.
 6. Browser sends normalized landmark coordinates to `/api/front-metrics`.
 7. `front_calculator.py` scales coordinates, computes 30 front metrics, scores each metric, applies group weights and penalties, then returns JSON.
+
+### Side Geometry Flow
+
+1. User chooses side profile mode and uploads a side-profile image.
+2. UI asks `/api/side-landmarks` for the required landmark list.
+3. User places side landmarks manually.
+4. Browser sends normalized landmark coordinates to `/api/side-metrics`.
+5. `side_calculator.py` scales coordinates, computes side metrics, scores each metric, applies group weights and penalties, then returns JSON.
 
 ### AI Feature Scoring Flow
 
@@ -91,6 +103,10 @@ Response shape:
   ]
 }
 ```
+
+### `GET /api/side-landmarks`
+
+Returns the side landmark definitions from `SIDE_LANDMARK_DEFS`.
 
 ### `POST /api/front-autolandmarks`
 
@@ -133,9 +149,36 @@ Response data includes:
 
 - `frontMeasurements`: metric table with values, units, scores, ideal ranges, deviations, and interpretations.
 - `frontScore`: weighted front-profile geometry score.
-- `overallScore`: currently `frontScore * 0.60` because side scoring is not included.
-- `sideMeasurements`: always empty in this mini app.
-- `sideScore`: always `0` in this mini app.
+- `overallScore`: front score when only front landmarks are being scored.
+- `sideMeasurements`: empty for this endpoint.
+- `sideScore`: `0` for this endpoint.
+- `groups`: `G_F1`, `G_F2`, `G_F3`, `G_S1`, `G_S2`, `G_S3`, `P_front`, `P_side`.
+
+### `POST /api/side-metrics`
+
+Calculates side-profile geometry metrics. All required side landmarks must be present.
+
+Request shape:
+
+```json
+{
+  "gender": "male",
+  "ethnicity": "asian",
+  "sideAspect": 1.0,
+  "landmarks": [
+    { "id": "glabella", "x": 0.44, "y": 0.24, "label": "Glabella" },
+    { "id": "nose_tip", "x": 0.67, "y": 0.40, "label": "Nose Tip" }
+  ]
+}
+```
+
+Response data includes:
+
+- `sideMeasurements`: metric table with values, units, scores, ideal ranges, deviations, and interpretations.
+- `sideScore`: weighted side-profile geometry score.
+- `overallScore`: side score when only side landmarks are being scored.
+- `frontMeasurements`: empty for this endpoint.
+- `frontScore`: `0` for this endpoint.
 - `groups`: `G_F1`, `G_F2`, `G_F3`, `G_S1`, `G_S2`, `G_S3`, `P_front`, `P_side`.
 
 ### `POST /api/analyze`
@@ -236,10 +279,28 @@ frontScore = G_F1 * 0.40 + G_F2 * 0.30 + G_F3 * 0.30 - P_front
 Mini overall score:
 
 ```text
-overallScore = frontScore * 0.60
+overallScore = frontScore
 ```
 
-That overall behavior mirrors the larger app's front/side weighting, but because side scoring is absent here, it intentionally leaves the side contribution at zero.
+The mini endpoints score one profile at a time. Combined front/side report weighting is still a larger-app behavior.
+
+## Side Geometry Specs
+
+### Landmark Model
+
+`side_landmarks.py` defines the required side landmarks. They cover:
+
+- Head/profile: top of head, occiput, hairline, forehead, glabella.
+- Nose: nasal bridge root, rhinion, supratip, nose tip, infratip, columella, subnasale, subalare.
+- Mouth/chin: lips, mouth corner, labiomental fold, chin point, chin bottom.
+- Ears/jaw/neck: porion, tragus, intertragic notch, jaw angles, cervical point, neck point.
+- Eyes/cheeks: orbitale, corneal apex, eyelid end, lower eyelid, cheekbone.
+
+Coordinates use the same normalized browser/image coordinate model as front landmarks:
+
+- `x`: `0.0` left to `1.0` right.
+- `y`: `0.0` top to `1.0` bottom.
+- `sideAspect`: image width divided by image height.
 
 ## AI Feature Scoring Specs
 
@@ -281,7 +342,7 @@ Then open:
 http://127.0.0.1:7860
 ```
 
-Use the UI to upload a front-facing photo, place or auto-detect landmarks, choose gender/ethnicity, and calculate metrics.
+Use the UI to choose front or side mode, upload a photo, place landmarks, choose gender/ethnicity, and calculate metrics. Front mode can use auto-detect as a helper; side mode is manual.
 
 ### CLI Feature Scorer
 
@@ -317,9 +378,8 @@ pip install -r requirements.txt
 ## Limitations
 
 - Front-profile geometry requires a clear, mostly front-facing photo.
+- Side-profile geometry requires a clear side photo.
 - Auto-landmarks are a helper, not a guaranteed final answer; manual correction is still expected.
 - The geometry scorer depends on landmark placement quality.
 - The learned model score is separate from the geometry score.
-- Side-profile scoring is not implemented in this mini project.
-- 3DDFA assets and side-profile mesh mapping remain in the larger project, not here.
-
+- 3DDFA assets and automatic side-profile mesh mapping remain in the larger project, not here.

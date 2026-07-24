@@ -410,7 +410,7 @@ def calculate_front_analysis(front_landmarks, gender="male", ethnicity="asian", 
     side_penalty = 0
     raw_front_score = g_f1 * 0.40 + g_f2 * 0.30 + g_f3 * 0.30 - penalty
     raw_side_score = 0 - side_penalty
-    raw_overall_score = raw_front_score * 0.60 + raw_side_score * 0.40
+    raw_overall_score = raw_front_score
 
     category_totals = defaultdict(float)
     category_counts = defaultdict(int)

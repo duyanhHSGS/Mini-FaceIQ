@@ -348,13 +348,19 @@
     <div class="uploadHeader">
       <div class="uploadTitle">
         <h1>mini-faceIQ</h1>
-        <p>Place the front landmarks, then calculate the 30 front profile metrics.</p>
+        <p id="introCopy">Place the front landmarks, then calculate the 30 front profile metrics.</p>
       </div>
       <button id="uploadToggle" class="collapseBtn" type="button" aria-label="Collapse upload section" aria-expanded="true"></button>
     </div>
 
     <div class="uploadBody">
-      <label for="imageInput">Front face image</label>
+      <label for="profileMode">Profile</label>
+      <select id="profileMode">
+        <option value="front">front profile</option>
+        <option value="side">side profile</option>
+      </select>
+
+      <label id="imageLabel" for="imageInput">Front face image</label>
       <input id="imageInput" type="file" accept="image/*">
       <button id="autoBtn" style="width:100%; margin-top:8px">Auto-detect landmarks</button>
 
@@ -433,6 +439,9 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const appShell = document.getElementById("appShell");
 const uploadToggle = document.getElementById("uploadToggle");
+const profileModeInput = document.getElementById("profileMode");
+const introCopy = document.getElementById("introCopy");
+const imageLabel = document.getElementById("imageLabel");
 const imageInput = document.getElementById("imageInput");
 const stepText = document.getElementById("stepText");
 const stepHint = document.getElementById("stepHint");
@@ -447,7 +456,7 @@ const copyScoresBtn = document.getElementById("copyScoresBtn");
 const calcBtn = document.getElementById("calcBtn");
 const autoBtn = document.getElementById("autoBtn");
 let currentMeasurements = [];
-const measurementDefs = [
+const frontMeasurementDefs = [
   {id: "lateral_canthal_tilt", name: "Lateral Canthal Tilt", category: "Eyes", description: "Eye angle relative to horizontal.", requires: ["left_medial_canthus", "left_lateral_canthus", "right_medial_canthus", "right_lateral_canthus"]},
   {id: "nose_bridge_to_width", name: "Nose Bridge to Nose Width Ratio", category: "Nose", description: "Nose side width compared with nose bridge width.", requires: ["left_nose_side", "right_nose_side", "left_nose_bridge", "right_nose_bridge"]},
   {id: "bitemporal_width", name: "Bitemporal Width", category: "Head", description: "Temple width compared with cheekbone face width.", requires: ["left_temple", "right_temple", "left_cheekbone", "right_cheekbone"]},
@@ -479,8 +488,46 @@ const measurementDefs = [
   {id: "lower_lip_to_upper_lip", name: "Lower Lip to Upper Lip Ratio", category: "Mouth", description: "Lower lip height compared with upper lip height.", requires: ["lower_lip_center", "mouth_middle", "cupids_bow"]},
   {id: "lower_third_proportion", name: "Lower Third Proportion", category: "Proportions", description: "Nasal base to mouth middle as a share of lower face height.", requires: ["nasal_base", "mouth_middle", "chin_bottom"]}
 ];
+const sideMeasurementDefs = [
+  {id: "nasal_tip_angle", name: "Nasal Tip Angle", category: "Nose", description: "Angle at the nose tip.", requires: ["infratip", "nose_tip", "supratip"]},
+  {id: "nasal_width_to_height", name: "Nasal Width to Height Ratio", category: "Nose", description: "Nasal width compared with nasal height.", requires: ["nose_tip", "subalare", "nasal_bridge_root"]},
+  {id: "upper_lip_s_line", name: "Upper Lip S-Line Position", category: "Lips", description: "Upper lip position relative to S-line.", requires: ["upper_lip", "columella", "chin_point"]},
+  {id: "upper_lip_burstone", name: "Upper Lip Burstone Line", category: "Lips", description: "Upper lip position relative to Burstone line.", requires: ["upper_lip", "subnasale", "chin_point"]},
+  {id: "nasal_projection", name: "Nasal Projection", category: "Nose", description: "Nasal projection relative to nasal height.", requires: ["subalare", "nose_tip", "nasal_bridge_root"]},
+  {id: "nasofrontal_angle", name: "Nasofrontal Angle", category: "Nose", description: "Angle between glabella, nasion, and rhinion.", requires: ["glabella", "nasal_bridge_root", "rhinion"]},
+  {id: "recession_frankfort", name: "Recession (Frankfort Plane)", category: "Profile", description: "Chin position relative to Frankfort plane.", requires: ["chin_point", "porion", "orbitale", "nasal_bridge_root"]},
+  {id: "holdaway_h_line", name: "Holdaway H Line", category: "Profile", description: "Lower lip position relative to Holdaway H-line.", requires: ["upper_lip", "chin_point", "lower_lip"]},
+  {id: "mentolabial_angle", name: "Mentolabial Angle", category: "Chin", description: "Angle between lower lip and chin fold.", requires: ["lower_lip", "labiomental_fold", "chin_point"]},
+  {id: "upper_forehead_slope", name: "Upper Forehead Slope", category: "Forehead", description: "Forehead slope from hairline and glabella.", requires: ["forehead", "glabella", "hairline_profile"]},
+  {id: "facial_convexity_nasion", name: "Facial Convexity (Nasion)", category: "Profile", description: "Profile convexity using nasion.", requires: ["nasal_bridge_root", "subnasale", "chin_point"]},
+  {id: "anterior_facial_depth", name: "Anterior Facial Depth", category: "Proportions", description: "Depth angle from tragus and orbitale.", requires: ["tragus", "subalare", "orbitale"]},
+  {id: "upper_lip_e_line", name: "Upper Lip E-Line Position", category: "Lips", description: "Upper lip position relative to E-line.", requires: ["upper_lip", "nose_tip", "chin_point"]},
+  {id: "submental_cervical_angle", name: "Submental Cervical Angle", category: "Neck", description: "Neck and underside-of-chin angle.", requires: ["chin_bottom", "cervical_point", "neck_point"]},
+  {id: "facial_depth_to_height", name: "Facial Depth to Height Ratio", category: "Proportions", description: "Facial depth divided by facial height.", requires: ["subnasale", "tragus", "nasal_bridge_root", "labiomental_fold"]},
+  {id: "browridge_inclination", name: "Browridge Inclination Angle", category: "Brows", description: "Line from glabella to hairline.", requires: ["glabella", "hairline_profile"]},
+  {id: "total_facial_convexity", name: "Total Facial Convexity", category: "Profile", description: "Convexity angle at nose tip.", requires: ["chin_point", "nose_tip", "glabella"]},
+  {id: "facial_convexity_glabella", name: "Facial Convexity (Glabella)", category: "Profile", description: "Profile convexity using glabella.", requires: ["glabella", "subnasale", "chin_point"]},
+  {id: "orbital_vector", name: "Orbital Vector", category: "Eyes", description: "Orbitale position relative to lower eyelid.", requires: ["orbitale", "lower_eyelid"]},
+  {id: "interior_midface_projection", name: "Interior Midface Projection Angle", category: "Midface", description: "Midface projection angle.", requires: ["eyelid_end", "subalare"]},
+  {id: "z_angle", name: "Z Angle", category: "Profile", description: "Profile angle from cheekbone, rhinion, chin, and infratip.", requires: ["cheekbone", "rhinion", "chin_point", "infratip"]},
+  {id: "nose_tip_rotation", name: "Nose Tip Rotation Angle", category: "Nose", description: "Nose tip rotation geometry.", requires: ["rhinion", "cheekbone", "subnasale", "infratip"]},
+  {id: "nasolabial_angle", name: "Nasolabial Angle", category: "Nose", description: "Angle between nose base and upper lip.", requires: ["columella", "subnasale", "upper_lip"]},
+  {id: "nasofacial_angle", name: "Nasofacial Angle", category: "Nose", description: "Angle at nasion between chin and nose tip.", requires: ["nasal_bridge_root", "chin_point", "nose_tip"]},
+  {id: "nasomental_angle", name: "Nasomental Angle", category: "Profile", description: "Angle at nose tip between nasion and chin.", requires: ["nasal_bridge_root", "nose_tip", "chin_point"]},
+  {id: "frankfort_tip_angle", name: "Frankfort-Tip Angle", category: "Nose", description: "Tip angle from columella and cheekbone-rhinion line.", requires: ["columella", "subnasale", "cheekbone", "rhinion"]},
+  {id: "lower_lip_s_line", name: "Lower Lip S-Line Position", category: "Lips", description: "Lower lip position relative to S-line.", requires: ["lower_lip", "columella", "chin_point"]},
+  {id: "lower_lip_e_line", name: "Lower Lip E-Line Position", category: "Lips", description: "Lower lip position relative to E-line.", requires: ["lower_lip", "nose_tip", "chin_point"]},
+  {id: "lower_lip_burstone", name: "Lower Lip Burstone Line", category: "Lips", description: "Lower lip position relative to Burstone line.", requires: ["lower_lip", "subnasale", "chin_point"]},
+  {id: "gonial_angle", name: "Gonial Angle", category: "Jaw", description: "Side jaw angle.", requires: ["intertragic_notch", "upper_jaw_angle", "chin_bottom", "lower_jaw_angle"]},
+  {id: "mandibular_plane_angle", name: "Mandibular Plane Angle", category: "Jaw", description: "Jaw plane angle from lower jaw to chin.", requires: ["lower_jaw_angle", "chin_bottom"]},
+  {id: "ramus_to_mandible", name: "Ramus to Mandible Ratio", category: "Jaw", description: "Ramus height compared with mandibular body length.", requires: ["chin_bottom", "lower_jaw_angle", "tragus", "upper_jaw_angle", "chin_point"]},
+  {id: "gonion_to_mouth", name: "Gonion to Mouth Line", category: "Jaw", description: "Gonion height relative to mouth corner.", requires: ["chin_bottom", "lower_jaw_angle", "tragus", "upper_jaw_angle", "mouth_corner"]}
+];
+let measurementDefs = frontMeasurementDefs;
 let defs = [];
 let landmarks = [];
+let landmarksByProfile = {front: [], side: []};
+let profileMode = "front";
 let index = 0;
 let image = new Image();
 let imageLoaded = false;
@@ -580,7 +627,7 @@ function draw() {
 }
 
 function getActiveMeasurementLandmarkIds() {
-  const guide = MEASUREMENT_GUIDES[activeMetricId];
+  const guide = getMeasurementGuide(activeMetricId);
   if (!guide) return null;
   const ids = new Set();
   (guide.lines || []).forEach((line) => {
@@ -589,6 +636,18 @@ function getActiveMeasurementLandmarkIds() {
   });
   (guide.points || []).forEach((id) => ids.add(id));
   return ids;
+}
+
+function getMeasurementGuide(metricId) {
+  if (!metricId) return null;
+  if (MEASUREMENT_GUIDES[metricId]) return MEASUREMENT_GUIDES[metricId];
+  const item = measurementDefs.find(def => def.id === metricId);
+  if (!item || !Array.isArray(item.requires)) return null;
+  const lines = [];
+  for (let i = 0; i < item.requires.length - 1; i += 1) {
+    lines.push([item.requires[i], item.requires[i + 1]]);
+  }
+  return {lines, points: item.requires};
 }
 
 function getLandmark(id) {
@@ -647,7 +706,7 @@ function drawGuideLine(a, b, index) {
 }
 
 function drawActiveMeasurement() {
-  const guide = MEASUREMENT_GUIDES[activeMetricId];
+  const guide = getMeasurementGuide(activeMetricId);
   if (!guide || !imageLoaded) return;
   (guide.lines || []).forEach((line, i) => drawGuideLine(line[0], line[1], i));
   (guide.points || []).forEach((id) => {
@@ -661,10 +720,19 @@ function syncUi() {
   const placed = landmarks.length;
   progressBar.style.width = defs.length ? `${placed / defs.length * 100}%` : "0%";
   calcBtn.disabled = defs.length === 0 || getMissingLandmarks().length > 0;
-  autoBtn.disabled = !imageLoaded;
+  autoBtn.disabled = !imageLoaded || profileMode !== "front";
+  autoBtn.textContent = profileMode === "front" ? "Auto-detect landmarks" : "Manual side mode";
+  calcBtn.textContent = profileMode === "front" ? "Calculate front metrics" : "Calculate side metrics";
+  imageLabel.textContent = profileMode === "front" ? "Front face image" : "Side profile image";
+  introCopy.textContent = profileMode === "front"
+    ? "Place the front landmarks, then calculate the 30 front profile metrics."
+    : "Place the side landmarks, then calculate the side profile metrics.";
   if (def) {
     stepText.innerHTML = `<strong>${index + 1}/${defs.length}</strong> ${def.label}`;
     stepHint.textContent = "Click the image to place or replace this point.";
+  } else {
+    stepText.textContent = "Loading landmarks...";
+    stepHint.textContent = "";
   }
   jsonBox.value = JSON.stringify(landmarks, null, 2);
   renderMeasurementCatalog();
@@ -715,6 +783,7 @@ function setPoint(nx, ny) {
   const next = landmarks.filter(l => l.id !== def.id);
   next.push({id: def.id, x: Number(nx.toFixed(6)), y: Number(ny.toFixed(6)), label: def.label});
   landmarks = next.sort((a, b) => defs.findIndex(d => d.id === a.id) - defs.findIndex(d => d.id === b.id));
+  landmarksByProfile[profileMode] = landmarks;
   if (index < defs.length - 1) index += 1;
   syncUi();
 }
@@ -734,6 +803,9 @@ imageInput.addEventListener("change", () => {
   const file = imageInput.files && imageInput.files[0];
   if (!file) return;
   activeMetricId = null;
+  landmarks = [];
+  landmarksByProfile[profileMode] = landmarks;
+  index = 0;
   metricsEl.innerHTML = "";
   scoreEl.innerHTML = "";
   const url = URL.createObjectURL(file);
@@ -743,6 +815,10 @@ imageInput.addEventListener("change", () => {
 });
 
 autoBtn.onclick = async () => {
+  if (profileMode !== "front") {
+    alert("Side profile is manual in mini-faceIQ.");
+    return;
+  }
   const file = imageInput.files && imageInput.files[0];
   if (!file) {
     alert("Upload an image first.");
@@ -768,6 +844,7 @@ autoBtn.onclick = async () => {
     }
 
     landmarks = (payload.landmarks || []).sort((a, b) => defs.findIndex(d => d.id === a.id) - defs.findIndex(d => d.id === b.id));
+    landmarksByProfile[profileMode] = landmarks;
     const missing = getMissingLandmarks();
     const nextMissing = missing[0];
     index = nextMissing ? defs.findIndex(def => def.id === nextMissing.id) : Math.max(0, defs.length - 1);
@@ -793,10 +870,12 @@ document.getElementById("undoBtn").onclick = () => {
   const def = defs[index];
   if (!def) return;
   landmarks = landmarks.filter(l => l.id !== def.id);
+  landmarksByProfile[profileMode] = landmarks;
   syncUi();
 };
 document.getElementById("clearBtn").onclick = () => {
   landmarks = [];
+  landmarksByProfile[profileMode] = landmarks;
   index = 0;
   activeMetricId = null;
   metricsEl.innerHTML = "";
@@ -807,6 +886,7 @@ document.getElementById("loadJsonBtn").onclick = () => {
   try {
     const parsed = JSON.parse(jsonBox.value);
     landmarks = Array.isArray(parsed) ? parsed : [];
+    landmarksByProfile[profileMode] = landmarks;
     activeMetricId = null;
     syncUi();
   } catch (err) {
@@ -828,15 +908,22 @@ calcBtn.onclick = async () => {
     return;
   }
 
-  const res = await fetch("/api/front-metrics", {
+  const aspect = imageLoaded ? image.width / image.height : 1;
+  const body = {
+    gender: document.getElementById("gender").value,
+    ethnicity: document.getElementById("ethnicity").value,
+    landmarks
+  };
+  if (profileMode === "front") {
+    body.frontAspect = aspect;
+  } else {
+    body.sideAspect = aspect;
+  }
+
+  const res = await fetch(profileMode === "front" ? "/api/front-metrics" : "/api/side-metrics", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      gender: document.getElementById("gender").value,
-      ethnicity: document.getElementById("ethnicity").value,
-      landmarks,
-      frontAspect: imageLoaded ? image.width / image.height : 1
-    })
+    body: JSON.stringify(body)
   });
   const payload = await res.json();
   if (!payload.success) {
@@ -848,12 +935,19 @@ calcBtn.onclick = async () => {
 
 function renderResults(data) {
   activeMetricId = null;
-  currentMeasurements = data.frontMeasurements || [];
+  currentMeasurements = profileMode === "front" ? (data.frontMeasurements || []) : (data.sideMeasurements || []);
+  const metricTotal = profileMode === "front" ? 30 : 33;
+  const mainScore = profileMode === "front" ? data.frontScore : data.sideScore;
+  const mainLabel = profileMode === "front" ? "front score" : "side score";
+  const groupA = profileMode === "front" ? data.groups.G_F1 : data.groups.G_S1;
+  const groupB = profileMode === "front" ? data.groups.G_F2 : data.groups.G_S2;
+  const groupALabel = profileMode === "front" ? "proportions" : "profile";
+  const groupBLabel = profileMode === "front" ? "eyes/brows" : "nose";
   scoreEl.innerHTML = `
-    <div class="stat"><b>${data.frontScore}</b><span>front score</span></div>
-    <div class="stat"><b>${currentMeasurements.length}/30</b><span>metrics calculated</span></div>
-    <div class="stat"><b>${data.groups.G_F1}</b><span>proportions</span></div>
-    <div class="stat"><b>${data.groups.G_F2}</b><span>eyes/brows</span></div>
+    <div class="stat"><b>${mainScore}</b><span>${mainLabel}</span></div>
+    <div class="stat"><b>${currentMeasurements.length}/${metricTotal}</b><span>metrics calculated</span></div>
+    <div class="stat"><b>${groupA}</b><span>${groupALabel}</span></div>
+    <div class="stat"><b>${groupB}</b><span>${groupBLabel}</span></div>
   `;
   resultsToolbar.classList.add("active");
   renderMetricRows();
@@ -966,12 +1060,35 @@ function bindMetricHover() {
 }
 
 async function boot() {
-  const res = await fetch("/api/front-landmarks");
-  const payload = await res.json();
-  defs = payload.landmarks || [];
-  syncUi();
+  await loadProfileDefs("front");
   fitCanvas();
 }
+
+async function loadProfileDefs(nextMode) {
+  landmarksByProfile[profileMode] = landmarks;
+  profileMode = nextMode;
+  profileModeInput.value = profileMode;
+  measurementDefs = profileMode === "front" ? frontMeasurementDefs : sideMeasurementDefs;
+  const res = await fetch(profileMode === "front" ? "/api/front-landmarks" : "/api/side-landmarks");
+  const payload = await res.json();
+  defs = payload.landmarks || [];
+  landmarks = (landmarksByProfile[profileMode] || []).filter(lm => defs.some(def => def.id === lm.id));
+  landmarksByProfile[profileMode] = landmarks;
+  const missing = getMissingLandmarks();
+  const nextMissing = missing[0];
+  index = nextMissing ? defs.findIndex(def => def.id === nextMissing.id) : Math.max(0, defs.length - 1);
+  activeMetricId = null;
+  currentMeasurements = [];
+  metricsEl.innerHTML = "";
+  scoreEl.innerHTML = "";
+  resultsToolbar.classList.remove("active");
+  metricSort.value = "default";
+  syncUi();
+}
+
+profileModeInput.addEventListener("change", () => {
+  loadProfileDefs(profileModeInput.value);
+});
 
 window.addEventListener("resize", fitCanvas);
 boot();
