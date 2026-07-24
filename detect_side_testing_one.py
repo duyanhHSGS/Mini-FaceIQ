@@ -2,6 +2,8 @@ import os
 import sys
 import json
 import argparse
+import importlib.util
+import types
 import numpy as np
 import cv2
 
@@ -26,6 +28,66 @@ def _require_3ddfa_dir():
         )
 
 
+def _cpu_nms_numpy(dets, thresh):
+    if dets.shape[0] == 0:
+        return []
+
+    x1 = dets[:, 0]
+    y1 = dets[:, 1]
+    x2 = dets[:, 2]
+    y2 = dets[:, 3]
+    scores = dets[:, 4]
+
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    order = scores.argsort()[::-1]
+    keep = []
+
+    while order.size > 0:
+        i = order[0]
+        keep.append(i)
+        xx1 = np.maximum(x1[i], x1[order[1:]])
+        yy1 = np.maximum(y1[i], y1[order[1:]])
+        xx2 = np.minimum(x2[i], x2[order[1:]])
+        yy2 = np.minimum(y2[i], y2[order[1:]])
+
+        w = np.maximum(0.0, xx2 - xx1 + 1)
+        h = np.maximum(0.0, yy2 - yy1 + 1)
+        inter = w * h
+        overlap = inter / (areas[i] + areas[order[1:]] - inter)
+        order = order[np.where(overlap <= thresh)[0] + 1]
+
+    return keep
+
+
+def _install_faceboxes_shims():
+    faceboxes_dir = os.path.join(_3DDFA_DIR, "FaceBoxes")
+
+    package = types.ModuleType("FaceBoxes")
+    package.__path__ = [faceboxes_dir]
+    sys.modules["FaceBoxes"] = package
+
+    nms_module = types.ModuleType("FaceBoxes.utils.nms.cpu_nms")
+    nms_module.cpu_nms = _cpu_nms_numpy
+    nms_module.cpu_soft_nms = _cpu_nms_numpy
+    sys.modules["FaceBoxes.utils.nms.cpu_nms"] = nms_module
+
+
+def _load_faceboxes_onnx_class():
+    _install_faceboxes_shims()
+    module_name = "FaceBoxes.FaceBoxes_ONNX"
+    module_path = os.path.join(_3DDFA_DIR, "FaceBoxes", "FaceBoxes_ONNX.py")
+    if not os.path.exists(module_path):
+        raise FileNotFoundError(f"FaceBoxes_ONNX.py not found: {module_path}")
+
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load FaceBoxes_ONNX from {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module.FaceBoxes_ONNX
+
+
 def _load_models():
     if _model_cache["face_boxes"] is not None:
         return _model_cache["face_boxes"], _model_cache["tddfa"]
@@ -33,7 +95,7 @@ def _load_models():
     _require_3ddfa_dir()
     try:
         import yaml
-        from FaceBoxes.FaceBoxes_ONNX import FaceBoxes_ONNX
+        FaceBoxes_ONNX = _load_faceboxes_onnx_class()
         from TDDFA_ONNX import TDDFA_ONNX
     except ImportError as exc:
         raise ImportError(
