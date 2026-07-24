@@ -75,7 +75,7 @@ def calculate_plateau_gaussian_score(value, range_min, range_max, ideal_min, ide
     if length <= 0:
         return SCORING_FLOOR
     ratio = d / length
-    score = 10 * math.exp(SCORING_K * ratio * ratio)
+    score = 10 * math.exp(-SCORING_K * ratio * ratio)
     return round(max(SCORING_FLOOR, score), 1)
 
 
@@ -193,7 +193,7 @@ def calculate_front_measurements(front_landmarks, gender="male", ethnicity="asia
 
     if left_nose_side and right_nose_side and left_nose_bridge and right_nose_bridge:
         bridge_width = dist(left_nose_bridge, right_nose_bridge)
-        if bridge_width > 0:
+        if dist(left_nose_side, right_nose_side) > 0:
             add("nose_bridge_to_width", "Nose Bridge to Nose Width Ratio", dist(left_nose_side, right_nose_side) / bridge_width, "ratio", "Nose", "Ratio of nose side width to nose bridge width.")
 
     if left_temple and right_temple and left_cheekbone and right_cheekbone:
@@ -407,7 +407,10 @@ def calculate_front_analysis(front_landmarks, gender="male", ethnicity="asian", 
     g_f2 = weighted_group_score(measurements, f2_key, f2_std)
     g_f3 = weighted_group_score(measurements, f3_key, f3_std)
     penalty = calculate_penalty(measurements)
+    side_penalty = 0
     raw_front_score = g_f1 * 0.40 + g_f2 * 0.30 + g_f3 * 0.30 - penalty
+    raw_side_score = 0 - side_penalty
+    raw_overall_score = raw_front_score * 0.60 + raw_side_score * 0.40
 
     category_totals = defaultdict(float)
     category_counts = defaultdict(int)
@@ -421,11 +424,14 @@ def calculate_front_analysis(front_landmarks, gender="male", ethnicity="asian", 
         "gender": gender,
         "ethnicity": ethnicity,
         "frontMeasurements": measurements,
+        "sideMeasurements": [],
+        "overallScore": clamp_score(raw_overall_score),
         "frontScore": clamp_score(raw_front_score),
+        "sideScore": clamp_score(raw_side_score),
         "harmonyScore": clamp_score(raw_front_score),
         "categoryScores": category_scores,
         "topStrengths": [m["name"] for m in sorted_items[:3]],
         "topWeaknesses": [m["name"] for m in sorted_items[-3:]][::-1],
-        "groups": {"G_F1": g_f1, "G_F2": g_f2, "G_F3": g_f3, "P_front": penalty},
+        "groups": {"G_F1": g_f1, "G_F2": g_f2, "G_F3": g_f3, "G_S1": 0, "G_S2": 0, "G_S3": 0, "P_front": penalty, "P_side": side_penalty},
         "missingCount": max(0, 30 - len(measurements)),
     }
