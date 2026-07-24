@@ -5,7 +5,7 @@ from front_ideals import get_front_ideals
 from front_landmarks import normalize_front_landmarks
 
 
-SCORING_K = -10
+SCORING_K = -2
 SCORING_FLOOR = 1.0
 PENALTY_THRESHOLD = 3.5
 PENALTY_MULTIPLIER = 0.25
