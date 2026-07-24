@@ -99,6 +99,44 @@ def test_front_metrics_calls_calculator_with_full_payload(monkeypatch):
     assert len(captured["landmarks"]) == len(FRONT_LANDMARK_DEFS)
 
 
+def test_front_metrics_uses_default_demographics_and_aspect(monkeypatch):
+    client = main.app.test_client()
+    captured = {}
+
+    def fake_calculate_front_analysis(landmarks, gender, ethnicity, front_aspect):
+        captured["gender"] = gender
+        captured["ethnicity"] = ethnicity
+        captured["front_aspect"] = front_aspect
+        return {"frontScore": 6.5, "frontMeasurements": []}
+
+    monkeypatch.setattr(main, "calculate_front_analysis", fake_calculate_front_analysis)
+
+    response = client.post(
+        "/api/front-metrics",
+        json={"landmarks": _placed_landmarks(FRONT_LANDMARK_DEFS)},
+    )
+
+    assert response.status_code == 200
+    assert captured == {"gender": "male", "ethnicity": "asian", "front_aspect": 1.0}
+
+
+def test_front_metrics_returns_calculator_errors_as_json(monkeypatch):
+    client = main.app.test_client()
+
+    def fake_calculate_front_analysis(landmarks, gender, ethnicity, front_aspect):
+        raise RuntimeError("math exploded")
+
+    monkeypatch.setattr(main, "calculate_front_analysis", fake_calculate_front_analysis)
+
+    response = client.post(
+        "/api/front-metrics",
+        json={"landmarks": _placed_landmarks(FRONT_LANDMARK_DEFS)},
+    )
+
+    assert response.status_code == 500
+    assert response.get_json() == {"success": False, "error": "math exploded"}
+
+
 def test_side_metrics_calls_calculator_with_full_payload(monkeypatch):
     client = main.app.test_client()
     captured = {}
@@ -131,6 +169,44 @@ def test_side_metrics_calls_calculator_with_full_payload(monkeypatch):
     assert len(captured["landmarks"]) == len(SIDE_LANDMARK_DEFS)
 
 
+def test_side_metrics_uses_default_demographics_and_aspect(monkeypatch):
+    client = main.app.test_client()
+    captured = {}
+
+    def fake_calculate_side_analysis(landmarks, gender, ethnicity, side_aspect):
+        captured["gender"] = gender
+        captured["ethnicity"] = ethnicity
+        captured["side_aspect"] = side_aspect
+        return {"sideScore": 5.5, "sideMeasurements": []}
+
+    monkeypatch.setattr(main, "calculate_side_analysis", fake_calculate_side_analysis)
+
+    response = client.post(
+        "/api/side-metrics",
+        json={"landmarks": _placed_landmarks(SIDE_LANDMARK_DEFS)},
+    )
+
+    assert response.status_code == 200
+    assert captured == {"gender": "male", "ethnicity": "asian", "side_aspect": 1.0}
+
+
+def test_side_metrics_returns_calculator_errors_as_json(monkeypatch):
+    client = main.app.test_client()
+
+    def fake_calculate_side_analysis(landmarks, gender, ethnicity, side_aspect):
+        raise RuntimeError("profile math exploded")
+
+    monkeypatch.setattr(main, "calculate_side_analysis", fake_calculate_side_analysis)
+
+    response = client.post(
+        "/api/side-metrics",
+        json={"landmarks": _placed_landmarks(SIDE_LANDMARK_DEFS)},
+    )
+
+    assert response.status_code == 500
+    assert response.get_json() == {"success": False, "error": "profile math exploded"}
+
+
 def test_front_autolandmarks_rejects_unsupported_upload_extension():
     client = main.app.test_client()
 
@@ -143,6 +219,33 @@ def test_front_autolandmarks_rejects_unsupported_upload_extension():
 
     assert response.status_code == 400
     assert payload == {"success": False, "error": "Use jpg, jpeg, png, or webp"}
+
+
+def test_front_autolandmarks_rejects_missing_upload():
+    client = main.app.test_client()
+
+    response = client.post("/api/front-autolandmarks", data={}, content_type="multipart/form-data")
+
+    assert response.status_code == 400
+    assert response.get_json() == {"success": False, "error": "No image file uploaded"}
+
+
+def test_front_autolandmarks_returns_detector_errors_as_json(monkeypatch):
+    client = main.app.test_client()
+
+    def fake_detect_front_landmarks_from_upload(image):
+        raise ValueError("No face detected")
+
+    monkeypatch.setattr(main, "detect_front_landmarks_from_upload", fake_detect_front_landmarks_from_upload)
+
+    response = client.post(
+        "/api/front-autolandmarks",
+        data={"image": (BytesIO(b"pretend image bytes"), "face.png")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 500
+    assert response.get_json() == {"success": False, "error": "No face detected"}
 
 
 def test_front_autolandmarks_returns_detector_output(monkeypatch):
@@ -159,4 +262,3 @@ def test_front_autolandmarks_returns_detector_output(monkeypatch):
 
     assert response.status_code == 200
     assert response.get_json() == {"success": True, "landmarks": detected}
-
