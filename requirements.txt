@@ -3,3 +3,15 @@ opencv-python
 mediapipe==0.10.21
 flask
 pytest
+pyyaml
+onnxruntime
+torch
+torchvision
+matplotlib
+imageio
+imageio-ffmpeg
+tqdm
+cython
+scikit-image
+scipy
+gradio
