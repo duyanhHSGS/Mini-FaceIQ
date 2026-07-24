@@ -29,6 +29,10 @@
       min-height: 100vh;
       display: grid;
       grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+      transition: grid-template-columns 180ms ease;
+    }
+    main.uploadCollapsed {
+      grid-template-columns: 58px minmax(0, 1fr);
     }
     aside {
       border-right: 1px solid var(--line);
@@ -36,6 +40,10 @@
       padding: 20px;
       overflow-y: auto;
       max-height: 100vh;
+    }
+    main.uploadCollapsed aside {
+      padding: 14px 10px;
+      overflow: hidden;
     }
     section { padding: 20px; min-width: 0; }
     h1, h2, p { margin: 0; }
@@ -64,6 +72,30 @@
     button:disabled { opacity: 0.45; cursor: not-allowed; }
     .row { display: flex; gap: 8px; align-items: center; }
     .row > * { flex: 1; }
+    .uploadHeader {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+    .uploadTitle { min-width: 0; }
+    .collapseBtn {
+      flex: 0 0 auto;
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .collapseBtn::before { content: "<"; }
+    main.uploadCollapsed .collapseBtn::before { content: ">"; }
+    main.uploadCollapsed .uploadBody,
+    main.uploadCollapsed .uploadTitle {
+      display: none;
+    }
     .current {
       margin-top: 16px;
       border: 1px solid var(--line);
@@ -81,9 +113,26 @@
       margin-top: 12px;
     }
     .bar { height: 100%; width: 0; background: var(--cyan); }
+    .analysisLayout {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.35fr) minmax(320px, 0.85fr);
+      gap: 16px;
+      align-items: start;
+    }
+    main.uploadCollapsed .analysisLayout {
+      grid-template-columns: minmax(520px, 1.55fr) minmax(340px, 0.9fr);
+    }
+    .viewerPane {
+      position: sticky;
+      top: 20px;
+      min-width: 0;
+    }
+    .resultsPane {
+      min-width: 0;
+    }
     .canvasWrap {
-      height: min(72vh, 760px);
-      min-height: 420px;
+      height: calc(100vh - 40px);
+      min-height: 520px;
       border: 1px solid var(--line);
       background: #08090d;
       border-radius: 8px;
@@ -98,7 +147,7 @@
     }
     .metric {
       display: grid;
-      grid-template-columns: minmax(170px, 1.25fr) 90px 70px 90px;
+      grid-template-columns: minmax(150px, 1.25fr) 84px 62px 84px;
       gap: 12px;
       padding: 10px 12px;
       border-top: 1px solid var(--line);
@@ -223,9 +272,34 @@
       font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
       font-size: 12px;
     }
+    @media (max-width: 1220px) {
+      main:not(.uploadCollapsed) .analysisLayout {
+        grid-template-columns: 1fr;
+      }
+      main:not(.uploadCollapsed) .viewerPane {
+        position: static;
+      }
+      main:not(.uploadCollapsed) .canvasWrap {
+        height: min(74vh, 760px);
+      }
+    }
+    @media (max-width: 980px) {
+      main.uploadCollapsed .analysisLayout {
+        grid-template-columns: 1fr;
+      }
+      main.uploadCollapsed .viewerPane {
+        position: static;
+      }
+    }
     @media (max-width: 900px) {
       main { grid-template-columns: 1fr; }
+      main.uploadCollapsed { grid-template-columns: 1fr; }
       aside { max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
+      main.uploadCollapsed aside { max-height: 62px; }
+      .analysisLayout { grid-template-columns: 1fr; }
+      main.uploadCollapsed .analysisLayout { grid-template-columns: 1fr; }
+      .viewerPane { position: static; }
+      .canvasWrap { height: min(68vh, 620px); min-height: 360px; }
       .metric { grid-template-columns: 1fr 80px; }
       .catalogItem { grid-template-columns: 1fr; }
       .metric .hideMobile { display: none; }
@@ -234,70 +308,85 @@
   </style>
 </head>
 <body>
-<main>
+<main id="appShell">
   <aside>
-    <h1>mini-faceIQ</h1>
-    <p>Place the front landmarks, then calculate the 30 front profile metrics.</p>
-
-    <label for="imageInput">Front face image</label>
-    <input id="imageInput" type="file" accept="image/*">
-    <button id="autoBtn" style="width:100%; margin-top:8px">Auto-detect landmarks</button>
-
-    <div class="row">
-      <div>
-        <label for="gender">Gender</label>
-        <select id="gender">
-          <option value="male">male</option>
-          <option value="female">female</option>
-        </select>
+    <div class="uploadHeader">
+      <div class="uploadTitle">
+        <h1>mini-faceIQ</h1>
+        <p>Place the front landmarks, then calculate the 30 front profile metrics.</p>
       </div>
-      <div>
-        <label for="ethnicity">Ethnicity</label>
-        <select id="ethnicity">
-          <option value="asian">asian</option>
-          <option value="caucasian">caucasian</option>
-          <option value="black">black</option>
-          <option value="hispanic">hispanic</option>
-          <option value="middle_eastern">middle_eastern</option>
-          <option value="south_asian">south_asian</option>
-          <option value="mixed">mixed</option>
-        </select>
+      <button id="uploadToggle" class="collapseBtn" type="button" aria-label="Collapse upload section" aria-expanded="true"></button>
+    </div>
+
+    <div class="uploadBody">
+      <label for="imageInput">Front face image</label>
+      <input id="imageInput" type="file" accept="image/*">
+      <button id="autoBtn" style="width:100%; margin-top:8px">Auto-detect landmarks</button>
+
+      <div class="row">
+        <div>
+          <label for="gender">Gender</label>
+          <select id="gender">
+            <option value="male">male</option>
+            <option value="female">female</option>
+          </select>
+        </div>
+        <div>
+          <label for="ethnicity">Ethnicity</label>
+          <select id="ethnicity">
+            <option value="asian">asian</option>
+            <option value="caucasian">caucasian</option>
+            <option value="black">black</option>
+            <option value="hispanic">hispanic</option>
+            <option value="middle_eastern">middle_eastern</option>
+            <option value="south_asian">south_asian</option>
+            <option value="mixed">mixed</option>
+          </select>
+        </div>
       </div>
-    </div>
 
-    <div class="current">
-      <span id="stepText">Load an image to begin.</span>
-      <p id="stepHint">Your clicks are stored as normalized x/y points, so image size does not matter.</p>
-      <div class="progress"><div id="progressBar" class="bar"></div></div>
-    </div>
+      <div class="current">
+        <span id="stepText">Load an image to begin.</span>
+        <p id="stepHint">Your clicks are stored as normalized x/y points, so image size does not matter.</p>
+        <div class="progress"><div id="progressBar" class="bar"></div></div>
+      </div>
 
-    <h2>Controls</h2>
-    <div class="row">
-      <button id="prevBtn">Back</button>
-      <button id="nextBtn">Next</button>
-    </div>
-    <div class="row" style="margin-top:8px">
-      <button id="undoBtn">Undo point</button>
-      <button id="clearBtn">Clear all</button>
-    </div>
-    <button id="calcBtn" class="primary" style="width:100%; margin-top:8px">Calculate metrics</button>
+      <h2>Controls</h2>
+      <div class="row">
+        <button id="prevBtn">Back</button>
+        <button id="nextBtn">Next</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="undoBtn">Undo point</button>
+        <button id="clearBtn">Clear all</button>
+      </div>
+      <button id="calcBtn" class="primary" style="width:100%; margin-top:8px">Calculate metrics</button>
 
-    <h2>Landmark JSON</h2>
-    <textarea id="jsonBox" spellcheck="false"></textarea>
-    <button id="loadJsonBtn" style="width:100%; margin-top:8px">Load JSON into canvas</button>
+      <h2>Landmark JSON</h2>
+      <textarea id="jsonBox" spellcheck="false"></textarea>
+      <button id="loadJsonBtn" style="width:100%; margin-top:8px">Load JSON into canvas</button>
+    </div>
   </aside>
 
   <section>
-    <div class="canvasWrap"><canvas id="canvas"></canvas></div>
-    <div id="score" class="score"></div>
-    <div id="measurementCatalog" class="measurementCatalog"></div>
-    <div id="metrics" class="metrics"></div>
+    <div class="analysisLayout">
+      <div class="viewerPane">
+        <div class="canvasWrap"><canvas id="canvas"></canvas></div>
+      </div>
+      <div class="resultsPane">
+        <div id="score" class="score"></div>
+        <div id="measurementCatalog" class="measurementCatalog"></div>
+        <div id="metrics" class="metrics"></div>
+      </div>
+    </div>
   </section>
 </main>
 
 <script>
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+const appShell = document.getElementById("appShell");
+const uploadToggle = document.getElementById("uploadToggle");
 const imageInput = document.getElementById("imageInput");
 const stepText = document.getElementById("stepText");
 const stepHint = document.getElementById("stepHint");
@@ -413,13 +502,19 @@ function draw() {
   ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
   if (imageLoaded) ctx.drawImage(image, drawBox.x, drawBox.y, drawBox.w, drawBox.h);
 
-  landmarks.forEach((lm, i) => {
+  const focusedIds = getActiveMeasurementLandmarkIds();
+  const visibleLandmarks = focusedIds
+    ? landmarks.filter(lm => focusedIds.has(lm.id))
+    : landmarks;
+
+  visibleLandmarks.forEach((lm) => {
     const def = defs.find(d => d.id === lm.id) || {};
+    const i = defs.findIndex(d => d.id === lm.id);
     const x = drawBox.x + lm.x * drawBox.w;
     const y = drawBox.y + lm.y * drawBox.h;
     const color = def.color || "#2dd4bf";
     ctx.beginPath();
-    ctx.arc(x, y, i === index ? 7 : 5, 0, Math.PI * 2);
+    ctx.arc(x, y, i === index ? 5 : 3.5, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
     ctx.lineWidth = 2;
@@ -428,10 +523,22 @@ function draw() {
     ctx.font = "700 11px system-ui";
     ctx.textAlign = "center";
     ctx.fillStyle = "#fff";
-    ctx.fillText(String(i + 1), x, y - 12);
+    ctx.fillText(String(i + 1), x, y - 9);
   });
 
   drawActiveMeasurement();
+}
+
+function getActiveMeasurementLandmarkIds() {
+  const guide = MEASUREMENT_GUIDES[activeMetricId];
+  if (!guide) return null;
+  const ids = new Set();
+  (guide.lines || []).forEach((line) => {
+    ids.add(line[0]);
+    ids.add(line[1]);
+  });
+  (guide.points || []).forEach((id) => ids.add(id));
+  return ids;
 }
 
 function getLandmark(id) {
@@ -448,7 +555,7 @@ function toCanvasPoint(lm) {
 function drawGuidePoint(lm, label) {
   const point = toCanvasPoint(lm);
   ctx.beginPath();
-  ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+  ctx.arc(point.x, point.y, 5.5, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(45, 212, 191, 0.95)";
   ctx.fill();
   ctx.lineWidth = 3;
@@ -655,6 +762,13 @@ document.getElementById("loadJsonBtn").onclick = () => {
   } catch (err) {
     alert(err.message);
   }
+};
+
+uploadToggle.onclick = () => {
+  const collapsed = appShell.classList.toggle("uploadCollapsed");
+  uploadToggle.setAttribute("aria-expanded", String(!collapsed));
+  uploadToggle.setAttribute("aria-label", collapsed ? "Expand upload section" : "Collapse upload section");
+  window.setTimeout(fitCanvas, 200);
 };
 
 calcBtn.onclick = async () => {
