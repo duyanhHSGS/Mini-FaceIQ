@@ -75,8 +75,8 @@ def calculate_plateau_gaussian_score(value, range_min, range_max, ideal_min, ide
     if length <= 0:
         return SCORING_FLOOR
     ratio = d / length
-    score = 10 * math.exp(-SCORING_K * ratio * ratio)
-    return round(max(SCORING_FLOOR, score), 1)
+    score = 10 * math.exp(SCORING_K * ratio * ratio)
+    return round(min(10.0, max(SCORING_FLOOR, score)), 1)
 
 
 def classify_deviation(value, ideal_min, ideal_max):
