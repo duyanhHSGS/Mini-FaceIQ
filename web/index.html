@@ -73,6 +73,43 @@
     button:disabled { opacity: 0.45; cursor: not-allowed; }
     .row { display: flex; gap: 8px; align-items: center; }
     .row > * { flex: 1; }
+    .topTabs {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .tabBtn.active,
+    .modeBtn.active {
+      background: var(--cyan);
+      color: #051312;
+      border-color: transparent;
+    }
+    .subTabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .tabPanel { display: none; }
+    main.tab-upload .uploadPanel,
+    main.tab-landmarks .landmarkPanel,
+    main.tab-measurements .measurementPanel,
+    main.tab-summary .summaryPanel {
+      display: block;
+    }
+    main.tab-upload .viewerPane,
+    main.tab-summary .viewerPane,
+    main.tab-upload .resultsPane,
+    main.tab-landmarks .score,
+    main.tab-landmarks .resultsToolbar,
+    main.tab-landmarks .metrics,
+    main.tab-measurements .measurementCatalog,
+    main.tab-summary .measurementCatalog,
+    main.tab-summary .resultsToolbar,
+    main.tab-summary .metrics {
+      display: none;
+    }
     .uploadHeader {
       display: flex;
       gap: 12px;
@@ -186,6 +223,13 @@
       border-top: 1px solid var(--line);
       align-items: center;
       font-size: 13px;
+    }
+    .confirmNote {
+      margin-top: 10px;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 700;
+      min-height: 18px;
     }
     .metric > span { min-width: 0; }
     .metric:first-child { border-top: 0; }
@@ -355,7 +399,7 @@
   </style>
 </head>
 <body>
-<main id="appShell">
+<main id="appShell" class="tab-upload">
   <aside>
     <div class="uploadHeader">
       <div class="uploadTitle">
@@ -366,65 +410,92 @@
     </div>
 
     <div class="uploadBody">
-      <label for="profileMode">Profile</label>
-      <select id="profileMode">
-        <option value="front">front profile</option>
-        <option value="side">side profile</option>
-      </select>
+      <div class="tabPanel uploadPanel">
+        <label id="frontImageLabel" for="frontImageInput">Upload front profile</label>
+        <input id="frontImageInput" type="file" accept="image/*">
+        <label id="sideImageLabel" for="sideImageInput">Upload side profile</label>
+        <input id="sideImageInput" type="file" accept="image/*">
+        <button id="uploadConfirmBtn" class="primary" style="width:100%; margin-top:8px">Confirm uploads</button>
+        <div id="uploadConfirmNote" class="confirmNote"></div>
 
-      <label id="frontImageLabel" for="frontImageInput">Front profile image</label>
-      <input id="frontImageInput" type="file" accept="image/*">
-      <label id="sideImageLabel" for="sideImageInput">Side profile image</label>
-      <input id="sideImageInput" type="file" accept="image/*">
-      <button id="autoBtn" class="success" style="width:100%; margin-top:8px">Auto-detect landmarks</button>
-
-      <div class="row">
-        <div>
-          <label for="gender">Gender</label>
-          <select id="gender">
-            <option value="male">male</option>
-            <option value="female">female</option>
-          </select>
-        </div>
-        <div>
-          <label for="ethnicity">Ethnicity</label>
-          <select id="ethnicity">
-            <option value="asian">asian</option>
-            <option value="caucasian">caucasian</option>
-            <option value="black">black</option>
-            <option value="hispanic">hispanic</option>
-            <option value="middle_eastern">middle_eastern</option>
-            <option value="south_asian">south_asian</option>
-            <option value="mixed">mixed</option>
-          </select>
+        <div class="row">
+          <div>
+            <label for="gender">Gender</label>
+            <select id="gender">
+              <option value="male">male</option>
+              <option value="female">female</option>
+            </select>
+          </div>
+          <div>
+            <label for="ethnicity">Ethnicity</label>
+            <select id="ethnicity">
+              <option value="asian">asian</option>
+              <option value="caucasian">caucasian</option>
+              <option value="black">black</option>
+              <option value="hispanic">hispanic</option>
+              <option value="middle_eastern">middle_eastern</option>
+              <option value="south_asian">south_asian</option>
+              <option value="mixed">mixed</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      <div class="current">
-        <span id="stepText">Load an image to begin.</span>
-        <p id="stepHint">Your clicks are stored as normalized x/y points, so image size does not matter.</p>
-        <div class="progress"><div id="progressBar" class="bar"></div></div>
+      <div class="tabPanel landmarkPanel">
+        <div class="subTabs">
+          <button class="modeBtn" data-profile-target="side" type="button">Side landmarks</button>
+          <button class="modeBtn" data-profile-target="front" type="button">Front landmarks</button>
+        </div>
+        <button id="autoBtn" class="success" style="width:100%; margin-top:8px">Auto-detect landmarks</button>
+
+        <div class="current">
+          <span id="stepText">Load an image to begin.</span>
+          <p id="stepHint">Your clicks are stored as normalized x/y points, so image size does not matter.</p>
+          <div class="progress"><div id="progressBar" class="bar"></div></div>
+        </div>
+
+        <h2>Controls</h2>
+        <div class="row">
+          <button id="prevBtn">Back</button>
+          <button id="nextBtn">Next</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button id="undoBtn">Undo point</button>
+          <button id="clearBtn">Clear all</button>
+        </div>
+        <button id="landmarkConfirmBtn" class="primary" style="width:100%; margin-top:8px">Confirm landmarks</button>
+        <div id="landmarkConfirmNote" class="confirmNote"></div>
+
+        <h2>Landmark JSON</h2>
+        <textarea id="jsonBox" spellcheck="false"></textarea>
+        <button id="loadJsonBtn" style="width:100%; margin-top:8px">Load JSON into canvas</button>
       </div>
 
-      <h2>Controls</h2>
-      <div class="row">
-        <button id="prevBtn">Back</button>
-        <button id="nextBtn">Next</button>
+      <div class="tabPanel measurementPanel">
+        <div class="subTabs">
+          <button class="modeBtn" data-profile-target="side" type="button">Side profile</button>
+          <button class="modeBtn" data-profile-target="front" type="button">Front profile</button>
+        </div>
+        <button id="calcBtn" class="primary" style="width:100%; margin-top:8px">Calculate current profile</button>
+        <button id="calcAllBtn" class="primary" style="width:100%; margin-top:8px">Calculate both profiles</button>
       </div>
-      <div class="row" style="margin-top:8px">
-        <button id="undoBtn">Undo point</button>
-        <button id="clearBtn">Clear all</button>
-      </div>
-      <button id="calcBtn" class="primary" style="width:100%; margin-top:8px">Calculate metrics</button>
-      <button id="calcAllBtn" class="primary" style="width:100%; margin-top:8px">Calculate both profiles</button>
 
-      <h2>Landmark JSON</h2>
-      <textarea id="jsonBox" spellcheck="false"></textarea>
-      <button id="loadJsonBtn" style="width:100%; margin-top:8px">Load JSON into canvas</button>
+      <div class="tabPanel summaryPanel">
+        <div class="current">
+          <span>Summary</span>
+          <p>Scores appear here after calculation.</p>
+        </div>
+      </div>
     </div>
   </aside>
 
   <section>
+    <div class="topTabs">
+      <button class="tabBtn active" data-tab="upload" type="button">Upload</button>
+      <button class="tabBtn" data-tab="landmarks" type="button">Landmarks</button>
+      <button class="tabBtn" data-tab="measurements" type="button">Measurements</button>
+      <button class="tabBtn" data-tab="summary" type="button">Summary</button>
+    </div>
     <div class="analysisLayout">
       <div class="viewerPane">
         <div class="canvasWrap"><canvas id="canvas"></canvas></div>
@@ -462,6 +533,10 @@ const stepText = document.getElementById("stepText");
 const stepHint = document.getElementById("stepHint");
 const progressBar = document.getElementById("progressBar");
 const jsonBox = document.getElementById("jsonBox");
+const uploadConfirmBtn = document.getElementById("uploadConfirmBtn");
+const uploadConfirmNote = document.getElementById("uploadConfirmNote");
+const landmarkConfirmBtn = document.getElementById("landmarkConfirmBtn");
+const landmarkConfirmNote = document.getElementById("landmarkConfirmNote");
 const metricsEl = document.getElementById("metrics");
 const measurementCatalogEl = document.getElementById("measurementCatalog");
 const scoreEl = document.getElementById("score");
@@ -549,12 +624,18 @@ let filesByProfile = {front: null, side: null};
 let imagesByProfile = {front: new Image(), side: new Image()};
 let imageLoadedByProfile = {front: false, side: false};
 let resultsByProfile = {front: null, side: null};
+let viewByProfile = {
+  front: {scale: 1, offsetX: 0, offsetY: 0},
+  side: {scale: 1, offsetX: 0, offsetY: 0}
+};
 let profileMode = "front";
 let index = 0;
 let image = imagesByProfile.front;
 let imageLoaded = false;
 let drawBox = {x: 0, y: 0, w: 1, h: 1};
+let viewCrop = {x: 0, y: 0, w: 1, h: 1};
 let activeMetricId = null;
+let activeTab = "upload";
 
 const MEASUREMENT_GUIDES = {
   lateral_canthal_tilt: {lines: [["left_medial_canthus", "left_lateral_canthus"], ["right_medial_canthus", "right_lateral_canthus"]]},
@@ -602,28 +683,80 @@ function getDrawBox() {
   const cw = canvas.clientWidth;
   const ch = canvas.clientHeight;
   if (!imageLoaded || !image.width || !image.height) return {x: 0, y: 0, w: cw, h: ch};
-  const ar = image.width / image.height;
+  const ar = (image.width * viewCrop.w) / (image.height * viewCrop.h);
   const car = cw / ch;
   if (ar > car) {
     const w = cw;
     const h = w / ar;
-    return {x: 0, y: (ch - h) / 2, w, h};
+    return applyViewTransform({x: 0, y: (ch - h) / 2, w, h});
   }
   const h = ch;
   const w = h * ar;
-  return {x: (cw - w) / 2, y: 0, w, h};
+  const baseBox = {x: (cw - w) / 2, y: 0, w, h};
+  return applyViewTransform(baseBox);
+}
+
+function applyViewTransform(baseBox) {
+  const view = viewByProfile[profileMode];
+  const scaledW = baseBox.w * view.scale;
+  const scaledH = baseBox.h * view.scale;
+  const centerX = baseBox.x + baseBox.w / 2 + view.offsetX;
+  const centerY = baseBox.y + baseBox.h / 2 + view.offsetY;
+  return {
+    x: centerX - scaledW / 2,
+    y: centerY - scaledH / 2,
+    w: scaledW,
+    h: scaledH
+  };
+}
+
+function getZoomCrop() {
+  const focusedIds = getActiveMeasurementLandmarkIds();
+  if (!focusedIds || activeTab !== "measurements") return {x: 0, y: 0, w: 1, h: 1};
+  const points = landmarks.filter(lm => focusedIds.has(lm.id));
+  if (points.length < 2) return {x: 0, y: 0, w: 1, h: 1};
+  const xs = points.map(lm => Number(lm.x));
+  const ys = points.map(lm => Number(lm.y));
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const pad = Math.max(0.12, Math.max(maxX - minX, maxY - minY) * 0.85);
+  const x = Math.max(0, minX - pad);
+  const y = Math.max(0, minY - pad);
+  return {
+    x,
+    y,
+    w: Math.min(1 - x, Math.max(0.12, maxX - minX + pad * 2)),
+    h: Math.min(1 - y, Math.max(0.12, maxY - minY + pad * 2))
+  };
 }
 
 function draw() {
   ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+  viewCrop = getZoomCrop();
   drawBox = getDrawBox();
   ctx.fillStyle = "#08090d";
   ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-  if (imageLoaded) ctx.drawImage(image, drawBox.x, drawBox.y, drawBox.w, drawBox.h);
+  if (imageLoaded) {
+    ctx.drawImage(
+      image,
+      viewCrop.x * image.width,
+      viewCrop.y * image.height,
+      viewCrop.w * image.width,
+      viewCrop.h * image.height,
+      drawBox.x,
+      drawBox.y,
+      drawBox.w,
+      drawBox.h
+    );
+  }
 
   const focusedIds = getActiveMeasurementLandmarkIds();
   const visibleLandmarks = focusedIds
     ? []
+    : activeTab === "landmarks"
+      ? landmarks.filter(lm => defs[index] && lm.id === defs[index].id)
     : landmarks;
 
   visibleLandmarks.forEach((lm) => {
@@ -678,8 +811,8 @@ function getLandmark(id) {
 
 function toCanvasPoint(lm) {
   return {
-    x: drawBox.x + Number(lm.x) * drawBox.w,
-    y: drawBox.y + Number(lm.y) * drawBox.h
+    x: drawBox.x + ((Number(lm.x) - viewCrop.x) / viewCrop.w) * drawBox.w,
+    y: drawBox.y + ((Number(lm.y) - viewCrop.y) / viewCrop.h) * drawBox.h
   };
 }
 
@@ -746,6 +879,9 @@ function syncUi() {
   autoBtn.disabled = !imageLoaded;
   autoBtn.textContent = "Auto-detect landmarks";
   calcBtn.textContent = profileMode === "front" ? "Calculate front metrics" : "Calculate side metrics";
+  document.querySelectorAll(".modeBtn").forEach((button) => {
+    button.classList.toggle("active", button.dataset.profileTarget === profileMode);
+  });
   introCopy.textContent = profileMode === "front"
     ? "Place the front landmarks, then calculate the 30 front profile metrics."
     : "Place the side landmarks, then calculate the side profile metrics.";
@@ -848,17 +984,38 @@ canvas.addEventListener("click", (event) => {
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
-  const nx = (x - drawBox.x) / drawBox.w;
-  const ny = (y - drawBox.y) / drawBox.h;
+  const nx = viewCrop.x + ((x - drawBox.x) / drawBox.w) * viewCrop.w;
+  const ny = viewCrop.y + ((y - drawBox.y) / drawBox.h) * viewCrop.h;
   if (nx < 0 || nx > 1 || ny < 0 || ny > 1) return;
   setPoint(nx, ny);
 });
+
+canvas.addEventListener("wheel", (event) => {
+  if (!imageLoaded) return;
+  event.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const pointerX = event.clientX - rect.left;
+  const pointerY = event.clientY - rect.top;
+  const beforeX = (pointerX - drawBox.x) / drawBox.w;
+  const beforeY = (pointerY - drawBox.y) / drawBox.h;
+  const view = viewByProfile[profileMode];
+  const nextScale = Math.min(5, Math.max(1, view.scale * (event.deltaY < 0 ? 1.12 : 0.88)));
+  if (nextScale === view.scale) return;
+  view.scale = nextScale;
+  drawBox = getDrawBox();
+  const afterX = drawBox.x + beforeX * drawBox.w;
+  const afterY = drawBox.y + beforeY * drawBox.h;
+  view.offsetX += pointerX - afterX;
+  view.offsetY += pointerY - afterY;
+  draw();
+}, {passive: false});
 
 async function loadProfileImage(mode, file) {
   if (!file) return;
   filesByProfile[mode] = file;
   landmarksByProfile[mode] = [];
   resultsByProfile[mode] = null;
+  viewByProfile[mode] = {scale: 1, offsetX: 0, offsetY: 0};
   const url = URL.createObjectURL(file);
   const nextImage = new Image();
   imagesByProfile[mode] = nextImage;
@@ -875,6 +1032,7 @@ async function loadProfileImage(mode, file) {
   nextImage.src = url;
 
   if (profileMode !== mode) {
+    setActiveTab("landmarks");
     await loadProfileDefs(mode);
     return;
   }
@@ -1176,6 +1334,49 @@ metricSort.addEventListener("change", () => {
 
 copyScoresBtn.addEventListener("click", copyScores);
 
+function setActiveTab(tab) {
+  activeTab = tab;
+  appShell.classList.remove("tab-upload", "tab-landmarks", "tab-measurements", "tab-summary");
+  appShell.classList.add(`tab-${tab}`);
+  document.querySelectorAll(".tabBtn").forEach((button) => {
+    button.classList.toggle("active", button.dataset.tab === tab);
+  });
+  activeMetricId = null;
+  if (tab === "summary" && (resultsByProfile.front || resultsByProfile.side)) {
+    renderStoredResults();
+  }
+  window.setTimeout(fitCanvas, 0);
+}
+
+document.querySelectorAll(".tabBtn").forEach((button) => {
+  button.addEventListener("click", () => {
+    setActiveTab(button.dataset.tab);
+  });
+});
+
+document.querySelectorAll(".modeBtn").forEach((button) => {
+  button.addEventListener("click", () => {
+    loadProfileDefs(button.dataset.profileTarget);
+  });
+});
+
+uploadConfirmBtn.addEventListener("click", () => {
+  const hasFront = Boolean(filesByProfile.front);
+  const hasSide = Boolean(filesByProfile.side);
+  uploadConfirmNote.textContent = hasFront && hasSide
+    ? "Uploads confirmed."
+    : `Need ${hasFront ? "" : "front "}${hasSide ? "" : "side "}image.`;
+  if (hasFront && hasSide) setActiveTab("landmarks");
+});
+
+landmarkConfirmBtn.addEventListener("click", () => {
+  const missing = getMissingLandmarks();
+  landmarkConfirmNote.textContent = missing.length
+    ? `${profileMode} still missing ${missing.length} landmark${missing.length === 1 ? "" : "s"}.`
+    : `${profileMode} landmarks confirmed.`;
+  if (!missing.length) setActiveTab("measurements");
+});
+
 function unitLabel(unit) {
   if (unit === "percentage") return "%";
   if (unit === "degrees") return "deg";
@@ -1235,7 +1436,7 @@ async function fetchDefsForProfile(mode) {
 async function loadProfileDefs(nextMode) {
   landmarksByProfile[profileMode] = landmarks;
   profileMode = nextMode;
-  profileModeInput.value = profileMode;
+  if (profileModeInput) profileModeInput.value = profileMode;
   measurementDefs = profileMode === "front" ? frontMeasurementDefs : sideMeasurementDefs;
   defs = await fetchDefsForProfile(profileMode);
   image = imagesByProfile[profileMode];
@@ -1259,9 +1460,11 @@ async function loadProfileDefs(nextMode) {
   syncUi();
 }
 
-profileModeInput.addEventListener("change", () => {
-  loadProfileDefs(profileModeInput.value);
-});
+if (profileModeInput) {
+  profileModeInput.addEventListener("change", () => {
+    loadProfileDefs(profileModeInput.value);
+  });
+}
 
 window.addEventListener("resize", fitCanvas);
 boot();
