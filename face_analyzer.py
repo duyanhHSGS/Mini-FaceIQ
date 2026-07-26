@@ -19,12 +19,9 @@ def get_face_mesh():
 
 def get_landmarks_mp(img_bgr):
     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-    results = get_face_mesh().process(img_rgb)
-
-    if not results.multi_face_landmarks:
+    result = get_face_mesh().process(img_rgb)
+    if not result.multi_face_landmarks:
         return None
 
     h, w = img_bgr.shape[:2]
-    landmarks = results.multi_face_landmarks[0].landmark
-
-    return [(int(lm.x * w), int(lm.y * h)) for lm in landmarks]
+    return [(int(lm.x * w), int(lm.y * h)) for lm in result.multi_face_landmarks[0].landmark]

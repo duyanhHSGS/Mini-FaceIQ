@@ -1,4 +1,5 @@
 from io import BytesIO
+from PIL import Image
 
 import main
 from front_landmarks import FRONT_LANDMARK_DEFS
@@ -318,3 +319,43 @@ def test_side_autolandmarks_returns_detector_output(monkeypatch):
 
     assert response.status_code == 200
     assert response.get_json() == {"success": True, "landmarks": detected}
+
+
+def test_features_rating_uses_local_bundle_path():
+    assert main.FEATURES_RATING_DIR == main.os.path.join(main.ROOT_DIR, "features_rating")
+
+
+def test_features_rating_endpoint_formats_analyzer_output(monkeypatch):
+    client = main.app.test_client()
+
+    class FakeAnalyzer:
+        @staticmethod
+        def analyze_face(path):
+            assert main.os.path.exists(path)
+            return {
+                "score": 3.0,
+                "score_10": 5.0,
+                "summary": "SCORE: 5.0/10",
+                "deltas": {"Nose": 0.25, "Mouth": -0.1},
+                "region_polygons": {"Nose": [{"x": 0.5, "y": 0.4}]},
+                "heatmap": Image.new("RGB", (2, 2), "red"),
+            }
+
+    monkeypatch.setattr(main, "_load_features_rating_analyzer", lambda: FakeAnalyzer)
+
+    response = client.post(
+        "/api/features-rating",
+        data={"image": (BytesIO(b"pretend image bytes"), "face.png")},
+        content_type="multipart/form-data",
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    data = payload["data"]
+    assert data["rawScore"] == 3.0
+    assert data["score10"] == 5.0
+    assert data["summary"] == "SCORE: 5.0/10"
+    assert data["heatmapPng"].startswith("data:image/png;base64,")
+    assert data["regions"][0]["name"] == "Nose"
+    assert data["regions"][0]["polygon"] == [{"x": 0.5, "y": 0.4}]

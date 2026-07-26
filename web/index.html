@@ -75,7 +75,7 @@
     .row > * { flex: 1; }
     .topTabs {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 8px;
       margin-bottom: 14px;
     }
@@ -95,7 +95,8 @@
     main.tab-upload .uploadPanel,
     main.tab-landmarks .landmarkPanel,
     main.tab-measurements .measurementPanel,
-    main.tab-summary .summaryPanel {
+    main.tab-summary .summaryPanel,
+    main.tab-features .featurePanel {
       display: block;
     }
     main.tab-upload .viewerPane,
@@ -107,8 +108,16 @@
     main.tab-measurements .measurementCatalog,
     main.tab-summary .measurementCatalog,
     main.tab-summary .resultsToolbar,
-    main.tab-summary .metrics {
+    main.tab-summary .metrics,
+    main.tab-features .analysisLayout {
       display: none;
+    }
+    .featureDemo { display: none; }
+    main.tab-features .featureDemo {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.8fr) minmax(320px, 1fr);
+      gap: 16px;
+      align-items: start;
     }
     .uploadHeader {
       display: flex;
@@ -348,6 +357,39 @@
     }
     .stat b { font-size: 24px; display: block; }
     .stat span { color: var(--muted); font-size: 12px; }
+    .featureCard {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 14px;
+      min-width: 0;
+    }
+    .featureCard h2 { margin-top: 0; }
+    .heatmapPreview {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #08090d;
+      display: block;
+    }
+    .featureRegions {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .featureRegion {
+      display: grid;
+      grid-template-columns: minmax(120px, 1fr) 72px minmax(104px, 0.7fr);
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #11141a;
+      font-size: 13px;
+    }
+    .featureRegion strong { overflow-wrap: anywhere; }
+    .featureStatus { color: var(--muted); }
     textarea {
       width: 100%;
       min-height: 120px;
@@ -395,6 +437,8 @@
       .catalogItem { grid-template-columns: 1fr; }
       .metric .hideMobile { display: none; }
       .score { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      main.tab-features .featureDemo { grid-template-columns: 1fr; }
+      .featureRegion { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -486,6 +530,17 @@
           <p>Scores appear here after calculation.</p>
         </div>
       </div>
+
+      <div class="tabPanel featurePanel">
+        <label for="featureImageInput">Front face image</label>
+        <input id="featureImageInput" type="file" accept="image/*">
+        <button id="useFrontForFeatureBtn" style="width:100%; margin-top:8px" type="button">Use uploaded front image</button>
+        <button id="featureAnalyzeBtn" class="primary" style="width:100%; margin-top:8px" type="button">Run feature rating</button>
+        <div class="current">
+          <span id="featureStatus">Ready for a front-facing photo.</span>
+          <p>This demo uses the original learned Features-rating model: one prediction, then eight blur-occlusion checks for eyes, brows, nose, mouth, skin, and hair.</p>
+        </div>
+      </div>
     </div>
   </aside>
 
@@ -495,6 +550,7 @@
       <button class="tabBtn" data-tab="landmarks" type="button">Landmarks</button>
       <button class="tabBtn" data-tab="measurements" type="button">Measurements</button>
       <button class="tabBtn" data-tab="summary" type="button">Summary</button>
+      <button class="tabBtn" data-tab="features" type="button">Features</button>
     </div>
     <div class="analysisLayout">
       <div class="viewerPane">
@@ -515,6 +571,22 @@
           </div>
         </div>
         <div id="metrics" class="metrics"></div>
+      </div>
+    </div>
+    <div id="featureDemo" class="featureDemo">
+      <div class="featureCard">
+        <h2>Learned feature rating</h2>
+        <div id="featureScore" class="score">
+          <div class="stat"><b>--</b><span>feature score</span></div>
+          <div class="stat"><b>--</b><span>raw SCUT score</span></div>
+        </div>
+        <p>Positive regions mean the model score drops when that area is blurred. Negative regions mean the model score rises when that area is blurred.</p>
+        <div id="featureRegions" class="featureRegions"></div>
+      </div>
+      <div class="featureCard">
+        <h2>Occlusion heatmap</h2>
+        <img id="featureHeatmap" class="heatmapPreview" alt="Feature rating heatmap" hidden>
+        <p id="featureEmpty">Run analysis to see the original image blended with the contribution heatmap.</p>
       </div>
     </div>
   </section>
@@ -546,8 +618,17 @@ const copyScoresBtn = document.getElementById("copyScoresBtn");
 const calcBtn = document.getElementById("calcBtn");
 const calcAllBtn = document.getElementById("calcAllBtn");
 const autoBtn = document.getElementById("autoBtn");
+const featureImageInput = document.getElementById("featureImageInput");
+const useFrontForFeatureBtn = document.getElementById("useFrontForFeatureBtn");
+const featureAnalyzeBtn = document.getElementById("featureAnalyzeBtn");
+const featureStatus = document.getElementById("featureStatus");
+const featureScore = document.getElementById("featureScore");
+const featureRegions = document.getElementById("featureRegions");
+const featureHeatmap = document.getElementById("featureHeatmap");
+const featureEmpty = document.getElementById("featureEmpty");
 let currentMeasurements = [];
 let hasCalculatedResults = false;
+let featureFile = null;
 const frontMeasurementDefs = [
   {id: "lateral_canthal_tilt", name: "Lateral Canthal Tilt", category: "Eyes", description: "Eye angle relative to horizontal.", requires: ["left_medial_canthus", "left_lateral_canthus", "right_medial_canthus", "right_lateral_canthus"]},
   {id: "nose_bridge_to_width", name: "Nose Bridge to Nose Width Ratio", category: "Nose", description: "Nose side width compared with nose bridge width.", requires: ["left_nose_side", "right_nose_side", "left_nose_bridge", "right_nose_bridge"]},
@@ -1334,9 +1415,75 @@ metricSort.addEventListener("change", () => {
 
 copyScoresBtn.addEventListener("click", copyScores);
 
+function setFeatureFile(file) {
+  featureFile = file || null;
+  featureStatus.textContent = featureFile
+    ? `Selected ${featureFile.name || "front image"}.`
+    : "Ready for a front-facing photo.";
+}
+
+featureImageInput.addEventListener("change", () => {
+  setFeatureFile(featureImageInput.files && featureImageInput.files[0]);
+});
+
+useFrontForFeatureBtn.addEventListener("click", () => {
+  if (!filesByProfile.front) {
+    featureStatus.textContent = "Upload a front profile image first.";
+    return;
+  }
+  setFeatureFile(filesByProfile.front);
+});
+
+featureAnalyzeBtn.addEventListener("click", async () => {
+  if (!featureFile) {
+    featureStatus.textContent = "Choose a front-facing image first.";
+    return;
+  }
+
+  const oldText = featureAnalyzeBtn.textContent;
+  featureAnalyzeBtn.disabled = true;
+  featureAnalyzeBtn.textContent = "Analyzing...";
+  featureStatus.textContent = "Running neural score and eight region occlusions...";
+
+  try {
+    const form = new FormData();
+    form.append("image", featureFile);
+    const res = await fetch("/api/features-rating", {method: "POST", body: form});
+    const payload = await res.json();
+    if (!payload.success) {
+      throw new Error(payload.error || "Feature rating failed");
+    }
+    renderFeatureRating(payload.data);
+    featureStatus.textContent = "Feature rating complete.";
+  } catch (err) {
+    featureStatus.textContent = err.message || "Feature rating failed.";
+  } finally {
+    featureAnalyzeBtn.disabled = false;
+    featureAnalyzeBtn.textContent = oldText;
+  }
+});
+
+function renderFeatureRating(data) {
+  featureScore.innerHTML = `
+    <div class="stat"><b>${formatScoreValue(data.score10, true)}</b><span>feature score</span></div>
+    <div class="stat"><b>${formatScoreValue(data.rawScore, true)}</b><span>raw SCUT score</span></div>
+    <div class="stat"><b>${(data.regions || []).length}</b><span>regions tested</span></div>
+  `;
+  featureRegions.innerHTML = (data.regions || []).map(region => `
+    <div class="featureRegion">
+      <strong>${escapeHtml(region.name)}</strong>
+      <span>${Number(region.score).toFixed(1)}/100</span>
+      <span class="featureStatus">${escapeHtml(region.effect)}</span>
+    </div>
+  `).join("");
+  featureHeatmap.src = data.heatmapPng;
+  featureHeatmap.hidden = false;
+  featureEmpty.hidden = true;
+}
+
 function setActiveTab(tab) {
   activeTab = tab;
-  appShell.classList.remove("tab-upload", "tab-landmarks", "tab-measurements", "tab-summary");
+  appShell.classList.remove("tab-upload", "tab-landmarks", "tab-measurements", "tab-summary", "tab-features");
   appShell.classList.add(`tab-${tab}`);
   document.querySelectorAll(".tabBtn").forEach((button) => {
     button.classList.toggle("active", button.dataset.tab === tab);
@@ -1400,6 +1547,13 @@ function escapeAttr(value) {
   return String(value)
     .replaceAll("&", "&amp;")
     .replaceAll("\"", "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
 }
