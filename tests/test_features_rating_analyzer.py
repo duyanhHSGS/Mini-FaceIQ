@@ -137,8 +137,8 @@ def test_analyze_face_reports_score_contract_and_delta_direction(analyze_depende
     assert result["heatmap"].size == (224, 244)
     assert result["deltas"] == {"Left Eye": 1.0, "Right Eye": -1.0}
     assert "Left Eye" in result["summary"]
-    assert "DEP" in result["summary"]
-    assert "XAU" in result["summary"]
+    assert "GOOD" in result["summary"]
+    assert "BAD" in result["summary"]
 
 
 @pytest.mark.parametrize(

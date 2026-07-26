@@ -180,7 +180,7 @@ def analyze_face(path, mat_path=None, cb=None):
     for name,delta in sorted_items:
         norm=5.0+(delta/mx)*5.0; norm=max(0,min(10,norm))
         dn=DISPLAY.get(name,name)
-        tag="DEP" if delta>0.003 else ("XAU" if delta<-0.003 else "---")
+        tag="GOOD" if delta>0.003 else ("BAD" if delta<-0.003 else "---")
         bar="".join(["\u2581","\u2582","\u2583","\u2584","\u2585","\u2586","\u2587","\u2588","\u2588"])[:max(1,int(norm/10*9))]
         lines.append(f"  {dn:14s} {norm:4.1f} [{tag}] {bar}")
     polygons = get_region_polygons(cv2.resize(bgr, (224, 224)))
