@@ -1,0 +1,290 @@
+[
+    {
+        "id": "hairline",
+        "label": "Hairline",
+        "x": 0.53418,
+        "y": 0.229492
+    },
+    {
+        "id": "left_pupil",
+        "label": "Left Pupil",
+        "x": 0.385742,
+        "y": 0.40918
+    },
+    {
+        "id": "right_pupil",
+        "label": "Right Pupil",
+        "x": 0.628906,
+        "y": 0.451172
+    },
+    {
+        "id": "left_nose_side",
+        "label": "Left Nose Side",
+        "x": 0.394531,
+        "y": 0.59668
+    },
+    {
+        "id": "right_nose_side",
+        "label": "Right Nose Side",
+        "x": 0.551758,
+        "y": 0.624023
+    },
+    {
+        "id": "lower_lip_center",
+        "label": "Lower Lip Center",
+        "x": 0.448242,
+        "y": 0.77832
+    },
+    {
+        "id": "chin_bottom",
+        "label": "Chin Bottom",
+        "x": 0.426758,
+        "y": 0.899414
+    },
+    {
+        "id": "left_temple",
+        "label": "Left Temple",
+        "x": 0.288086,
+        "y": 0.246094
+    },
+    {
+        "id": "right_temple",
+        "label": "Right Temple",
+        "x": 0.770508,
+        "y": 0.326172
+    },
+    {
+        "id": "left_medial_canthus",
+        "label": "Left Medial Canthus",
+        "x": 0.447266,
+        "y": 0.43457
+    },
+    {
+        "id": "left_lateral_canthus",
+        "label": "Left Lateral Canthus",
+        "x": 0.324219,
+        "y": 0.399414
+    },
+    {
+        "id": "left_upper_eyelid",
+        "label": "Left Upper Eyelid",
+        "x": 0.37793,
+        "y": 0.391602
+    },
+    {
+        "id": "left_lower_eyelid",
+        "label": "Left Lower Eyelid",
+        "x": 0.388672,
+        "y": 0.427734
+    },
+    {
+        "id": "left_eyelid_hood_end",
+        "label": "Left Eyelid Hood End",
+        "x": 0.323242,
+        "y": 0.388672
+    },
+    {
+        "id": "left_brow_head",
+        "label": "Left Brow Head",
+        "x": 0.446289,
+        "y": 0.373047
+    },
+    {
+        "id": "left_brow_inner_corner",
+        "label": "Left Brow Inner Corner",
+        "x": 0.453125,
+        "y": 0.405273
+    },
+    {
+        "id": "left_brow_arch",
+        "label": "Left Brow Arch",
+        "x": 0.3125,
+        "y": 0.347656
+    },
+    {
+        "id": "left_brow_peak",
+        "label": "Left Brow Peak",
+        "x": 0.318359,
+        "y": 0.324707
+    },
+    {
+        "id": "left_brow_tail",
+        "label": "Left Brow Tail",
+        "x": 0.277344,
+        "y": 0.330078
+    },
+    {
+        "id": "left_upper_eyelid_crease",
+        "label": "Left Upper Eyelid Crease",
+        "x": 0.387695,
+        "y": 0.384766
+    },
+    {
+        "id": "right_medial_canthus",
+        "label": "Right Medial Canthus",
+        "x": 0.55957,
+        "y": 0.459961
+    },
+    {
+        "id": "right_lateral_canthus",
+        "label": "Right Lateral Canthus",
+        "x": 0.693359,
+        "y": 0.467773
+    },
+    {
+        "id": "right_upper_eyelid",
+        "label": "Right Upper Eyelid",
+        "x": 0.643555,
+        "y": 0.439453
+    },
+    {
+        "id": "right_lower_eyelid",
+        "label": "Right Lower Eyelid",
+        "x": 0.624023,
+        "y": 0.470703
+    },
+    {
+        "id": "right_eyelid_hood_end",
+        "label": "Right Eyelid Hood End",
+        "x": 0.698242,
+        "y": 0.456055
+    },
+    {
+        "id": "right_brow_head",
+        "label": "Right Brow Head",
+        "x": 0.572266,
+        "y": 0.395508
+    },
+    {
+        "id": "right_brow_inner_corner",
+        "label": "Right Brow Inner Corner",
+        "x": 0.557617,
+        "y": 0.424805
+    },
+    {
+        "id": "right_brow_arch",
+        "label": "Right Brow Arch",
+        "x": 0.713867,
+        "y": 0.419922
+    },
+    {
+        "id": "right_brow_peak",
+        "label": "Right Brow Peak",
+        "x": 0.711914,
+        "y": 0.396484
+    },
+    {
+        "id": "right_brow_tail",
+        "label": "Right Brow Tail",
+        "x": 0.750977,
+        "y": 0.417969
+    },
+    {
+        "id": "right_upper_eyelid_crease",
+        "label": "Right Upper Eyelid Crease",
+        "x": 0.632812,
+        "y": 0.429688
+    },
+    {
+        "id": "nasal_base",
+        "label": "Nasal Base",
+        "x": 0.466309,
+        "y": 0.64502
+    },
+    {
+        "id": "nose_bottom",
+        "label": "Nose Bottom",
+        "x": 0.464844,
+        "y": 0.648438
+    },
+    {
+        "id": "left_nose_bridge",
+        "label": "Left Nose Bridge",
+        "x": 0.466797,
+        "y": 0.501953
+    },
+    {
+        "id": "right_nose_bridge",
+        "label": "Right Nose Bridge",
+        "x": 0.511719,
+        "y": 0.509766
+    },
+    {
+        "id": "left_mouth_corner",
+        "label": "Left Mouth Corner",
+        "x": 0.356445,
+        "y": 0.717773
+    },
+    {
+        "id": "right_mouth_corner",
+        "label": "Right Mouth Corner",
+        "x": 0.555664,
+        "y": 0.749023
+    },
+    {
+        "id": "cupids_bow",
+        "label": "Cupid's Bow",
+        "x": 0.45752,
+        "y": 0.713867
+    },
+    {
+        "id": "inner_cupids_bow",
+        "label": "Inner Cupid's Bow",
+        "x": 0.456055,
+        "y": 0.720703
+    },
+    {
+        "id": "mouth_middle",
+        "label": "Mouth Middle",
+        "x": 0.453613,
+        "y": 0.740723
+    },
+    {
+        "id": "left_upper_jaw_angle",
+        "label": "Left Upper Jaw Angle",
+        "x": 0.229492,
+        "y": 0.679688
+    },
+    {
+        "id": "right_upper_jaw_angle",
+        "label": "Right Upper Jaw Angle",
+        "x": 0.693359,
+        "y": 0.759766
+    },
+    {
+        "id": "left_lower_jaw_angle",
+        "label": "Left Lower Jaw Angle",
+        "x": 0.249023,
+        "y": 0.749023
+    },
+    {
+        "id": "right_lower_jaw_angle",
+        "label": "Right Lower Jaw Angle",
+        "x": 0.652344,
+        "y": 0.818359
+    },
+    {
+        "id": "left_chin",
+        "label": "Left Chin",
+        "x": 0.306641,
+        "y": 0.829102
+    },
+    {
+        "id": "right_chin",
+        "label": "Right Chin",
+        "x": 0.567383,
+        "y": 0.874023
+    },
+    {
+        "id": "left_cheekbone",
+        "label": "Left Cheekbone",
+        "x": 0.222656,
+        "y": 0.419922
+    },
+    {
+        "id": "right_cheekbone",
+        "label": "Right Cheekbone",
+        "x": 0.782227,
+        "y": 0.515137
+    }
+]

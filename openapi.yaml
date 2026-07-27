@@ -26,9 +26,6 @@ tags:
   - name: "Features Rating"
     description: "Deep-learning beauty rating with regional heatmaps & deltas."
 
-# 
-# SHARED SCHEMAS (O(1) LOOKUP, BABY )
-# 
 components:
   schemas:
     #  LANDMARK DEFINITIONS 
@@ -591,15 +588,14 @@ paths:
                   format: float
                   default: 1.0
                   description: "Width scaling factor for non-square pixels."
-          example:
-            required: true
-            landmarks:
-              - { id: "top_of_head", x: 0.5, y: 0.05, label: "Top of Head" }
-              - { id: "nose_tip", x: 0.6, y: 0.3, label: "Nose Tip" }
-              # ... (all 31 landmarks)
-            gender: "female"
-            ethnicity: "caucasian"
-            sideAspect: 1.0
+              example:
+                landmarks:
+                  - { id: "top_of_head", x: 0.5, y: 0.05, label: "Top of Head" }
+                  - { id: "nose_tip", x: 0.6, y: 0.3, label: "Nose Tip" }
+                  # ... (all 31 landmarks)
+                gender: "female"
+                ethnicity: "caucasian"
+                sideAspect: 1.0
       responses:
         "200":
           description: "Side analysis completed."
