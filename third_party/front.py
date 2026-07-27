@@ -1,3 +1,18 @@
+"""
+Front Face Landmark Detector API.
+
+Public function:
+    detect_front_landmarks_from_upload(file_storage) -> list[dict]
+        Reads a front‑facing photo from a Flask FileStorage,
+        runs Google MediaPipe face mesh, maps the MediaPipe landmark indices
+        to the app's custom front landmark definitions, and returns
+        a list of landmarks: [{id, x, y, label}, ...] in normalized coordinates.
+
+Internal:
+    _direct_point(points, index) -> tuple|None
+    _average_point(points, indices) -> tuple|None
+    _clamp(value) -> float
+"""
 import cv2
 import numpy as np
 

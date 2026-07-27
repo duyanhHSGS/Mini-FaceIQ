@@ -1,3 +1,20 @@
+"""
+Features Rating API Wrapper.
+
+Public function:
+    analyze_features_from_upload(file_storage, suffix) -> dict
+        Takes a Flask FileStorage object and a file suffix (e.g., '.jpg'),
+        runs the beauty rating deep model, and returns a formatted dict:
+          - rawScore (float)
+          - score10 (float)
+          - summary (str)
+          - regions (list of {name, delta, score, effect, polygon})
+          - heatmapPng (base64-encoded PNG)
+
+Internal:
+    _load_features_rating_analyzer() -> module
+        Lazy-loads the analyzer from `features_rating_bundle/face_analyzer.py`.
+"""
 import base64
 import importlib.util
 import io

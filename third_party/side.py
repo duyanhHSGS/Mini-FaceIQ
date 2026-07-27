@@ -1,3 +1,16 @@
+"""
+Side Face Landmark Detector API.
+
+Public function:
+    detect_side_landmarks_from_upload(file_storage) -> list[dict]
+        Reads a side‑view photo from a Flask FileStorage,
+        runs 3DDFA_V2 face alignment, maps the result to the app's side landmark
+        definitions, and returns a list of landmarks: [{id, x, y, label}, ...].
+
+Also exposed (for direct use):
+    detect_side(image_path: str) -> dict
+        Direct file‑path interface to 3DDFA_V2 detection (returns raw result).
+"""
 from side_landmarks import SIDE_LANDMARK_DEFS
 
 from .providers import side_3ddfa
