@@ -323,7 +323,7 @@ def test_side_autolandmarks_returns_detector_output(monkeypatch):
 def test_features_rating_uses_local_bundle_path():
     import os
 
-    import third_party.features_rating as feature_adapter
+    import third_party.adapter_features as feature_adapter
 
     assert feature_adapter._BUNDLE_DIR.endswith(os.path.join("third_party", "features_rating_bundle"))
 

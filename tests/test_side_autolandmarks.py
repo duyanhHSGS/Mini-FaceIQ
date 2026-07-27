@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-import third_party.side as side_autolandmarks
+import third_party.adapter_side as side_autolandmarks
 from side_landmarks import SIDE_LANDMARK_DEFS
 
 
