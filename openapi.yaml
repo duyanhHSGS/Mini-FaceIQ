@@ -1,0 +1,692 @@
+openapi: "3.0.3"
+info:
+  title: "Facial Attractiveness Analyzer & Landmark Detection API"
+  description: 
+    A hyper-advanced facial aesthetic analysis engine that detects facial landmarks
+    (front & profile), calculates 60+ anthropometric measurements, scores each
+    against gender/ethnicity-specific ideal ranges, and returns overall attractiveness
+    scores.  Powered by MediaPipe, 3DDFA_V2, and a SCUT-trained features rating model.
+  version: "1.0.0"
+  contact:
+    name: "The Supreme Brain HQ"
+    url: "https://example.com"
+    email: "caveman@brainhq.meme"
+
+servers:
+  - url: "http://127.0.0.1:7860"
+    description: "Local development server (Flask)"
+
+tags:
+  - name: "Landmark Definitions"
+    description: "Retrieve the blueprint of all supported facial landmarks."
+  - name: "Auto Landmark Detection"
+    description: "AI-powered landmark detection from uploaded images."
+  - name: "Facial Metrics Calculation"
+    description: "Compute 60+ measurements & attractiveness scores from placed landmarks."
+  - name: "Features Rating"
+    description: "Deep-learning beauty rating with regional heatmaps & deltas."
+
+# 
+# SHARED SCHEMAS (O(1) LOOKUP, BABY )
+# 
+components:
+  schemas:
+    #  LANDMARK DEFINITIONS 
+    LandmarkDef:
+      type: object
+      required: [id, label, group, color]
+      properties:
+        id:
+          type: string
+          description: "Unique landmark identifier (e.g. 'left_pupil', 'chin_bottom')."
+          example: "left_pupil"
+        label:
+          type: string
+          description: "Human-readable name."
+          example: "Left Pupil"
+        group:
+          type: string
+          description: "Facial region category."
+          enum: [head, eyes, nose, mouth, chin, jaw, cheeks, brows, ears, neck, forehead, midface, lips, profile]
+          example: "eyes"
+        color:
+          type: string
+          description: "CSS color for UI rendering."
+          pattern: "^#[0-9a-fA-F]{6}$"
+          example: "#ef4444"
+
+    LandmarkCoord:
+      type: object
+      required: [id, x, y, label]
+      properties:
+        id:
+          type: string
+          description: "Landmark identifier matching the definition."
+        x:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          description: "Normalized x coordinate (0-1)."
+        y:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          description: "Normalized y coordinate (0-1)."
+        label:
+          type: string
+          description: "Human-readable landmark name."
+
+    #  IDEAL RANGE 
+    IdealRange:
+      type: object
+      properties:
+        min:
+          type: number
+          format: float
+          description: "Absolute minimum of the valid range."
+        max:
+          type: number
+          format: float
+          description: "Absolute maximum of the valid range."
+        idealMin:
+          type: number
+          format: float
+          description: "Lower bound of the ideal (perfect score) range."
+        idealMax:
+          type: number
+          format: float
+          description: "Upper bound of the ideal (perfect score) range."
+
+    #  SINGLE MEASUREMENT 
+    Measurement:
+      type: object
+      required: [id, name, value, unit, score, idealRange, range, description, category, isIdeal, deviation, interpretation]
+      properties:
+        id:
+          type: string
+          description: "Measurement identifier."
+          example: "midface_ratio"
+        name:
+          type: string
+          description: "Human-readable measurement name."
+          example: "Midface Ratio"
+        value:
+          type: number
+          format: float
+          description: "Measured value."
+        unit:
+          type: string
+          enum: [mm, degrees, ratio, percentage]
+          description: "Unit of measurement."
+        score:
+          type: number
+          format: float
+          minimum: 1.0
+          maximum: 10.0
+          description: "Plateau-Gaussian score (1-10)."
+        idealRange:
+          type: array
+          description: "[idealMin, idealMax] for perfect score."
+          items:
+            type: number
+            format: float
+          minItems: 2
+          maxItems: 2
+        range:
+          type: array
+          description: "[min, max] absolute valid range."
+          items:
+            type: number
+            format: float
+          minItems: 2
+          maxItems: 2
+        description:
+          type: string
+          description: "Plain-English explanation of the measurement."
+        category:
+          type: string
+          description: "Facial category."
+          example: "Eyes"
+        isIdeal:
+          type: boolean
+          description: "Whether the measurement falls within the perfect plateau."
+        deviation:
+          type: string
+          enum: [ideal, low, high]
+          description: "Deviation from ideal range."
+        interpretation:
+          type: string
+          description: "Natural-language interpretation of the score."
+          example: "Your midface ratio of 0.98 falls within the ideal plateau (0.92-1.03). Perfect score."
+
+    #  CATEGORY SCORES 
+    CategoryScores:
+      type: object
+      description: "Average score per facial category (keys are category names)."
+      additionalProperties:
+        type: number
+        format: float
+
+    #  GROUP SCORES 
+    GroupScores:
+      type: object
+      properties:
+        G_F1:
+          type: number
+          description: "Front group 1  Proportions & Structure."
+        G_F2:
+          type: number
+          description: "Front group 2  Eyes & Brows."
+        G_F3:
+          type: number
+          description: "Front group 3  Jaw, Mouth & Nose."
+        G_S1:
+          type: number
+          description: "Side group 1  Profile & Convexity."
+        G_S2:
+          type: number
+          description: "Side group 2  Nose & Forehead."
+        G_S3:
+          type: number
+          description: "Side group 3  Jaw & Lips."
+        P_front:
+          type: number
+          description: "Front penalty (sub-threshold measurement penalties)."
+        P_side:
+          type: number
+          description: "Side penalty."
+
+    #  ANALYSIS RESULT 
+    AnalysisResult:
+      type: object
+      required: [gender, ethnicity, frontMeasurements, sideMeasurements, overallScore, frontScore, sideScore, harmonyScore,
+                  categoryScores, topStrengths, topWeaknesses, groups, missingCount]
+      properties:
+        gender:
+          type: string
+          enum: [male, female]
+        ethnicity:
+          type: string
+          enum: [caucasian, black, hispanic, middle_eastern, south_asian, asian, mixed]
+        frontMeasurements:
+          type: array
+          items:
+            $ref: "#/components/schemas/Measurement"
+        sideMeasurements:
+          type: array
+          items:
+            $ref: "#/components/schemas/Measurement"
+        overallScore:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 10.0
+          description: "Final overall attractiveness score."
+        frontScore:
+          type: number
+          format: float
+        sideScore:
+          type: number
+          format: float
+        harmonyScore:
+          type: number
+          format: float
+        categoryScores:
+          $ref: "#/components/schemas/CategoryScores"
+        topStrengths:
+          type: array
+          description: "Top 3 highest-scoring measurement names."
+          items:
+            type: string
+          maxItems: 3
+        topWeaknesses:
+          type: array
+          description: "Top 3 lowest-scoring measurement names."
+          items:
+            type: string
+          maxItems: 3
+        groups:
+          $ref: "#/components/schemas/GroupScores"
+        missingCount:
+          type: integer
+          description: "Number of landmarks not yet placed."
+
+    #  FEATURES RATING 
+    FeaturesRegion:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "Region of the face."
+          example: "left_eye"
+        delta:
+          type: number
+          format: float
+          description: "Contribution of this region to the final score (negative = lowers)."
+        score:
+          type: number
+          format: float
+          description: "Regional score (0-100)."
+        effect:
+          type: string
+          enum: [helps prediction, lowers prediction, neutral]
+          description: "Whether the region helps or hurts the overall score."
+        polygon:
+          type: array
+          description: "List of [x,y] polygon coordinates defining the region's boundary."
+          items:
+            type: array
+            items:
+              type: number
+            minItems: 2
+            maxItems: 2
+
+    FeaturesRatingResult:
+      type: object
+      required: [rawScore, score10, summary, regions, heatmapPng]
+      properties:
+        rawScore:
+          type: number
+          format: float
+          description: "Raw model output score."
+        score10:
+          type: number
+          format: float
+          description: "Score normalized to 0-10 range."
+        summary:
+          type: string
+          description: "Textual summary of the rating."
+        regions:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeaturesRegion"
+        heatmapPng:
+          type: string
+          format: byte
+          description: "Base64-encoded PNG heatmap image (data URI format)."
+          example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg..."
+
+    #  STANDARD RESPONSES 
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+
+    ErrorResponse:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: string
+          description: "Human-readable error message."
+
+    MissingLandmarksError:
+      allOf:
+        - $ref: "#/components/schemas/ErrorResponse"
+        - type: object
+          properties:
+            missing:
+              type: array
+              description: "IDs of missing landmarks."
+              items:
+                type: string
+
+# 
+# PATHS  THE MEAT & POTATOES 
+# 
+paths:
+  # 
+  # 1. GET LANDMARK DEFINITIONS
+  # 
+  /api/front-landmarks:
+    get:
+      tags: [Landmark Definitions]
+      summary: "Retrieve all front landmark definitions."
+      description: "Returns the list of 48 front-facing landmark definitions with IDs, labels, groups, and colors."
+      operationId: getFrontLandmarks
+      responses:
+        "200":
+          description: "Front landmark definitions."
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      landmarks:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/LandmarkDef"
+
+  /api/side-landmarks:
+    get:
+      tags: [Landmark Definitions]
+      summary: "Retrieve all side (profile) landmark definitions."
+      description: "Returns the list of 31 profile landmark definitions."
+      operationId: getSideLandmarks
+      responses:
+        "200":
+          description: "Side landmark definitions."
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      landmarks:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/LandmarkDef"
+
+  # 
+  # 2. AUTO LANDMARK DETECTION
+  # 
+  /api/front-autolandmarks:
+    post:
+      tags: [Auto Landmark Detection]
+      summary: "Auto-detect front landmarks from an uploaded photo."
+      description: >
+        Accepts a JPEG/PNG/WebP image, runs Google MediaPipe face mesh,
+        and returns up to 48 normalized landmark coordinates.
+      operationId: detectFrontAutoLandmarks
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: "Front-facing face photo (jpg, jpeg, png, webp)."
+      responses:
+        "200":
+          description: "Landmarks detected successfully."
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      landmarks:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/LandmarkCoord"
+        "400":
+          description: "No image uploaded, no file selected, or unsupported file type."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: "Detection failed (e.g., no face found, invalid image)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/side-autolandmarks:
+    post:
+      tags: [Auto Landmark Detection]
+      summary: "Auto-detect side (profile) landmarks from an uploaded photo."
+      description: >
+        Accepts a JPEG/PNG/WebP image, runs 3DDFA_V2 face alignment,
+        and returns up to 31 normalized side landmark coordinates.
+      operationId: detectSideAutoLandmarks
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: "Landmarks detected successfully."
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      landmarks:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/LandmarkCoord"
+        "400":
+          description: "No image or invalid file."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: "Detection engine failure."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # 
+  # 3. FACIAL METRICS CALCULATION
+  # 
+  /api/front-metrics:
+    post:
+      tags: [Facial Metrics Calculation]
+      summary: "Calculate front-facing facial metrics from placed landmarks."
+      description: >
+        Accepts a JSON payload of manually placed (or auto-detected) front landmarks,
+        along with gender/ethnicity/aspect ratio, and returns 28 measurements with
+        scores, ideal ranges, and an overall front score.
+      operationId: calculateFrontMetrics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [landmarks]
+              properties:
+                landmarks:
+                  type: array
+                  description: "Array of placed front landmarks (must include all 48 IDs)."
+                  items:
+                    $ref: "#/components/schemas/LandmarkCoord"
+                gender:
+                  type: string
+                  enum: [male, female]
+                  default: "male"
+                ethnicity:
+                  type: string
+                  enum: [caucasian, black, hispanic, middle_eastern, south_asian, asian, mixed]
+                  default: "asian"
+                frontAspect:
+                  type: number
+                  format: float
+                  default: 1.0
+                  description: "Width scaling factor for non-square pixels."
+                  example: 1.0
+              example:
+                landmarks:
+                  - { id: "hairline", x: 0.5, y: 0.1, label: "Hairline" }
+                  - { id: "left_pupil", x: 0.45, y: 0.4, label: "Left Pupil" }
+                  # ... (all 48 landmarks)
+                gender: "male"
+                ethnicity: "asian"
+                frontAspect: 1.0
+      responses:
+        "200":
+          description: "Front analysis completed."
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AnalysisResult"
+        "400":
+          description: "Missing landmarks or invalid payload."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MissingLandmarksError"
+        "500":
+          description: "Calculation error."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/side-metrics:
+    post:
+      tags: [Facial Metrics Calculation]
+      summary: "Calculate side (profile) facial metrics from placed landmarks."
+      description: >
+        Accepts JSON payload of placed side landmarks, along with
+        gender/ethnicity/aspect ratio, and returns 33 profile measurements
+        with scores, ideal ranges, and an overall side score.
+      operationId: calculateSideMetrics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [landmarks]
+              properties:
+                landmarks:
+                  type: array
+                  description: "Array of placed side landmarks (must include all 31 IDs)."
+                  items:
+                    $ref: "#/components/schemas/LandmarkCoord"
+                gender:
+                  type: string
+                  enum: [male, female]
+                  default: "male"
+                ethnicity:
+                  type: string
+                  enum: [caucasian, black, hispanic, middle_eastern, south_asian, asian, mixed]
+                  default: "asian"
+                sideAspect:
+                  type: number
+                  format: float
+                  default: 1.0
+                  description: "Width scaling factor for non-square pixels."
+          example:
+            required: true
+            landmarks:
+              - { id: "top_of_head", x: 0.5, y: 0.05, label: "Top of Head" }
+              - { id: "nose_tip", x: 0.6, y: 0.3, label: "Nose Tip" }
+              # ... (all 31 landmarks)
+            gender: "female"
+            ethnicity: "caucasian"
+            sideAspect: 1.0
+      responses:
+        "200":
+          description: "Side analysis completed."
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AnalysisResult"
+        "400":
+          description: "Missing landmarks or invalid payload."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MissingLandmarksError"
+        "500":
+          description: "Calculation error."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # 
+  # 4. FEATURES RATING (BEAUTY AI)
+  # 
+  /api/features-rating:
+    post:
+      tags: [Features Rating]
+      summary: "Deep-learning facial beauty rating with heatmap overlay."
+      description: >
+        Upload an image to receive a raw attractiveness score (0-10),
+        regional contribution deltas, textual summary, and a
+        base64-encoded facial heatmap PNG.
+      operationId: calculateFeaturesRating
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: "Face photo (jpg, jpeg, png, webp)."
+      responses:
+        "200":
+          description: "Features rating result."
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/FeaturesRatingResult"
+        "400":
+          description: "No image or unsupported file."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: "AI model inference error."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # 
+  # 5. ROOT (WEB UI)
+  # 
+  /:
+    get:
+      tags: [UI]
+      summary: "Serves the web-based landmark annotation & analysis UI."
+      description: "Returns the `index.html` front-end page for interactive use."
+      operationId: getWebInterface
+      responses:
+        "200":
+          description: "HTML page."
+          content:
+            text/html:
+              schema:
+                type: string
