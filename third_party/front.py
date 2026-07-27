@@ -1,4 +1,9 @@
+import cv2
+import numpy as np
+
 from front_landmarks import FRONT_LANDMARK_DEFS
+
+from .providers import front_mediapipe
 
 
 DIRECT_MP_MAP = {
@@ -57,17 +62,12 @@ AVERAGE_MP_MAP = {
 
 
 def detect_front_landmarks_from_upload(file_storage):
-    import cv2
-    import numpy as np
-
-    from face_analyzer import get_landmarks_mp
-
     data = np.frombuffer(file_storage.read(), dtype=np.uint8)
     img_bgr = cv2.imdecode(data, cv2.IMREAD_COLOR)
     if img_bgr is None:
         raise ValueError("Could not read image file")
 
-    detected = get_landmarks_mp(img_bgr)
+    detected = front_mediapipe.get_landmarks_mp(img_bgr)
     if detected is None:
         raise ValueError("No face detected")
 

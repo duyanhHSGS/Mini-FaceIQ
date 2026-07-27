@@ -4,14 +4,14 @@ import sys
 
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FEATURES_RATING_ROOT = os.path.join(PROJECT_ROOT, "features_rating")
+FEATURES_RATING_ROOT = os.path.join(PROJECT_ROOT, "third_party", "features_rating_bundle")
 
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 
 def load_feature_analyzer():
-    """Load bundled Features-rating analyzer without shadowing mini-faceIQ.face_analyzer."""
+    """Load bundled Features-rating analyzer without shadowing adapter providers."""
     module_name = "features_rating_face_analyzer"
     if module_name in sys.modules:
         return sys.modules[module_name]

@@ -7,9 +7,9 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def clean_face_analyzer_module():
-    sys.modules.pop("face_analyzer", None)
+    sys.modules.pop("third_party.providers.front_mediapipe", None)
     yield
-    sys.modules.pop("face_analyzer", None)
+    sys.modules.pop("third_party.providers.front_mediapipe", None)
 
 
 class FakeImage:
@@ -44,10 +44,10 @@ def _reload_face_analyzer(monkeypatch, fake_mediapipe):
         cvtColor=lambda image, mode: ("rgb", image, mode),
     )
 
-    sys.modules.pop("face_analyzer", None)
+    sys.modules.pop("third_party.providers.front_mediapipe", None)
     monkeypatch.setitem(sys.modules, "cv2", fake_cv2)
     monkeypatch.setitem(sys.modules, "mediapipe", fake_mediapipe)
-    return importlib.import_module("face_analyzer")
+    return importlib.import_module("third_party.providers.front_mediapipe")
 
 
 def test_face_analyzer_uses_solutions_face_mesh_without_task_file(monkeypatch):

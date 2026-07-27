@@ -1,8 +1,7 @@
-import sys
 import types
 from io import BytesIO
 
-import front_autolandmarks
+import third_party.front as front_autolandmarks
 from front_landmarks import FRONT_LANDMARK_DEFS
 
 
@@ -44,13 +43,10 @@ def test_detect_front_landmarks_maps_direct_and_average_points(monkeypatch):
         uint8="uint8",
         frombuffer=lambda data, dtype: data,
     )
-    fake_face_analyzer = types.SimpleNamespace(
-        get_landmarks_mp=lambda image: detected,
-    )
 
-    monkeypatch.setitem(sys.modules, "cv2", fake_cv2)
-    monkeypatch.setitem(sys.modules, "numpy", fake_numpy)
-    monkeypatch.setitem(sys.modules, "face_analyzer", fake_face_analyzer)
+    monkeypatch.setattr(front_autolandmarks, "cv2", fake_cv2)
+    monkeypatch.setattr(front_autolandmarks, "np", fake_numpy)
+    monkeypatch.setattr(front_autolandmarks.front_mediapipe, "get_landmarks_mp", lambda image: detected)
 
     landmarks = front_autolandmarks.detect_front_landmarks_from_upload(BytesIO(b"image bytes"))
     by_id = {item["id"]: item for item in landmarks}
@@ -75,13 +71,10 @@ def test_detect_front_landmarks_skips_points_that_need_unavailable_indices(monke
         uint8="uint8",
         frombuffer=lambda data, dtype: data,
     )
-    fake_face_analyzer = types.SimpleNamespace(
-        get_landmarks_mp=lambda image: detected,
-    )
 
-    monkeypatch.setitem(sys.modules, "cv2", fake_cv2)
-    monkeypatch.setitem(sys.modules, "numpy", fake_numpy)
-    monkeypatch.setitem(sys.modules, "face_analyzer", fake_face_analyzer)
+    monkeypatch.setattr(front_autolandmarks, "cv2", fake_cv2)
+    monkeypatch.setattr(front_autolandmarks, "np", fake_numpy)
+    monkeypatch.setattr(front_autolandmarks.front_mediapipe, "get_landmarks_mp", lambda image: detected)
 
     landmarks = front_autolandmarks.detect_front_landmarks_from_upload(BytesIO(b"image bytes"))
     ids = {item["id"] for item in landmarks}
@@ -96,18 +89,10 @@ def test_detect_front_landmarks_raises_clear_errors(monkeypatch):
         uint8="uint8",
         frombuffer=lambda data, dtype: data,
     )
-    monkeypatch.setitem(sys.modules, "numpy", fake_numpy)
-    monkeypatch.setitem(
-        sys.modules,
-        "face_analyzer",
-        types.SimpleNamespace(get_landmarks_mp=lambda image: []),
-    )
+    monkeypatch.setattr(front_autolandmarks, "np", fake_numpy)
+    monkeypatch.setattr(front_autolandmarks.front_mediapipe, "get_landmarks_mp", lambda image: [])
 
-    monkeypatch.setitem(
-        sys.modules,
-        "cv2",
-        types.SimpleNamespace(IMREAD_COLOR=1, imdecode=lambda data, mode: None),
-    )
+    monkeypatch.setattr(front_autolandmarks, "cv2", types.SimpleNamespace(IMREAD_COLOR=1, imdecode=lambda data, mode: None))
 
     try:
         front_autolandmarks.detect_front_landmarks_from_upload(BytesIO(b"bad image"))
@@ -116,16 +101,8 @@ def test_detect_front_landmarks_raises_clear_errors(monkeypatch):
     else:
         raise AssertionError("Expected unreadable image to raise ValueError")
 
-    monkeypatch.setitem(
-        sys.modules,
-        "cv2",
-        types.SimpleNamespace(IMREAD_COLOR=1, imdecode=lambda data, mode: FakeImage()),
-    )
-    monkeypatch.setitem(
-        sys.modules,
-        "face_analyzer",
-        types.SimpleNamespace(get_landmarks_mp=lambda image: None),
-    )
+    monkeypatch.setattr(front_autolandmarks, "cv2", types.SimpleNamespace(IMREAD_COLOR=1, imdecode=lambda data, mode: FakeImage()))
+    monkeypatch.setattr(front_autolandmarks.front_mediapipe, "get_landmarks_mp", lambda image: None)
 
     try:
         front_autolandmarks.detect_front_landmarks_from_upload(BytesIO(b"face image"))

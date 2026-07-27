@@ -1,5 +1,4 @@
 from io import BytesIO
-from PIL import Image
 
 import main
 from front_landmarks import FRONT_LANDMARK_DEFS
@@ -322,26 +321,25 @@ def test_side_autolandmarks_returns_detector_output(monkeypatch):
 
 
 def test_features_rating_uses_local_bundle_path():
-    assert main.FEATURES_RATING_DIR == main.os.path.join(main.ROOT_DIR, "features_rating")
+    import os
+
+    import third_party.features_rating as feature_adapter
+
+    assert feature_adapter._BUNDLE_DIR.endswith(os.path.join("third_party", "features_rating_bundle"))
 
 
 def test_features_rating_endpoint_formats_analyzer_output(monkeypatch):
     client = main.app.test_client()
 
-    class FakeAnalyzer:
-        @staticmethod
-        def analyze_face(path):
-            assert main.os.path.exists(path)
-            return {
-                "score": 3.0,
-                "score_10": 5.0,
-                "summary": "SCORE: 5.0/10",
-                "deltas": {"Nose": 0.25, "Mouth": -0.1},
-                "region_polygons": {"Nose": [{"x": 0.5, "y": 0.4}]},
-                "heatmap": Image.new("RGB", (2, 2), "red"),
-            }
+    formatted = {
+        "rawScore": 3.0,
+        "score10": 5.0,
+        "summary": "SCORE: 5.0/10",
+        "regions": [{"name": "Nose", "polygon": [{"x": 0.5, "y": 0.4}]}],
+        "heatmapPng": "data:image/png;base64,abc",
+    }
 
-    monkeypatch.setattr(main, "_load_features_rating_analyzer", lambda: FakeAnalyzer)
+    monkeypatch.setattr(main, "analyze_features_from_upload", lambda image, suffix: formatted)
 
     response = client.post(
         "/api/features-rating",

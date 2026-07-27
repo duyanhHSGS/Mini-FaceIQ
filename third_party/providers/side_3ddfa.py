@@ -5,10 +5,9 @@ import types
 import numpy as np
 import cv2
 
-from side_landmarks import SIDE_LANDMARK_DEFS
-
-_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-_3DDFA_DIR = os.path.join(_SCRIPT_DIR, "third_party", "3DDFA_V2")
+_PROVIDER_DIR = os.path.dirname(os.path.abspath(__file__))
+_THIRD_PARTY_DIR = os.path.dirname(_PROVIDER_DIR)
+_3DDFA_DIR = os.path.join(_THIRD_PARTY_DIR, "3DDFA_V2")
 if _3DDFA_DIR not in sys.path:
     sys.path.insert(0, _3DDFA_DIR)
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
@@ -346,16 +345,14 @@ def detect_side(image_path):
     return _detect_side_from_image(img)
 
 
-def detect_side_landmarks_from_upload(file_storage):
+def detect_side_from_upload(file_storage):
     data = np.frombuffer(file_storage.read(), dtype=np.uint8)
     img = cv2.imdecode(data, cv2.IMREAD_COLOR)
     if img is None:
         raise ValueError("Could not read image file")
 
     result = _detect_side_from_image(img)
-    if result.get("error"):
-        raise ValueError(result["error"])
-    return _side_landmark_list(result)
+    return result
 
 
 def _detect_side_from_image(img):
@@ -505,19 +502,3 @@ def _detect_side_from_image(img):
     }
 
 
-def _side_landmark_list(result):
-    detected = result.get("landmarks", {})
-    items = []
-    for item in SIDE_LANDMARK_DEFS:
-        landmark = detected.get(item["id"])
-        if not landmark:
-            continue
-        items.append(
-            {
-                "id": item["id"],
-                "label": landmark.get("label", item["label"]),
-                "x": landmark["x"],
-                "y": landmark["y"],
-            }
-        )
-    return items
