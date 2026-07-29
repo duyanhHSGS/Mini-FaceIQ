@@ -13,7 +13,15 @@ What it tests:
 
 Usage examples:
 
-    python test_minifaceiq_api.py --base-url http://127.0.0.1:7860 --front-image "examples\chicofront.jpg" --side-image "examples\chicoside.jpg" --front-landmarks-json "examples\front.json" --side-landmarks-json "examples\side.json" --gender male  --ethnicity caucasian  
+    python tests\test_minifaceiq_api.py
+
+The example images, landmark JSON files, male gender, Caucasian ethnicity, and
+http://127.0.0.1:7860 are the defaults. Paths are anchored to the repository
+root, so the command also works when this file lives inside tests/.
+
+When collected by pytest, this module starts a temporary in-process Flask
+server automatically. The standalone command expects the configured server to
+already be running.
 
 Recommended dependencies:
 
@@ -29,6 +37,7 @@ import argparse
 import json
 import mimetypes
 import sys
+import threading
 import traceback
 from dataclasses import dataclass
 from pathlib import Path
@@ -62,36 +71,43 @@ EXPECTED_PATHS: dict[str, set[str]] = {
     "/api/side-metrics": {"post"},
 }
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_SPEC = PROJECT_ROOT / "openapi.yaml"
+DEFAULT_FRONT_IMAGE = PROJECT_ROOT / "examples" / "chicofront.jpg"
+DEFAULT_SIDE_IMAGE = PROJECT_ROOT / "examples" / "chicoside.jpg"
+DEFAULT_FRONT_LANDMARKS = PROJECT_ROOT / "examples" / "front.json"
+DEFAULT_SIDE_LANDMARKS = PROJECT_ROOT / "examples" / "side.json"
+
 
 @dataclass(slots=True)
-class TestResult:
+class ApiTestResult:
     name: str
     passed: bool
     details: str = ""
     skipped: bool = False
 
 
-class TestRunner:
+class LiveApiRunner:
     def __init__(self) -> None:
-        self.results: list[TestResult] = []
+        self.results: list[ApiTestResult] = []
 
     def run(self, name: str, test: Callable[[], str | None]) -> None:
         try:
             details = test() or ""
-            self.results.append(TestResult(name=name, passed=True, details=details))
+            self.results.append(ApiTestResult(name=name, passed=True, details=details))
             print(f"[PASS] {name}")
             if details:
                 print(f"       {details}")
         except SkipTest as exc:
             self.results.append(
-                TestResult(name=name, passed=False, skipped=True, details=str(exc))
+                ApiTestResult(name=name, passed=False, skipped=True, details=str(exc))
             )
             print(f"[SKIP] {name}")
             if str(exc):
                 print(f"       {exc}")
         except Exception as exc:
             self.results.append(
-                TestResult(name=name, passed=False, details=f"{type(exc).__name__}: {exc}")
+                ApiTestResult(name=name, passed=False, details=f"{type(exc).__name__}: {exc}")
             )
             print(f"[FAIL] {name}")
             print(f"       {type(exc).__name__}: {exc}")
@@ -215,14 +231,14 @@ def open_image_file(path: Path):
     return path.open("rb"), mime_type
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Validate Mini-FaceIQ OpenAPI and test the live Flask API."
     )
     parser.add_argument(
         "--spec",
         type=Path,
-        default=Path("openapi.yaml"),
+        default=DEFAULT_SPEC,
         help="Path to the OpenAPI YAML file.",
     )
     parser.add_argument(
@@ -236,13 +252,21 @@ def main() -> int:
         default=30.0,
         help="HTTP timeout in seconds.",
     )
-    parser.add_argument("--front-image", type=Path)
-    parser.add_argument("--side-image", type=Path)
+    parser.add_argument("--front-image", type=Path, default=DEFAULT_FRONT_IMAGE)
+    parser.add_argument("--side-image", type=Path, default=DEFAULT_SIDE_IMAGE)
     parser.add_argument("--features-image", type=Path)
-    parser.add_argument("--front-landmarks-json", type=Path)
-    parser.add_argument("--side-landmarks-json", type=Path)
+    parser.add_argument(
+        "--front-landmarks-json",
+        type=Path,
+        default=DEFAULT_FRONT_LANDMARKS,
+    )
+    parser.add_argument(
+        "--side-landmarks-json",
+        type=Path,
+        default=DEFAULT_SIDE_LANDMARKS,
+    )
     parser.add_argument("--gender", default="male", choices=["male", "female"])
-    parser.add_argument("--ethnicity", default="asian")
+    parser.add_argument("--ethnicity", default="caucasian")
     parser.add_argument("--front-aspect", type=float, default=1.0)
     parser.add_argument("--side-aspect", type=float, default=1.0)
     parser.add_argument(
@@ -250,10 +274,12 @@ def main() -> int:
         action="store_true",
         help="Print full tracebacks for unexpected top-level failures.",
     )
-    args = parser.parse_args()
+    return parser
 
+
+def run_api_suite(args: argparse.Namespace) -> int:
     base_url = args.base_url.rstrip("/")
-    runner = TestRunner()
+    runner = LiveApiRunner()
     document_holder: dict[str, dict[str, Any]] = {}
 
     def test_parse_spec() -> str:
@@ -598,6 +624,36 @@ def main() -> int:
     )
 
     return runner.summary()
+
+
+def main() -> int:
+    return run_api_suite(build_parser().parse_args())
+
+
+def test_live_api_with_default_project_inputs() -> None:
+    """Exercise the complete live API suite without requiring an external server."""
+    from main import app
+    from werkzeug.serving import make_server
+
+    server = make_server("127.0.0.1", 0, app)
+    server_thread = threading.Thread(
+        target=server.serve_forever,
+        name="mini-faceiq-pytest-server",
+        daemon=True,
+    )
+    server_thread.start()
+
+    args = build_parser().parse_args([])
+    args.base_url = f"http://127.0.0.1:{server.server_port}"
+
+    try:
+        exit_code = run_api_suite(args)
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=5)
+        server.server_close()
+
+    assert exit_code == 0, "The live Mini-FaceIQ API suite reported failures"
 
 
 if __name__ == "__main__":
