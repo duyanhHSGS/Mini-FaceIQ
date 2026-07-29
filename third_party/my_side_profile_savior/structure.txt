@@ -1,0 +1,7 @@
+profile_landmark_model/
+├── model.py          # Neural-network body
+├── dataset.py        # Reads images and 39-point annotations
+├── train.py          # Teaches the creature
+├── inference.py      # PNG/JPG → 39 points
+└── weights/
+    └── profile.pt    # Learned brain memory
