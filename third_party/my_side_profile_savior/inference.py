@@ -13,7 +13,7 @@ import torch
 
 from .dataset import _pil_to_float_tensor, _square_crop_box
 from .factory_config import resolve_device
-from .model import ProfileLandmarkModel, soft_argmax_2d
+from .model import LANDMARK_COUNT, ProfileLandmarkModel, soft_argmax_2d
 
 
 @lru_cache(maxsize=1)
@@ -25,30 +25,66 @@ def _faceboxes_model():
 
 def _output_layout_from_checkpoint(
     checkpoint: dict[str, Any],
-) -> tuple[list[dict[str, Any]], int]:
+) -> list[dict[str, Any]]:
     mapping_snapshot = checkpoint.get("mapping", {})
-    entries = mapping_snapshot.get("entries", [])
-    compact = int(checkpoint.get("format_version", 1)) >= 2
+    try:
+        mapping_count = int(mapping_snapshot.get("landmark_count", -1))
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ValueError("Checkpoint mapping snapshot is invalid") from exc
+    if mapping_count != LANDMARK_COUNT:
+        raise ValueError(
+            f"Checkpoint must describe exactly {LANDMARK_COUNT} model outputs"
+        )
+    mapping_entries = mapping_snapshot.get("entries")
+    if (
+        not isinstance(mapping_entries, list)
+        or len(mapping_entries) != LANDMARK_COUNT
+    ):
+        raise ValueError(
+            f"Checkpoint mapping must contain {LANDMARK_COUNT} entries"
+        )
+    entries = checkpoint.get("output_layout")
+    if not isinstance(entries, list) or len(entries) != LANDMARK_COUNT:
+        raise ValueError(
+            f"Checkpoint output_layout must contain {LANDMARK_COUNT} entries"
+        )
+
     layout: list[dict[str, Any]] = []
-    for entry in entries:
+    for expected_index, (entry, mapping_entry) in enumerate(
+        zip(entries, mapping_entries)
+    ):
+        if not isinstance(entry, dict) or not isinstance(mapping_entry, dict):
+            raise ValueError("Checkpoint layout entries must be objects")
+        try:
+            model_index = int(entry["model_index"])
+            name = str(entry["name"])
+            mapping_model_index = int(mapping_entry["model_index"])
+            mapping_name = str(mapping_entry["name"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(
+                "Checkpoint layout entries require model_index and name"
+            ) from exc
+        if (
+            model_index != expected_index
+            or mapping_model_index != expected_index
+            or mapping_name != name
+            or mapping_entry.get("dataset_index") != entry.get("dataset_index")
+        ):
+            raise ValueError(
+                "Checkpoint mapping and output_layout must agree in 0-30 order"
+            )
         dataset_index = entry.get("dataset_index")
         if dataset_index is not None:
             layout.append(
                 {
-                    "model_index": int(
-                        entry["model_index"] if compact else dataset_index
-                    ),
+                    "model_index": model_index,
                     "dataset_index": int(dataset_index),
-                    "name": str(entry["name"]),
+                    "name": name,
                 }
             )
     if not layout:
         raise ValueError("Checkpoint has no confirmed mapping entries")
-    if compact:
-        output_count = int(mapping_snapshot.get("landmark_count", len(entries)))
-    else:
-        output_count = 39
-    return layout, output_count
+    return layout
 
 
 def _load_checkpoint(path: str | Path, device: torch.device) -> dict[str, Any]:
@@ -71,15 +107,13 @@ class FactoryPredictor:
         self.config = dict(self.checkpoint.get("config", {}))
         self.image_size = int(self.config.get("image_size", 256))
         self.bbox_scale = float(self.config.get("bbox_scale", 1.25))
-        self.output_layout, output_count = _output_layout_from_checkpoint(
-            self.checkpoint
-        )
+        self.output_layout = _output_layout_from_checkpoint(self.checkpoint)
         self.names_by_index = {
             item["dataset_index"]: item["name"] for item in self.output_layout
         }
 
         self.model = ProfileLandmarkModel(
-            landmark_count=output_count,
+            landmark_count=LANDMARK_COUNT,
             pretrained=False,
         )
         self.model.load_state_dict(self.checkpoint["model_state"], strict=True)
@@ -127,7 +161,7 @@ class FactoryPredictor:
                     "dataset_index": dataset_index,
                     "x": float(x),
                     "y": float(y),
-                    "confidence": float(confidence_np[dataset_index]),
+                    "confidence": float(confidence_np[model_index]),
                 }
             )
         return {
@@ -187,12 +221,12 @@ def checkpoint_summary(path: str | Path) -> dict[str, Any]:
         Path(path).expanduser().resolve(),
         map_location="cpu",
     )
-    layout, output_count = _output_layout_from_checkpoint(checkpoint)
+    layout = _output_layout_from_checkpoint(checkpoint)
     return {
         "epoch": int(checkpoint.get("epoch", -1)),
         "best_validation_nme": checkpoint.get("best_validation_nme"),
         "confirmed_count": len(layout),
-        "output_count": output_count,
+        "output_count": LANDMARK_COUNT,
         "confirmed_mapping": {
             item["dataset_index"]: item["name"] for item in layout
         },

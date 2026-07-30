@@ -31,6 +31,9 @@ from third_party.my_side_profile_savior.factory_state import (
     request_graceful_stop,
     status_progress,
 )
+from third_party.my_side_profile_savior.inference import (
+    _output_layout_from_checkpoint,
+)
 from third_party.my_side_profile_savior.mapping import load_landmark_mapping
 from third_party.my_side_profile_savior.model import (
     ProfileLandmarkModel,
@@ -112,6 +115,39 @@ def test_only_confirmed_multipie_points_enter_31_model_slots():
                 selected[entry.model_index],
                 np.zeros(2, dtype=np.float32),
             )
+
+
+def test_checkpoint_layout_is_strictly_31_output_only():
+    mapping = load_landmark_mapping(PACKAGE_DIR / "user-custom.txt")
+    checkpoint = {
+        "mapping": mapping.snapshot(),
+        "output_layout": mapping.output_layout(),
+    }
+
+    layout = _output_layout_from_checkpoint(checkpoint)
+
+    assert len(layout) == 15
+    assert layout[0] == {
+        "model_index": 2,
+        "dataset_index": 19,
+        "name": "nose_tip",
+    }
+
+    broken = {
+        "mapping": mapping.snapshot(),
+        "output_layout": mapping.output_layout(),
+    }
+    del broken["output_layout"][2]["model_index"]
+    with pytest.raises(ValueError, match="require model_index and name"):
+        _output_layout_from_checkpoint(broken)
+
+    broken_mapping = {
+        "mapping": mapping.snapshot(),
+        "output_layout": mapping.output_layout(),
+    }
+    del broken_mapping["mapping"]["entries"][2]["model_index"]
+    with pytest.raises(ValueError, match="require model_index and name"):
+        _output_layout_from_checkpoint(broken_mapping)
 
 
 def test_mapping_rejects_duplicate_dataset_indices(tmp_path):
@@ -232,8 +268,8 @@ def test_resume_accepts_mapping_snapshot_from_another_path(tmp_path):
         runs_root="runs",
     )
     checkpoint = {
-        "format_version": 2,
         "mapping": saved,
+        "output_layout": mapping.output_layout(),
         "config": config.to_dict(),
     }
 

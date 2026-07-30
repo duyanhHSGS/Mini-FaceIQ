@@ -91,8 +91,8 @@ finishes the active batch and saves before exiting.
 Resume requires the original mapping and architecture/loss settings. When the
 human confirms additional dataset mappings later, use "Initialize weights from
 checkpoint" instead: it starts a new immutable run, keeps compatible 31-slot
-network weights, and creates a fresh optimizer and mapping snapshot. Legacy
-39-output checkpoints cannot resume or initialize this architecture.
+network weights, and creates a fresh optimizer and mapping snapshot. Checkpoints
+without the complete 31-slot worksheet layout are rejected.
 
 ## Benchmark
 

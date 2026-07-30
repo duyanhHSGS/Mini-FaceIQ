@@ -262,7 +262,6 @@ def _checkpoint_payload(
     curves: list[dict[str, Any]],
 ) -> dict[str, Any]:
     return {
-        "format_version": 2,
         "epoch": epoch,
         "model_state": model.state_dict(),
         "optimizer_state": optimizer.state_dict(),
@@ -278,16 +277,56 @@ def _checkpoint_payload(
     }
 
 
+def _validate_checkpoint_layout(
+    checkpoint: dict[str, Any],
+    mapping: LandmarkMapping,
+) -> None:
+    stored_layout = checkpoint.get("output_layout")
+    expected_layout = mapping.output_layout()
+    stored_mapping = checkpoint.get("mapping", {})
+    stored_mapping_entries = (
+        stored_mapping.get("entries")
+        if isinstance(stored_mapping, dict)
+        else None
+    )
+    if not isinstance(stored_layout, list) or len(stored_layout) != len(
+        expected_layout
+    ):
+        raise ValueError(
+            f"Checkpoint output_layout must contain "
+            f"{len(expected_layout)} entries"
+        )
+    if not isinstance(stored_mapping_entries, list) or len(
+        stored_mapping_entries
+    ) != len(expected_layout):
+        raise ValueError(
+            f"Checkpoint mapping must contain {len(expected_layout)} entries"
+        )
+    stored_slots = [
+        (item.get("model_index"), item.get("name"))
+        for item in stored_layout
+        if isinstance(item, dict)
+    ]
+    stored_mapping_slots = [
+        (item.get("model_index"), item.get("name"))
+        for item in stored_mapping_entries
+        if isinstance(item, dict)
+    ]
+    expected_slots = [
+        (item["model_index"], item["name"]) for item in expected_layout
+    ]
+    if stored_slots != expected_slots or stored_mapping_slots != expected_slots:
+        raise ValueError(
+            "Checkpoint output_layout does not match the 31 worksheet slots"
+        )
+
+
 def _validate_resume(
     checkpoint: dict[str, Any],
     config: FactoryConfig,
     mapping: LandmarkMapping,
 ) -> None:
-    if int(checkpoint.get("format_version", 1)) != 2:
-        raise ValueError(
-            "Legacy 39-output checkpoints cannot resume 31-output training. "
-            "Start a new run instead."
-        )
+    _validate_checkpoint_layout(checkpoint, mapping)
     saved_mapping = checkpoint.get("mapping", {})
     current_mapping = mapping.snapshot()
     if saved_mapping.get("entries") != current_mapping.get("entries"):
@@ -355,11 +394,7 @@ def run_training(config: FactoryConfig) -> Path:
                 raise ValueError(
                     f"Initial checkpoint has no model_state: {initial_path}"
                 )
-            if int(initial_checkpoint.get("format_version", 1)) != 2:
-                raise ValueError(
-                    "Legacy 39-output checkpoints cannot initialize the "
-                    "31-output architecture. Start from ImageNet weights."
-                )
+            _validate_checkpoint_layout(initial_checkpoint, mapping)
         split_dataset = ProfileLandmarkDataset(
             config.annotation_path,
             image_size=config.image_size,
