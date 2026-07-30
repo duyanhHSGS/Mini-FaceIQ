@@ -18,12 +18,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import random
 from typing import Iterable
 
+import cv2
 import numpy as np
 import torch
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 from torch.utils.data import Dataset
+
+try:
+    from .factory_config import encoded_seed
+except ImportError:
+    from factory_config import encoded_seed
 
 
 PROFILE_LANDMARK_COUNT = 39
@@ -48,6 +55,35 @@ class ProfileAnnotation:
     landmarks_xy: np.ndarray
     subject_id: str
     camera_code: str
+
+
+@dataclass(frozen=True)
+class SubjectSplit:
+    train: tuple[str, ...]
+    validation: tuple[str, ...]
+    test: tuple[str, ...]
+    seed_text: str
+    seed: int
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "seed_text": self.seed_text,
+            "seed": self.seed,
+            "train": list(self.train),
+            "validation": list(self.validation),
+            "test": list(self.test),
+        }
+
+
+@dataclass(frozen=True)
+class AugmentationSettings:
+    enabled: bool = False
+    rotation_degrees: float = 8.0
+    translation_fraction: float = 0.04
+    scale_jitter: float = 0.08
+    brightness_jitter: float = 0.12
+    contrast_jitter: float = 0.12
+    blur_probability: float = 0.10
 
 
 def parse_annotation_line(
@@ -171,6 +207,82 @@ def _normalize_points(
     return torch.from_numpy(normalized)
 
 
+def _augment_crop(
+    image: Image.Image,
+    landmarks: np.ndarray,
+    auxiliary_points: np.ndarray,
+    settings: AugmentationSettings,
+) -> tuple[Image.Image, np.ndarray, np.ndarray]:
+    if not settings.enabled:
+        return image, landmarks, auxiliary_points
+
+    width, height = image.size
+    angle = random.uniform(-settings.rotation_degrees, settings.rotation_degrees)
+    scale = random.uniform(1.0 - settings.scale_jitter, 1.0 + settings.scale_jitter)
+    translate_x = random.uniform(
+        -settings.translation_fraction,
+        settings.translation_fraction,
+    ) * width
+    translate_y = random.uniform(
+        -settings.translation_fraction,
+        settings.translation_fraction,
+    ) * height
+
+    matrix = cv2.getRotationMatrix2D(
+        ((width - 1) / 2.0, (height - 1) / 2.0),
+        angle,
+        scale,
+    )
+    matrix[0, 2] += translate_x
+    matrix[1, 2] += translate_y
+
+    pixels = np.asarray(image, dtype=np.uint8)
+    warped = cv2.warpAffine(
+        pixels,
+        matrix,
+        (width, height),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_REFLECT_101,
+    )
+
+    def transform_points(normalized_points: np.ndarray) -> np.ndarray:
+        pixel_points = normalized_points.astype(np.float32, copy=True)
+        pixel_points[:, 0] *= width - 1
+        pixel_points[:, 1] *= height - 1
+        homogeneous = np.concatenate(
+            (pixel_points, np.ones((len(pixel_points), 1), dtype=np.float32)),
+            axis=1,
+        )
+        transformed = homogeneous @ matrix.T
+        transformed[:, 0] /= width - 1
+        transformed[:, 1] /= height - 1
+        return transformed.astype(np.float32)
+
+    augmented = Image.fromarray(warped, mode="RGB")
+    if settings.brightness_jitter > 0:
+        factor = random.uniform(
+            1.0 - settings.brightness_jitter,
+            1.0 + settings.brightness_jitter,
+        )
+        augmented = ImageEnhance.Brightness(augmented).enhance(factor)
+    if settings.contrast_jitter > 0:
+        factor = random.uniform(
+            1.0 - settings.contrast_jitter,
+            1.0 + settings.contrast_jitter,
+        )
+        augmented = ImageEnhance.Contrast(augmented).enhance(factor)
+    if random.random() < settings.blur_probability:
+        augmented = augmented.filter(
+            ImageFilter.GaussianBlur(radius=random.uniform(0.1, 1.0))
+        )
+
+    return (
+        augmented,
+        transform_points(landmarks),
+        transform_points(auxiliary_points),
+    )
+
+
 def _pil_to_float_tensor(image: Image.Image) -> torch.Tensor:
     pixels = np.asarray(image, dtype=np.float32).copy()
     return torch.from_numpy(pixels).permute(2, 0, 1).contiguous() / 255.0
@@ -186,6 +298,7 @@ class ProfileLandmarkDataset(Dataset):
         image_size: int = 256,
         bbox_scale: float = 1.25,
         verify_images: bool = False,
+        augmentation: AugmentationSettings | None = None,
     ) -> None:
         if image_size <= 0:
             raise ValueError(f"image_size must be positive, got {image_size}")
@@ -193,6 +306,7 @@ class ProfileLandmarkDataset(Dataset):
         self.annotation_path = Path(annotation_path).expanduser().resolve()
         self.image_size = int(image_size)
         self.bbox_scale = float(bbox_scale)
+        self.augmentation = augmentation or AugmentationSettings()
         self.records = load_profile_annotations(self.annotation_path)
 
         if verify_images:
@@ -228,12 +342,27 @@ class ProfileLandmarkDataset(Dataset):
                 (self.image_size, self.image_size),
                 resample=Image.Resampling.BILINEAR,
             )
-            image_tensor = _pil_to_float_tensor(crop)
 
         landmarks = _normalize_points(record.landmarks_xy, crop_box)
         auxiliary_points = _normalize_points(
             record.auxiliary_points_xy,
             crop_box,
+        )
+        crop, landmarks_np, auxiliary_np = _augment_crop(
+            crop,
+            landmarks.numpy(),
+            auxiliary_points.numpy(),
+            self.augmentation,
+        )
+        image_tensor = _pil_to_float_tensor(crop)
+        landmarks = torch.from_numpy(landmarks_np)
+        auxiliary_points = torch.from_numpy(auxiliary_np)
+        visibility = (
+            torch.isfinite(landmarks).all(dim=1)
+            & (landmarks[:, 0] >= 0.0)
+            & (landmarks[:, 0] <= 1.0)
+            & (landmarks[:, 1] >= 0.0)
+            & (landmarks[:, 1] <= 1.0)
         )
 
         return {
@@ -241,6 +370,7 @@ class ProfileLandmarkDataset(Dataset):
             "landmarks": landmarks,
             "landmarks_flat": landmarks.reshape(-1),
             "auxiliary_points": auxiliary_points,
+            "visibility": visibility,
             "bbox_xyxy": torch.from_numpy(record.bbox_xyxy.copy()),
             "crop_xyxy": torch.tensor(crop_box, dtype=torch.float32),
             "image_path": str(record.image_path),
@@ -261,3 +391,41 @@ def subject_disjoint_indices(
         for index, record in enumerate(records)
         if record.subject_id in subject_ids
     ]
+
+
+def make_subject_split(
+    records: Iterable[ProfileAnnotation],
+    *,
+    seed_text: str,
+    train_fraction: float = 0.70,
+    validation_fraction: float = 0.15,
+) -> SubjectSplit:
+    """Create one deterministic 70/15/15 identity-disjoint split."""
+
+    if train_fraction <= 0 or validation_fraction <= 0:
+        raise ValueError("train and validation fractions must be positive")
+    if train_fraction + validation_fraction >= 1:
+        raise ValueError("train + validation fractions must leave room for test")
+
+    subjects = sorted({record.subject_id for record in records})
+    if len(subjects) < 3:
+        raise ValueError("At least three unique subjects are required")
+    seed = encoded_seed(seed_text)
+    generator = random.Random(seed)
+    generator.shuffle(subjects)
+
+    train_count = max(1, int(round(len(subjects) * train_fraction)))
+    validation_count = max(1, int(round(len(subjects) * validation_fraction)))
+    if train_count + validation_count >= len(subjects):
+        validation_count = 1
+        train_count = len(subjects) - 2
+
+    return SubjectSplit(
+        train=tuple(sorted(subjects[:train_count])),
+        validation=tuple(
+            sorted(subjects[train_count : train_count + validation_count])
+        ),
+        test=tuple(sorted(subjects[train_count + validation_count :])),
+        seed_text=seed_text,
+        seed=seed,
+    )

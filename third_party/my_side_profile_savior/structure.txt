@@ -1,7 +1,16 @@
-profile_landmark_model/
-├── model.py          # Neural-network body
-├── dataset.py        # Reads images and 39-point annotations
-├── train.py          # Teaches the creature
-├── inference.py      # PNG/JPG → 39 points
-└── weights/
-    └── profile.pt    # Learned brain memory
+my_side_profile_savior/
+|-- README.md          # Factory usage, CUDA/CPU, artifacts, and safety boundary
+|-- user-custom.txt    # Human-owned semantic mapping worksheet
+|-- mapping.py         # Parses confirmed/masked mapping rows
+|-- dataset.py         # Multi-PIE loading, crop, augmentation, subject split
+|-- model.py           # MobileNetV3-Large plus 39 heatmap decoder and loss
+|-- train.py           # Headless resumable trainer and CLI
+|-- inference.py       # CPU/CUDA-safe checkpoint and FaceBoxes inference
+|-- benchmark.py       # Frozen custom-versus-legacy NME/PCK graduation exam
+|-- factory_config.py  # Defaults, seed, devices, and atomic artifacts
+|-- factory_state.py   # Pure UI/subprocess state helpers
+|-- ui.py              # Tkinter training and QA control room
+`-- visualizer_temp.py # Human dataset/legacy mapping visualizer
+
+Run weights are intentionally stored under git-plz-ignore/profile_factory_runs,
+not inside this source directory. Nothing here changes the production adapter.

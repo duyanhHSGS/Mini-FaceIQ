@@ -28,29 +28,29 @@ occiput | dynamic dense | rear upper-head vertex search | NONE
 nose_tip | sparse | 30 | 19
 neck_point | dynamic dense | search starting from 35587 | NONE
 porion | dynamic dense | search around base 17327 | 0
-orbitale | dense | 10855 | NONE correct
-tragus | dynamic dense | search around base 17331 | 1
-intertragic_notch | dense | 17109 | NONE shown, closest is 2, current legacy does it OK
-corneal_apex | sparse | 37 | x point
+orbitale | dense | 10855 | NONE
+tragus | dynamic dense | search around base 17331 | NONE
+intertragic_notch | dense | 17109 | NONE
+corneal_apex | sparse | 37 | NONE
 cheekbone | dense | 22478 | NONE
-eyelid_end | dense | 1961 | currently legacy does it better, new is 24
-lower_eyelid | sparse | 41 | 
-hairline_profile | computed dense | line 31615-31670 intersected with bbox top | 
-glabella | dense | 31324 | 
-forehead | dense | 31172 | 
-nasal_bridge_root | sparse | 27 | 
-rhinion | sparse | 28 | 
-supratip | sparse | 29 | 
-infratip | dense | 8195 | 
-columella | dense | 8197 | 
-subnasale | sparse | 33 | 
-subalare | dense | 13727 | 
-upper_lip | sparse | 51 | 
-mouth_corner | sparse | 48 | 
-lower_lip | sparse | 57 | 
-labiomental_fold | dense | 8843 | 
-chin_point | dense | 36160 | 
-chin_bottom | dense | 36143 | 
-cervical_point | dense | 35587 | 
-upper_jaw_angle | sparse | 3 | 
-lower_jaw_angle | sparse | 5 | 
+eyelid_end | dense | 1961 | NONE
+lower_eyelid | sparse | 41 | 26?
+hairline_profile | computed dense | line 31615-31670 intersected with bbox top | NONE
+glabella | dense | 31324 | 15
+forehead | dense | 31172 | NONE
+nasal_bridge_root | sparse | 27 | 16
+rhinion | sparse | 28 | 17
+supratip | sparse | 29 | 18
+infratip | dense | 8195 | NONE
+columella | dense | 8197 | NONE
+subnasale | sparse | 33 | 21
+subalare | dense | 13727 | NONE
+upper_lip | sparse | 51 | 27
+mouth_corner | sparse | 48 | 30
+lower_lip | sparse | 57 | 33
+labiomental_fold | dense | 8843 | 11
+chin_point | dense | 36160 | 10
+chin_bottom | dense | 36143 | 9
+cervical_point | dense | 35587 | NONE
+upper_jaw_angle | sparse | 3 | 3
+lower_jaw_angle | sparse | 5 | 6
