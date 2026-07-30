@@ -8,13 +8,13 @@ import torch.nn.functional as F
 from torchvision.models import MobileNet_V3_Large_Weights, mobilenet_v3_large
 
 
-LANDMARK_COUNT = 39
+LANDMARK_COUNT = 31
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
 
 
 class ProfileLandmarkModel(nn.Module):
-    """Predict 39 spatial probability maps from a square RGB face crop."""
+    """Predict one heatmap for each Mini-FaceIQ side-landmark slot."""
 
     def __init__(
         self,

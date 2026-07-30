@@ -199,7 +199,7 @@ def run_benchmark(
         crop_xyxy = sample["crop_xyxy"].numpy()
         bbox_xyxy = sample["bbox_xyxy"].numpy()
         for entry in mapping.confirmed_entries:
-            target = targets[int(entry.dataset_index)]
+            target = targets[entry.model_index]
             custom_errors[entry.name].append(
                 normalized_landmark_error(
                     custom_by_name.get(entry.name),

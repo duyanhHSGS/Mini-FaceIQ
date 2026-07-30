@@ -3,7 +3,7 @@ my_side_profile_savior/
 |-- user-custom.txt    # Human-owned semantic mapping worksheet
 |-- mapping.py         # Parses confirmed/masked mapping rows
 |-- dataset.py         # Multi-PIE loading, crop, augmentation, subject split
-|-- model.py           # MobileNetV3-Large plus 39 heatmap decoder and loss
+|-- model.py           # MobileNetV3-Large plus 31 heatmap decoder and loss
 |-- train.py           # Headless resumable trainer and CLI
 |-- inference.py       # CPU/CUDA-safe checkpoint and FaceBoxes inference
 |-- benchmark.py       # Frozen custom-versus-legacy NME/PCK graduation exam

@@ -392,7 +392,7 @@ class FactoryApp(tk.Tk):
         )
         ttk.Label(
             architecture_frame,
-            text="Model: MobileNetV3-Large + 39 heatmaps",
+            text="Model: MobileNetV3-Large + 31 heatmaps",
         ).pack(side="left", padx=10, pady=8)
         ttk.Label(
             architecture_frame,
@@ -799,11 +799,15 @@ class FactoryApp(tk.Tk):
         return self.predictor
 
     def _dataset_for_qa(self) -> ProfileLandmarkDataset:
+        mapping = load_landmark_mapping(
+            str(self.variables["mapping_path"].get())
+        )
         return ProfileLandmarkDataset(
             str(self.variables["annotation_path"].get()),
             image_size=int(str(self.variables["image_size"].get())),
             bbox_scale=float(str(self.variables["bbox_scale"].get())),
             verify_images=True,
+            mapping=mapping,
         )
 
     def _random_qa_index(self) -> None:
@@ -1112,8 +1116,8 @@ class FactoryApp(tk.Tk):
                 {
                     "name": entry.name,
                     "dataset_index": int(entry.dataset_index),
-                    "x": float(targets[int(entry.dataset_index), 0]),
-                    "y": float(targets[int(entry.dataset_index), 1]),
+                    "x": float(targets[entry.model_index, 0]),
+                    "y": float(targets[entry.model_index, 1]),
                 }
                 for entry in mapping.confirmed_entries
             ]
@@ -1140,7 +1144,7 @@ class FactoryApp(tk.Tk):
             }
             errors = []
             for entry in mapping.confirmed_entries:
-                target = targets[int(entry.dataset_index)]
+                target = targets[entry.model_index]
                 custom_error = normalized_landmark_error(
                     custom_by_name.get(entry.name),
                     target,

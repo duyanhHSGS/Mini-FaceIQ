@@ -8,12 +8,13 @@ from pathlib import Path
 import torch
 
 
-LANDMARK_COUNT = 39
+DATASET_LANDMARK_COUNT = 39
 INACTIVE_VALUES = {"", "NONE", "?"}
 
 
 @dataclass(frozen=True)
 class LandmarkMappingEntry:
+    model_index: int
     name: str
     legacy_source: str
     legacy_reference: str
@@ -46,16 +47,32 @@ class LandmarkMapping:
             if entry.dataset_index is not None
         }
 
+    @property
+    def names_by_model_index(self) -> dict[int, str]:
+        return {entry.model_index: entry.name for entry in self.entries}
+
     def active_mask(self, *, dtype: torch.dtype = torch.float32) -> torch.Tensor:
-        mask = torch.zeros(LANDMARK_COUNT, dtype=dtype)
+        mask = torch.zeros(len(self.entries), dtype=dtype)
         for entry in self.confirmed_entries:
-            mask[int(entry.dataset_index)] = 1
+            mask[entry.model_index] = 1
         return mask
+
+    def output_layout(self) -> list[dict[str, object]]:
+        return [
+            {
+                "model_index": entry.model_index,
+                "name": entry.name,
+                "dataset_index": entry.dataset_index,
+                "active": entry.confirmed,
+            }
+            for entry in self.entries
+        ]
 
     def snapshot(self) -> dict[str, object]:
         return {
             "source_path": str(self.source_path),
-            "landmark_count": LANDMARK_COUNT,
+            "landmark_count": len(self.entries),
+            "dataset_landmark_count": DATASET_LANDMARK_COUNT,
             "confirmed_count": self.confirmed_count,
             "entries": [asdict(entry) for entry in self.entries],
         }
@@ -97,13 +114,15 @@ def load_landmark_mapping(path: str | Path) -> LandmarkMapping:
                 except ValueError as exc:
                     raise ValueError(
                         f"{source_path}:{line_number}: dataset index must be "
-                        f"0-{LANDMARK_COUNT - 1}, NONE, ?, an uncertain value "
+                        f"0-{DATASET_LANDMARK_COUNT - 1}, NONE, ?, an uncertain "
+                        f"value "
                         f"ending in ?, or blank"
                     ) from exc
-                if not 0 <= dataset_index < LANDMARK_COUNT:
+                if not 0 <= dataset_index < DATASET_LANDMARK_COUNT:
                     raise ValueError(
                         f"{source_path}:{line_number}: dataset index "
-                        f"{dataset_index} is outside 0-{LANDMARK_COUNT - 1}"
+                        f"{dataset_index} is outside "
+                        f"0-{DATASET_LANDMARK_COUNT - 1}"
                     )
                 duplicate_name = used_indices.get(dataset_index)
                 if duplicate_name is not None:
@@ -115,6 +134,7 @@ def load_landmark_mapping(path: str | Path) -> LandmarkMapping:
 
             entries.append(
                 LandmarkMappingEntry(
+                    model_index=len(entries),
                     name=name,
                     legacy_source=legacy_source,
                     legacy_reference=legacy_reference,

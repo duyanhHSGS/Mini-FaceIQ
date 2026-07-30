@@ -7,11 +7,13 @@ Each annotation row has this exact layout:
     five auxiliary (x, y) point pairs
     thirty-nine profile-landmark (x, y) pairs
 
-The auxiliary points and the 39 training targets are deliberately kept
-separate.  Images are cropped around an expanded square version of the supplied
-face bounding box, resized, and returned as float tensors in the [0, 1] range.
-Landmark coordinates are normalized relative to that crop; they are not
-clamped, so broken annotations remain visible instead of being silently hidden.
+The auxiliary points and 39 raw annotations are deliberately kept separate.
+Model-facing datasets select confirmed annotations into the 31 worksheet slots
+before augmentation; unselected dataset points never reach the model target.
+Images are cropped around an expanded square version of the supplied face
+bounding box, resized, and returned as float tensors in the [0, 1] range.
+Landmark coordinates are normalized relative to that crop; they are not clamped,
+so broken annotations remain visible instead of being silently hidden.
 """
 
 from __future__ import annotations
@@ -29,8 +31,10 @@ from torch.utils.data import Dataset
 
 try:
     from .factory_config import encoded_seed
+    from .mapping import LandmarkMapping
 except ImportError:
     from factory_config import encoded_seed
+    from mapping import LandmarkMapping
 
 
 PROFILE_LANDMARK_COUNT = 39
@@ -288,8 +292,22 @@ def _pil_to_float_tensor(image: Image.Image) -> torch.Tensor:
     return torch.from_numpy(pixels).permute(2, 0, 1).contiguous() / 255.0
 
 
+def _select_model_landmarks(
+    dataset_landmarks: np.ndarray,
+    mapping: LandmarkMapping,
+) -> np.ndarray:
+    """Select mapped Multi-PIE points into the 31 worksheet slots."""
+
+    selected = np.zeros((len(mapping.entries), 2), dtype=np.float32)
+    for entry in mapping.confirmed_entries:
+        selected[entry.model_index] = dataset_landmarks[
+            int(entry.dataset_index)
+        ]
+    return selected
+
+
 class ProfileLandmarkDataset(Dataset):
-    """Return model-ready crops and normalized 39-point landmark targets."""
+    """Return crops with raw or worksheet-projected landmark targets."""
 
     def __init__(
         self,
@@ -299,6 +317,7 @@ class ProfileLandmarkDataset(Dataset):
         bbox_scale: float = 1.25,
         verify_images: bool = False,
         augmentation: AugmentationSettings | None = None,
+        mapping: LandmarkMapping | None = None,
     ) -> None:
         if image_size <= 0:
             raise ValueError(f"image_size must be positive, got {image_size}")
@@ -307,6 +326,7 @@ class ProfileLandmarkDataset(Dataset):
         self.image_size = int(image_size)
         self.bbox_scale = float(bbox_scale)
         self.augmentation = augmentation or AugmentationSettings()
+        self.mapping = mapping
         self.records = load_profile_annotations(self.annotation_path)
 
         if verify_images:
@@ -343,7 +363,15 @@ class ProfileLandmarkDataset(Dataset):
                 resample=Image.Resampling.BILINEAR,
             )
 
-        landmarks = _normalize_points(record.landmarks_xy, crop_box)
+        if self.mapping is None:
+            selected_landmarks = record.landmarks_xy
+        else:
+            selected_landmarks = _select_model_landmarks(
+                record.landmarks_xy,
+                self.mapping,
+            )
+
+        landmarks = _normalize_points(selected_landmarks, crop_box)
         auxiliary_points = _normalize_points(
             record.auxiliary_points_xy,
             crop_box,
@@ -364,6 +392,10 @@ class ProfileLandmarkDataset(Dataset):
             & (landmarks[:, 1] >= 0.0)
             & (landmarks[:, 1] <= 1.0)
         )
+        if self.mapping is not None:
+            active = self.mapping.active_mask(dtype=torch.bool)
+            visibility &= active
+            landmarks = landmarks.masked_fill(~active.view(-1, 1), 0.0)
 
         return {
             "image": image_tensor,

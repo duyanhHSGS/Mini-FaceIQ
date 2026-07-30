@@ -34,7 +34,11 @@ from .factory_config import (
     seed_everything,
 )
 from .mapping import LandmarkMapping, load_landmark_mapping
-from .model import ProfileLandmarkModel, masked_landmark_loss
+from .model import (
+    LANDMARK_COUNT as MODEL_LANDMARK_COUNT,
+    ProfileLandmarkModel,
+    masked_landmark_loss,
+)
 
 
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -86,6 +90,7 @@ def _augmentation_from_config(config: FactoryConfig) -> AugmentationSettings:
 def _make_loaders(
     config: FactoryConfig,
     split: SubjectSplit,
+    mapping: LandmarkMapping,
     *,
     device: torch.device,
     seed: int,
@@ -96,12 +101,14 @@ def _make_loaders(
         bbox_scale=config.bbox_scale,
         verify_images=True,
         augmentation=_augmentation_from_config(config),
+        mapping=mapping,
     )
     evaluation_dataset = ProfileLandmarkDataset(
         config.annotation_path,
         image_size=config.image_size,
         bbox_scale=config.bbox_scale,
         verify_images=True,
+        mapping=mapping,
     )
     train_indices = subject_disjoint_indices(
         train_dataset.records,
@@ -255,7 +262,7 @@ def _checkpoint_payload(
     curves: list[dict[str, Any]],
 ) -> dict[str, Any]:
     return {
-        "format_version": 1,
+        "format_version": 2,
         "epoch": epoch,
         "model_state": model.state_dict(),
         "optimizer_state": optimizer.state_dict(),
@@ -263,6 +270,7 @@ def _checkpoint_payload(
         "scaler_state": scaler.state_dict(),
         "config": config.to_dict(),
         "mapping": mapping.snapshot(),
+        "output_layout": mapping.output_layout(),
         "split": split.to_dict(),
         "best_validation_nme": best_validation_nme,
         "epochs_without_improvement": epochs_without_improvement,
@@ -275,6 +283,11 @@ def _validate_resume(
     config: FactoryConfig,
     mapping: LandmarkMapping,
 ) -> None:
+    if int(checkpoint.get("format_version", 1)) != 2:
+        raise ValueError(
+            "Legacy 39-output checkpoints cannot resume 31-output training. "
+            "Start a new run instead."
+        )
     saved_mapping = checkpoint.get("mapping", {})
     current_mapping = mapping.snapshot()
     if saved_mapping.get("entries") != current_mapping.get("entries"):
@@ -315,6 +328,11 @@ def run_training(config: FactoryConfig) -> Path:
     seed = seed_everything(config.seed_text)
     device = resolve_device(config.device)
     mapping = load_landmark_mapping(config.mapping_path)
+    if len(mapping.entries) != MODEL_LANDMARK_COUNT:
+        raise ValueError(
+            f"The 31-output factory requires exactly {MODEL_LANDMARK_COUNT} "
+            f"worksheet rows, got {len(mapping.entries)}"
+        )
     resume_path = (
         Path(config.resume_checkpoint).expanduser().resolve()
         if config.resume_checkpoint
@@ -336,6 +354,11 @@ def run_training(config: FactoryConfig) -> Path:
             if "model_state" not in initial_checkpoint:
                 raise ValueError(
                     f"Initial checkpoint has no model_state: {initial_path}"
+                )
+            if int(initial_checkpoint.get("format_version", 1)) != 2:
+                raise ValueError(
+                    "Legacy 39-output checkpoints cannot initialize the "
+                    "31-output architecture. Start from ImageNet weights."
                 )
         split_dataset = ProfileLandmarkDataset(
             config.annotation_path,
@@ -377,10 +400,12 @@ def run_training(config: FactoryConfig) -> Path:
     train_loader, validation_loader, evaluation_dataset = _make_loaders(
         config,
         split,
+        mapping,
         device=device,
         seed=seed,
     )
     model = ProfileLandmarkModel(
+        landmark_count=len(mapping.entries),
         pretrained=(
             config.pretrained
             and checkpoint is None

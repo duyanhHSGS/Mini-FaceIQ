@@ -17,6 +17,7 @@ from third_party.my_side_profile_savior.dataset import (
     AugmentationSettings,
     ProfileAnnotation,
     _augment_crop,
+    _select_model_landmarks,
     make_subject_split,
 )
 from third_party.my_side_profile_savior.factory_config import (
@@ -82,7 +83,35 @@ def test_user_mapping_is_authoritative_and_masks_nonintegers():
     assert mapping.names_by_dataset_index[19] == "nose_tip"
     assert "infratip" not in mapping.names_by_dataset_index.values()
     assert "lower_eyelid" not in mapping.names_by_dataset_index.values()
+    assert len(mapping.entries) == 31
+    assert mapping.entries[2].name == "nose_tip"
+    assert mapping.entries[2].model_index == 2
     assert int(mapping.active_mask().sum().item()) == 15
+    assert mapping.active_mask().shape == (31,)
+    layout = mapping.output_layout()
+    assert len(layout) == 31
+    assert sum(bool(item["active"]) for item in layout) == 15
+    assert layout[2]["dataset_index"] == 19
+
+
+def test_only_confirmed_multipie_points_enter_31_model_slots():
+    mapping = load_landmark_mapping(PACKAGE_DIR / "user-custom.txt")
+    dataset_points = np.arange(39 * 2, dtype=np.float32).reshape(39, 2)
+
+    selected = _select_model_landmarks(dataset_points, mapping)
+
+    assert selected.shape == (31, 2)
+    for entry in mapping.entries:
+        if entry.confirmed:
+            np.testing.assert_array_equal(
+                selected[entry.model_index],
+                dataset_points[int(entry.dataset_index)],
+            )
+        else:
+            np.testing.assert_array_equal(
+                selected[entry.model_index],
+                np.zeros(2, dtype=np.float32),
+            )
 
 
 def test_mapping_rejects_duplicate_dataset_indices(tmp_path):
@@ -139,24 +168,27 @@ def test_augmentation_moves_image_targets_and_auxiliary_points_together():
     assert not np.allclose(transformed_landmarks, points)
 
 
-def test_model_keeps_39_output_slots_and_quarter_resolution():
+def test_model_keeps_31_output_slots_and_quarter_resolution():
     model = ProfileLandmarkModel(pretrained=False)
 
     output = model(torch.zeros(1, 3, 64, 64))
 
-    assert output.shape == (1, 39, 16, 16)
+    assert output.shape == (1, 31, 16, 16)
 
 
 def test_masked_loss_ignores_unconfirmed_slots():
-    logits = torch.zeros(1, 39, 16, 16, requires_grad=True)
-    target = torch.full((1, 39, 2), 0.5)
-    visibility = torch.ones(1, 39, dtype=torch.bool)
-    active = torch.zeros(39)
-    active[19] = 1
+    mapping = load_landmark_mapping(PACKAGE_DIR / "user-custom.txt")
+    logits = torch.zeros(1, 31, 16, 16, requires_grad=True)
+    target = torch.full((1, 31, 2), 0.5)
+    visibility = torch.ones(1, 31, dtype=torch.bool)
+    active = mapping.active_mask()
+    inactive_index = next(
+        entry.model_index for entry in mapping.entries if not entry.confirmed
+    )
 
     first = masked_landmark_loss(logits, target, active, visibility)
     changed = target.clone()
-    changed[:, 18, :] = 0.99
+    changed[:, inactive_index, :] = 0.99
     second = masked_landmark_loss(logits, changed, active, visibility)
 
     assert torch.allclose(first["total"], second["total"])
@@ -200,6 +232,7 @@ def test_resume_accepts_mapping_snapshot_from_another_path(tmp_path):
         runs_root="runs",
     )
     checkpoint = {
+        "format_version": 2,
         "mapping": saved,
         "config": config.to_dict(),
     }

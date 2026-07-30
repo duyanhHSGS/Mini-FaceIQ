@@ -23,17 +23,32 @@ def _faceboxes_model():
     return _load_faceboxes_onnx_class()()
 
 
-def _mapping_from_checkpoint(checkpoint: dict[str, Any]) -> dict[int, str]:
+def _output_layout_from_checkpoint(
+    checkpoint: dict[str, Any],
+) -> tuple[list[dict[str, Any]], int]:
     mapping_snapshot = checkpoint.get("mapping", {})
     entries = mapping_snapshot.get("entries", [])
-    result: dict[int, str] = {}
+    compact = int(checkpoint.get("format_version", 1)) >= 2
+    layout: list[dict[str, Any]] = []
     for entry in entries:
         dataset_index = entry.get("dataset_index")
         if dataset_index is not None:
-            result[int(dataset_index)] = str(entry["name"])
-    if not result:
+            layout.append(
+                {
+                    "model_index": int(
+                        entry["model_index"] if compact else dataset_index
+                    ),
+                    "dataset_index": int(dataset_index),
+                    "name": str(entry["name"]),
+                }
+            )
+    if not layout:
         raise ValueError("Checkpoint has no confirmed mapping entries")
-    return result
+    if compact:
+        output_count = int(mapping_snapshot.get("landmark_count", len(entries)))
+    else:
+        output_count = 39
+    return layout, output_count
 
 
 def _load_checkpoint(path: str | Path, device: torch.device) -> dict[str, Any]:
@@ -56,9 +71,17 @@ class FactoryPredictor:
         self.config = dict(self.checkpoint.get("config", {}))
         self.image_size = int(self.config.get("image_size", 256))
         self.bbox_scale = float(self.config.get("bbox_scale", 1.25))
-        self.names_by_index = _mapping_from_checkpoint(self.checkpoint)
+        self.output_layout, output_count = _output_layout_from_checkpoint(
+            self.checkpoint
+        )
+        self.names_by_index = {
+            item["dataset_index"]: item["name"] for item in self.output_layout
+        }
 
-        self.model = ProfileLandmarkModel(pretrained=False)
+        self.model = ProfileLandmarkModel(
+            landmark_count=output_count,
+            pretrained=False,
+        )
         self.model.load_state_dict(self.checkpoint["model_state"], strict=True)
         self.model.to(self.device)
         self.model.eval()
@@ -92,11 +115,15 @@ class FactoryPredictor:
             coordinates_np[:, 0] = 1.0 - coordinates_np[:, 0]
 
         predictions = []
-        for dataset_index, name in sorted(self.names_by_index.items()):
-            x, y = coordinates_np[dataset_index]
+        for item in self.output_layout:
+            model_index = int(item["model_index"])
+            dataset_index = int(item["dataset_index"])
+            name = str(item["name"])
+            x, y = coordinates_np[model_index]
             predictions.append(
                 {
                     "name": name,
+                    "model_index": model_index,
                     "dataset_index": dataset_index,
                     "x": float(x),
                     "y": float(y),
@@ -160,11 +187,14 @@ def checkpoint_summary(path: str | Path) -> dict[str, Any]:
         Path(path).expanduser().resolve(),
         map_location="cpu",
     )
-    mapping = _mapping_from_checkpoint(checkpoint)
+    layout, output_count = _output_layout_from_checkpoint(checkpoint)
     return {
         "epoch": int(checkpoint.get("epoch", -1)),
         "best_validation_nme": checkpoint.get("best_validation_nme"),
-        "confirmed_count": len(mapping),
-        "confirmed_mapping": mapping,
+        "confirmed_count": len(layout),
+        "output_count": output_count,
+        "confirmed_mapping": {
+            item["dataset_index"]: item["name"] for item in layout
+        },
         "config": checkpoint.get("config", {}),
     }

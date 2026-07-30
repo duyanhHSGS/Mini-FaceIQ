@@ -6,7 +6,8 @@ by `main.py`.
 
 ## Current contract
 
-- The network always emits 39 heatmaps.
+- The network emits 31 heatmaps in the worksheet's Mini-FaceIQ landmark order.
+- The current 15 confirmed slots are trained; the other 16 are fully masked.
 - `user-custom.txt` is human-owned and authoritative.
 - Integer worksheet values are trained and evaluated.
 - `NONE`, blank, `?`, and tentative values ending in `?` are masked.
@@ -14,8 +15,10 @@ by `main.py`.
 - Only PyTorch `.pt` checkpoints are produced. There is no ONNX/app export.
 
 The current dataset line contains an image path, four bounding-box values, five
-auxiliary points, and 39 profile landmarks. The five auxiliary points are never
-merged into the 39 training targets.
+auxiliary points, and 39 profile landmarks. Parsing retains that raw file
+contract, then selects only the 15 human-confirmed Multi-PIE points into the 31
+model slots. The other 24 dataset points and five auxiliary points never enter
+the model targets.
 
 ## Launch the factory
 
@@ -87,8 +90,9 @@ finishes the active batch and saves before exiting.
 
 Resume requires the original mapping and architecture/loss settings. When the
 human confirms additional dataset mappings later, use "Initialize weights from
-checkpoint" instead: it starts a new immutable run, keeps the 39-slot network
-weights, and creates a fresh optimizer and mapping snapshot.
+checkpoint" instead: it starts a new immutable run, keeps compatible 31-slot
+network weights, and creates a fresh optimizer and mapping snapshot. Legacy
+39-output checkpoints cannot resume or initialize this architecture.
 
 ## Benchmark
 
