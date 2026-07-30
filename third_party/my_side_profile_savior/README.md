@@ -105,6 +105,19 @@ Dataset QA shows truth, custom predictions, legacy predictions, confidence, and
 normalized error. Upload QA uses FaceBoxes and supports a manual mirror toggle.
 Because uploads have no ground truth, the UI never claims upload accuracy.
 
+Landmarks use one stable color in every QA panel; dataset index `0` (`porion`)
+is blue. Labels stay hidden until hover, and hovering a landmark reveals the
+matching label in every comparison panel. A panel reports `not predicted`
+instead of inventing a point when that provider has no result. Point and label
+opacity have separate live controls. A landmark color may be overridden with
+the color picker and reset to its automatic color; overrides last only for the
+current UI session.
+
+Scroll over an image to zoom every comparison panel around the same location.
+Right-drag pans the panels together, and double-click resets the shared view.
+Changing color or opacity updates the existing plot and never reruns model
+inference.
+
 QA may run while training. It loads the latest atomically saved `best.pt` into a
 separate model instance. If simultaneous CUDA use causes out-of-memory, QA
 reports the failure and clears its cache without stopping the trainer.

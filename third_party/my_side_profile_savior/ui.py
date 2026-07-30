@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import colorsys
 from datetime import datetime
 import json
 from pathlib import Path
@@ -11,7 +12,7 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import colorchooser, filedialog, messagebox, ttk
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -34,6 +35,9 @@ from .train import DEFAULT_ANNOTATIONS, DEFAULT_MAPPING, DEFAULT_RUNS
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+QA_POINT_ALPHA_DEFAULT = 0.65
+QA_LABEL_ALPHA_DEFAULT = 0.75
+QA_HOVER_DISTANCE_PIXELS = 14.0
 
 
 FIELD_DEFINITIONS = (
@@ -80,43 +84,181 @@ def _default_config() -> FactoryConfig:
     )
 
 
+def _default_landmark_color(dataset_index: int) -> str:
+    """Return one stable, high-contrast color for a 39-slot dataset index."""
+
+    index = int(dataset_index)
+    if not 0 <= index < 39:
+        raise ValueError("dataset_index must be between 0 and 38")
+    if index == 0:
+        return "#0066ff"
+    hue = ((2.0 / 3.0) + index * 0.618033988749895) % 1.0
+    red, green, blue = colorsys.hsv_to_rgb(hue, 0.78, 0.95)
+    return f"#{round(red * 255):02x}{round(green * 255):02x}{round(blue * 255):02x}"
+
+
+def _landmark_color(
+    name: str,
+    dataset_index: int,
+    overrides: dict[str, str],
+) -> str:
+    return overrides.get(name, _default_landmark_color(dataset_index))
+
+
+def _hover_label_text(
+    name: str,
+    dataset_index: int,
+    point: dict[str, Any] | None,
+) -> str:
+    details = [f"{name} [{dataset_index}]"]
+    if point is None:
+        details.append("not predicted")
+        return "\n".join(details)
+    if "confidence" in point:
+        details.append(f'c={float(point["confidence"]):.3f}')
+    if "error_nme" in point:
+        details.append(f'e={float(point["error_nme"]):.4f}')
+    return "\n".join(details)
+
+
+def _nearest_landmark_name(
+    points: list[dict[str, Any]],
+    x: float,
+    y: float,
+    image_size: tuple[int, int],
+    *,
+    maximum_distance: float = QA_HOVER_DISTANCE_PIXELS,
+) -> str | None:
+    """Find the nearest normalized point using an opacity-independent hit box."""
+
+    width, height = image_size
+    nearest_name = None
+    nearest_distance = float(maximum_distance)
+    for point in points:
+        point_x = float(point["x"]) * width
+        point_y = float(point["y"]) * height
+        distance = float(np.hypot(point_x - x, point_y - y))
+        if distance <= nearest_distance:
+            nearest_distance = distance
+            nearest_name = str(point["name"])
+    return nearest_name
+
+
+def _zoomed_view_limits(
+    x_limits: tuple[float, float],
+    y_limits: tuple[float, float],
+    cursor_xy: tuple[float, float],
+    scale: float,
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    cursor_x, cursor_y = cursor_xy
+    return (
+        tuple(cursor_x + (value - cursor_x) * scale for value in x_limits),
+        tuple(cursor_y + (value - cursor_y) * scale for value in y_limits),
+    )
+
+
+def _panned_view_limits(
+    x_limits: tuple[float, float],
+    y_limits: tuple[float, float],
+    delta_fraction_xy: tuple[float, float],
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    delta_x, delta_y = delta_fraction_xy
+    x_shift = (x_limits[1] - x_limits[0]) * delta_x
+    y_shift = (y_limits[1] - y_limits[0]) * delta_y
+    return (
+        (x_limits[0] - x_shift, x_limits[1] - x_shift),
+        (y_limits[0] - y_shift, y_limits[1] - y_shift),
+    )
+
+
+def _synchronized_view_limits(
+    panel_count: int,
+    x_limits: tuple[float, float],
+    y_limits: tuple[float, float],
+) -> tuple[tuple[tuple[float, float], tuple[float, float]], ...]:
+    return tuple((x_limits, y_limits) for _ in range(panel_count))
+
+
 def _draw_points(
     axis,
     image: Image.Image,
     points: list[dict[str, Any]],
     *,
-    color: str,
+    color_overrides: dict[str, str],
+    point_alpha: float,
+    label_alpha: float,
     title: str,
-) -> None:
+) -> dict[str, Any]:
     axis.imshow(image)
+    entries: dict[str, dict[str, Any]] = {}
     for point in points:
+        name = str(point["name"])
+        dataset_index = int(point["dataset_index"])
+        color = _landmark_color(name, dataset_index, color_overrides)
         x = float(point["x"]) * image.width
         y = float(point["y"]) * image.height
-        axis.scatter(
+        artist = axis.scatter(
             [x],
             [y],
             s=30,
-            c=color,
+            c=[color],
             edgecolors="black",
             linewidths=0.5,
+            alpha=point_alpha,
+            zorder=5,
         )
-        details = [f'{point["name"]} [{point.get("dataset_index", "?")}]']
-        if "confidence" in point:
-            details.append(f'c={float(point["confidence"]):.3f}')
-        if "error_nme" in point:
-            details.append(f'e={float(point["error_nme"]):.4f}')
-        axis.annotate(
-            "\n".join(details),
+        annotation = axis.annotate(
+            _hover_label_text(name, dataset_index, point),
             (x, y),
-            xytext=(4, -4),
+            xytext=(10, 10),
             textcoords="offset points",
-            fontsize=6,
+            fontsize=7,
             color=color,
             weight="bold",
-            bbox={"facecolor": "black", "alpha": 0.45, "edgecolor": "none"},
+            bbox={
+                "boxstyle": "round,pad=0.3",
+                "facecolor": "black",
+                "alpha": label_alpha,
+                "edgecolor": color,
+            },
+            arrowprops={"arrowstyle": "->", "color": color},
+            zorder=20,
         )
+        annotation.set_visible(False)
+        entries[name] = {
+            "point": point,
+            "artist": artist,
+            "annotation": annotation,
+            "xy": (x, y),
+        }
+    missing_annotation = axis.annotate(
+        "",
+        xy=(0.02, 0.98),
+        xycoords="axes fraction",
+        ha="left",
+        va="top",
+        fontsize=7,
+        weight="bold",
+        bbox={
+            "boxstyle": "round,pad=0.3",
+            "facecolor": "black",
+            "alpha": label_alpha,
+            "edgecolor": "white",
+        },
+        zorder=20,
+    )
+    missing_annotation.set_visible(False)
+    axis.set_xlim(-0.5, image.width - 0.5)
+    axis.set_ylim(image.height - 0.5, -0.5)
     axis.set_title(title)
     axis.axis("off")
+    return {
+        "axis": axis,
+        "image_size": image.size,
+        "points": points,
+        "entries": entries,
+        "missing_annotation": missing_annotation,
+    }
 
 
 class FactoryApp(tk.Tk):
@@ -135,6 +277,18 @@ class FactoryApp(tk.Tk):
         self.qa_image_path: Path | None = None
         self.qa_figure = None
         self.qa_canvas: FigureCanvasTkAgg | None = None
+        self.qa_point_alpha = tk.DoubleVar(value=QA_POINT_ALPHA_DEFAULT)
+        self.qa_label_alpha = tk.DoubleVar(value=QA_LABEL_ALPHA_DEFAULT)
+        self.qa_color_landmark = tk.StringVar()
+        self.qa_color_overrides: dict[str, str] = {}
+        self.qa_landmark_indices: dict[str, int] = {}
+        self.qa_panels: list[dict[str, Any]] = []
+        self.qa_hover_name: str | None = None
+        self.qa_pan_state: dict[str, Any] | None = None
+        self.qa_reset_limits: tuple[
+            tuple[float, float],
+            tuple[float, float],
+        ] | None = None
         self.curve_figure = None
         self.curve_canvas: FigureCanvasTkAgg | None = None
         self.curves_mtime_ns: int | None = None
@@ -360,6 +514,72 @@ class FactoryApp(tk.Tk):
             text="RUN UPLOAD QA",
             command=self._run_upload_qa,
         ).grid(row=3, column=2, padx=5, pady=6)
+
+        appearance = ttk.LabelFrame(controls, text="Landmark appearance")
+        appearance.grid(
+            row=4,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            padx=5,
+            pady=6,
+        )
+        ttk.Label(appearance, text="Point opacity").grid(
+            row=0,
+            column=0,
+            sticky="w",
+            padx=5,
+        )
+        ttk.Scale(
+            appearance,
+            from_=0.0,
+            to=1.0,
+            variable=self.qa_point_alpha,
+            command=self._on_qa_appearance_change,
+        ).grid(row=0, column=1, sticky="ew", padx=5)
+        ttk.Label(appearance, text="Hover-label opacity").grid(
+            row=1,
+            column=0,
+            sticky="w",
+            padx=5,
+        )
+        ttk.Scale(
+            appearance,
+            from_=0.0,
+            to=1.0,
+            variable=self.qa_label_alpha,
+            command=self._on_qa_appearance_change,
+        ).grid(row=1, column=1, sticky="ew", padx=5)
+        ttk.Label(appearance, text="Landmark color").grid(
+            row=0,
+            column=2,
+            sticky="w",
+            padx=5,
+        )
+        self.qa_color_selector = ttk.Combobox(
+            appearance,
+            textvariable=self.qa_color_landmark,
+            state="readonly",
+            width=24,
+        )
+        self.qa_color_selector.grid(row=0, column=3, sticky="ew", padx=5)
+        self.qa_color_selector.bind(
+            "<<ComboboxSelected>>",
+            self._on_qa_color_selection,
+        )
+        self.qa_color_button = tk.Button(
+            appearance,
+            text="Choose color",
+            command=self._choose_qa_landmark_color,
+        )
+        self.qa_color_button.grid(row=1, column=2, padx=5, pady=3)
+        ttk.Button(
+            appearance,
+            text="Reset color",
+            command=self._reset_qa_landmark_color,
+        ).grid(row=1, column=3, padx=5, pady=3, sticky="w")
+        appearance.columnconfigure(1, weight=1)
+        appearance.columnconfigure(3, weight=1)
         controls.columnconfigure(1, weight=1)
 
         self.qa_status = tk.StringVar(value="Choose a checkpoint and sample.")
@@ -593,11 +813,274 @@ class FactoryApp(tk.Tk):
         except Exception as exc:
             messagebox.showerror("Dataset error", str(exc))
 
+    def _configure_qa_landmarks(self, mapping) -> None:
+        self.qa_landmark_indices = {
+            entry.name: int(entry.dataset_index)
+            for entry in mapping.confirmed_entries
+        }
+        names = list(self.qa_landmark_indices)
+        self.qa_color_selector.configure(values=names)
+        selected = self.qa_color_landmark.get()
+        if selected not in self.qa_landmark_indices:
+            self.qa_color_landmark.set(names[0] if names else "")
+        self._refresh_qa_color_button()
+
+    def _selected_qa_color(self) -> str:
+        name = self.qa_color_landmark.get()
+        dataset_index = self.qa_landmark_indices.get(name)
+        if dataset_index is None:
+            return "#d9d9d9"
+        return _landmark_color(
+            name,
+            dataset_index,
+            self.qa_color_overrides,
+        )
+
+    def _refresh_qa_color_button(self) -> None:
+        color = self._selected_qa_color()
+        self.qa_color_button.configure(
+            background=color,
+            activebackground=color,
+        )
+
+    def _on_qa_color_selection(self, _event=None) -> None:
+        self._refresh_qa_color_button()
+
+    def _choose_qa_landmark_color(self) -> None:
+        name = self.qa_color_landmark.get()
+        if name not in self.qa_landmark_indices:
+            messagebox.showwarning(
+                "No landmark",
+                "Run QA or select a confirmed landmark first.",
+            )
+            return
+        _rgb, color = colorchooser.askcolor(
+            color=self._selected_qa_color(),
+            title=f"Choose color for {name}",
+            parent=self,
+        )
+        if color:
+            self.qa_color_overrides[name] = color
+            self._refresh_qa_color_button()
+            self._apply_qa_appearance()
+
+    def _reset_qa_landmark_color(self) -> None:
+        name = self.qa_color_landmark.get()
+        if not name:
+            return
+        self.qa_color_overrides.pop(name, None)
+        self._refresh_qa_color_button()
+        self._apply_qa_appearance()
+
+    def _on_qa_appearance_change(self, _value=None) -> None:
+        self._apply_qa_appearance()
+
+    def _apply_qa_appearance(self) -> None:
+        point_alpha = float(self.qa_point_alpha.get())
+        label_alpha = float(self.qa_label_alpha.get())
+        for panel in self.qa_panels:
+            for name, entry in panel["entries"].items():
+                point = entry["point"]
+                color = _landmark_color(
+                    name,
+                    int(point["dataset_index"]),
+                    self.qa_color_overrides,
+                )
+                entry["artist"].set_facecolor(color)
+                entry["artist"].set_alpha(point_alpha)
+                annotation = entry["annotation"]
+                annotation.set_color(color)
+                annotation.get_bbox_patch().set_alpha(label_alpha)
+                annotation.get_bbox_patch().set_edgecolor(color)
+                if annotation.arrow_patch is not None:
+                    annotation.arrow_patch.set_color(color)
+            missing = panel["missing_annotation"]
+            missing.get_bbox_patch().set_alpha(label_alpha)
+            if self.qa_hover_name is not None:
+                color = _landmark_color(
+                    self.qa_hover_name,
+                    self.qa_landmark_indices[self.qa_hover_name],
+                    self.qa_color_overrides,
+                )
+                missing.set_color(color)
+                missing.get_bbox_patch().set_edgecolor(color)
+        if self.qa_canvas is not None:
+            self.qa_canvas.draw_idle()
+
+    def _hide_qa_hover(self, *, redraw: bool = True) -> None:
+        changed = False
+        for panel in self.qa_panels:
+            for entry in panel["entries"].values():
+                annotation = entry["annotation"]
+                if annotation.get_visible():
+                    annotation.set_visible(False)
+                    changed = True
+            missing = panel["missing_annotation"]
+            if missing.get_visible():
+                missing.set_visible(False)
+                changed = True
+        self.qa_hover_name = None
+        if redraw and changed and self.qa_canvas is not None:
+            self.qa_canvas.draw_idle()
+
+    def _show_qa_hover(self, name: str) -> None:
+        if name not in self.qa_landmark_indices:
+            self._hide_qa_hover()
+            return
+        self._hide_qa_hover(redraw=False)
+        self.qa_hover_name = name
+        dataset_index = self.qa_landmark_indices[name]
+        color = _landmark_color(
+            name,
+            dataset_index,
+            self.qa_color_overrides,
+        )
+        for panel in self.qa_panels:
+            entry = panel["entries"].get(name)
+            if entry is not None:
+                entry["annotation"].set_text(
+                    _hover_label_text(name, dataset_index, entry["point"])
+                )
+                entry["annotation"].set_visible(True)
+                continue
+            missing = panel["missing_annotation"]
+            missing.set_text(_hover_label_text(name, dataset_index, None))
+            missing.set_color(color)
+            missing.get_bbox_patch().set_edgecolor(color)
+            missing.set_visible(True)
+        self._apply_qa_appearance()
+
+    def _apply_synchronized_limits(
+        self,
+        x_limits: tuple[float, float],
+        y_limits: tuple[float, float],
+    ) -> None:
+        limits = _synchronized_view_limits(
+            len(self.qa_panels),
+            x_limits,
+            y_limits,
+        )
+        for panel, (panel_x, panel_y) in zip(self.qa_panels, limits):
+            panel["axis"].set_xlim(panel_x)
+            panel["axis"].set_ylim(panel_y)
+        if self.qa_canvas is not None:
+            self.qa_canvas.draw_idle()
+
+    def _reset_qa_view(self) -> None:
+        if self.qa_reset_limits is None:
+            return
+        self._apply_synchronized_limits(*self.qa_reset_limits)
+
+    def _qa_panel_for_axis(self, axis) -> dict[str, Any] | None:
+        return next(
+            (
+                panel
+                for panel in self.qa_panels
+                if panel["axis"] is axis
+            ),
+            None,
+        )
+
+    def _on_qa_button_press(self, event) -> None:
+        if self._qa_panel_for_axis(event.inaxes) is None:
+            return
+        if event.dblclick:
+            self.qa_pan_state = None
+            self._hide_qa_hover(redraw=False)
+            self._reset_qa_view()
+            return
+        if event.button == 3:
+            axis = event.inaxes
+            self.qa_pan_state = {
+                "mouse_xy": (float(event.x), float(event.y)),
+                "x_limits": tuple(float(value) for value in axis.get_xlim()),
+                "y_limits": tuple(float(value) for value in axis.get_ylim()),
+                "axis_width": max(1.0, float(axis.bbox.width)),
+                "axis_height": max(1.0, float(axis.bbox.height)),
+            }
+            self._hide_qa_hover()
+
+    def _on_qa_button_release(self, _event) -> None:
+        self.qa_pan_state = None
+
+    def _on_qa_pointer_motion(self, event) -> None:
+        if self.qa_pan_state is not None:
+            state = self.qa_pan_state
+            delta_fraction = (
+                (float(event.x) - state["mouse_xy"][0])
+                / state["axis_width"],
+                (float(event.y) - state["mouse_xy"][1])
+                / state["axis_height"],
+            )
+            x_limits, y_limits = _panned_view_limits(
+                state["x_limits"],
+                state["y_limits"],
+                delta_fraction,
+            )
+            self._apply_synchronized_limits(x_limits, y_limits)
+            return
+        panel = self._qa_panel_for_axis(event.inaxes)
+        if panel is None or event.xdata is None or event.ydata is None:
+            self._hide_qa_hover()
+            return
+        name = _nearest_landmark_name(
+            panel["points"],
+            float(event.xdata),
+            float(event.ydata),
+            panel["image_size"],
+        )
+        if name is None:
+            self._hide_qa_hover()
+        elif name != self.qa_hover_name:
+            self._show_qa_hover(name)
+
+    def _on_qa_scroll(self, event) -> None:
+        panel = self._qa_panel_for_axis(event.inaxes)
+        if panel is None or event.xdata is None or event.ydata is None:
+            return
+        step = float(getattr(event, "step", 0.0))
+        scale = 1.0 / 1.2 if step > 0 else 1.2
+        axis = panel["axis"]
+        x_limits, y_limits = _zoomed_view_limits(
+            tuple(float(value) for value in axis.get_xlim()),
+            tuple(float(value) for value in axis.get_ylim()),
+            (float(event.xdata), float(event.ydata)),
+            scale,
+        )
+        self._hide_qa_hover(redraw=False)
+        self._apply_synchronized_limits(x_limits, y_limits)
+
+    def _activate_qa_interactions(
+        self,
+        panels: list[dict[str, Any]],
+    ) -> None:
+        self.qa_panels = panels
+        self.qa_hover_name = None
+        self.qa_pan_state = None
+        if not panels:
+            self.qa_reset_limits = None
+            return
+        first_axis = panels[0]["axis"]
+        self.qa_reset_limits = (
+            tuple(float(value) for value in first_axis.get_xlim()),
+            tuple(float(value) for value in first_axis.get_ylim()),
+        )
+        canvas = self.qa_figure.canvas
+        canvas.mpl_connect("button_press_event", self._on_qa_button_press)
+        canvas.mpl_connect("button_release_event", self._on_qa_button_release)
+        canvas.mpl_connect("motion_notify_event", self._on_qa_pointer_motion)
+        canvas.mpl_connect("scroll_event", self._on_qa_scroll)
+        self._apply_qa_appearance()
+
     def _show_figure(self, figure) -> None:
         if self.qa_canvas is not None:
             self.qa_canvas.get_tk_widget().destroy()
         if self.qa_figure is not None:
             plt.close(self.qa_figure)
+        self.qa_panels = []
+        self.qa_hover_name = None
+        self.qa_pan_state = None
+        self.qa_reset_limits = None
         self.qa_figure = figure
         self.qa_canvas = FigureCanvasTkAgg(figure, master=self.qa_plot_frame)
         self.qa_canvas.draw()
@@ -618,6 +1101,7 @@ class FactoryApp(tk.Tk):
             mapping = load_landmark_mapping(
                 str(self.variables["mapping_path"].get())
             )
+            self._configure_qa_landmarks(mapping)
             if predictor.names_by_index != mapping.names_by_dataset_index:
                 raise ValueError(
                     "Checkpoint mapping does not match the current "
@@ -677,23 +1161,38 @@ class FactoryApp(tk.Tk):
                         )
 
             figure, axes = plt.subplots(1, 3, figsize=(15, 5))
-            _draw_points(axes[0], crop, truth_points, color="#ff2457", title="Truth")
-            _draw_points(
-                axes[1],
-                crop,
-                custom["predictions"],
-                color="#00e5ff",
-                title=f'Custom | {custom["device"]}',
-            )
-            _draw_points(
-                axes[2],
-                crop,
-                legacy_points,
-                color="#39ff14",
-                title="Legacy 3DDFA-V2",
-            )
+            panels = [
+                _draw_points(
+                    axes[0],
+                    crop,
+                    truth_points,
+                    color_overrides=self.qa_color_overrides,
+                    point_alpha=float(self.qa_point_alpha.get()),
+                    label_alpha=float(self.qa_label_alpha.get()),
+                    title="Truth",
+                ),
+                _draw_points(
+                    axes[1],
+                    crop,
+                    custom["predictions"],
+                    color_overrides=self.qa_color_overrides,
+                    point_alpha=float(self.qa_point_alpha.get()),
+                    label_alpha=float(self.qa_label_alpha.get()),
+                    title=f'Custom | {custom["device"]}',
+                ),
+                _draw_points(
+                    axes[2],
+                    crop,
+                    legacy_points,
+                    color_overrides=self.qa_color_overrides,
+                    point_alpha=float(self.qa_point_alpha.get()),
+                    label_alpha=float(self.qa_label_alpha.get()),
+                    title="Legacy 3DDFA-V2",
+                ),
+            ]
             figure.tight_layout()
             self._show_figure(figure)
+            self._activate_qa_interactions(panels)
 
             self.qa_status.set(
                 f"Dataset #{index} | confirmed-point custom NME "
@@ -738,6 +1237,7 @@ class FactoryApp(tk.Tk):
             mapping = load_landmark_mapping(
                 str(self.variables["mapping_path"].get())
             )
+            self._configure_qa_landmarks(mapping)
             if predictor.names_by_index != mapping.names_by_dataset_index:
                 raise ValueError(
                     "Checkpoint mapping does not match the current "
@@ -757,22 +1257,32 @@ class FactoryApp(tk.Tk):
                     )
 
             figure, axes = plt.subplots(1, 2, figsize=(12, 6))
-            _draw_points(
-                axes[0],
-                image,
-                custom["predictions"],
-                color="#00e5ff",
-                title=f'Custom | {custom["device"]} | mirror={custom["mirror"]}',
-            )
-            _draw_points(
-                axes[1],
-                image,
-                legacy_points,
-                color="#39ff14",
-                title="Legacy 3DDFA-V2",
-            )
+            panels = [
+                _draw_points(
+                    axes[0],
+                    image,
+                    custom["predictions"],
+                    color_overrides=self.qa_color_overrides,
+                    point_alpha=float(self.qa_point_alpha.get()),
+                    label_alpha=float(self.qa_label_alpha.get()),
+                    title=(
+                        f'Custom | {custom["device"]} | '
+                        f'mirror={custom["mirror"]}'
+                    ),
+                ),
+                _draw_points(
+                    axes[1],
+                    image,
+                    legacy_points,
+                    color_overrides=self.qa_color_overrides,
+                    point_alpha=float(self.qa_point_alpha.get()),
+                    label_alpha=float(self.qa_label_alpha.get()),
+                    title="Legacy 3DDFA-V2",
+                ),
+            ]
             figure.tight_layout()
             self._show_figure(figure)
+            self._activate_qa_interactions(panels)
             self.qa_status.set(
                 "Upload QA shows predictions only; no ground truth means no "
                 "accuracy or graduation claim. "

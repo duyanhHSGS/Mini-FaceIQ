@@ -1,6 +1,8 @@
 import random
 from pathlib import Path
 
+from matplotlib import pyplot as plt
+from matplotlib.colors import to_hex
 import numpy as np
 from PIL import Image
 import pytest
@@ -34,6 +36,16 @@ from third_party.my_side_profile_savior.model import (
     masked_landmark_loss,
 )
 from third_party.my_side_profile_savior.train import _validate_resume
+from third_party.my_side_profile_savior.ui import (
+    _default_landmark_color,
+    _draw_points,
+    _hover_label_text,
+    _landmark_color,
+    _nearest_landmark_name,
+    _panned_view_limits,
+    _synchronized_view_limits,
+    _zoomed_view_limits,
+)
 
 
 PACKAGE_DIR = (
@@ -248,3 +260,114 @@ def test_graduation_requires_winning_every_landmark():
 
     assert wins == {"nose_tip": True, "chin_point": False}
     assert not all(wins.values())
+
+
+def test_qa_palette_keeps_porion_blue_and_honors_session_override():
+    automatic = _default_landmark_color(0)
+    overrides = {}
+
+    assert automatic == "#0066ff"
+    assert _landmark_color("porion", 0, overrides) == automatic
+
+    overrides["porion"] = "#ff00aa"
+    assert _landmark_color("porion", 0, overrides) == "#ff00aa"
+    assert _landmark_color("porion", 0, overrides) == _landmark_color(
+        "porion",
+        0,
+        overrides,
+    )
+
+    overrides.pop("porion")
+    assert _landmark_color("porion", 0, overrides) == automatic
+
+
+def test_qa_points_start_with_hidden_labels_and_live_opacity():
+    image = Image.new("RGB", (100, 100), color=(128, 128, 128))
+    points = [
+        {
+            "name": "porion",
+            "dataset_index": 0,
+            "x": 0.25,
+            "y": 0.40,
+        }
+    ]
+    figure, axes = plt.subplots(1, 2)
+    try:
+        first = _draw_points(
+            axes[0],
+            image,
+            points,
+            color_overrides={},
+            point_alpha=0.42,
+            label_alpha=0.31,
+            title="Truth",
+        )
+        second = _draw_points(
+            axes[1],
+            image,
+            points,
+            color_overrides={},
+            point_alpha=0.42,
+            label_alpha=0.31,
+            title="Custom",
+        )
+
+        first_entry = first["entries"]["porion"]
+        second_entry = second["entries"]["porion"]
+        assert not first_entry["annotation"].get_visible()
+        assert first_entry["artist"].get_alpha() == pytest.approx(0.42)
+        assert (
+            first_entry["annotation"].get_bbox_patch().get_alpha()
+            == pytest.approx(0.31)
+        )
+        assert to_hex(first_entry["artist"].get_facecolor()[0]) == "#0066ff"
+        assert to_hex(second_entry["artist"].get_facecolor()[0]) == "#0066ff"
+    finally:
+        plt.close(figure)
+
+
+def test_qa_hover_helpers_find_points_and_report_missing_predictions():
+    points = [
+        {
+            "name": "porion",
+            "dataset_index": 0,
+            "x": 0.25,
+            "y": 0.40,
+        }
+    ]
+
+    assert (
+        _nearest_landmark_name(points, 26.0, 39.0, (100, 100))
+        == "porion"
+    )
+    assert _nearest_landmark_name(points, 90.0, 90.0, (100, 100)) is None
+    assert _hover_label_text("porion", 0, None) == (
+        "porion [0]\nnot predicted"
+    )
+
+
+def test_qa_zoom_pan_and_reset_limits_can_stay_synchronized():
+    original_x = (-0.5, 99.5)
+    original_y = (99.5, -0.5)
+    zoomed_x, zoomed_y = _zoomed_view_limits(
+        original_x,
+        original_y,
+        (50.0, 50.0),
+        0.5,
+    )
+    panned_x, panned_y = _panned_view_limits(
+        zoomed_x,
+        zoomed_y,
+        (0.1, -0.2),
+    )
+
+    synchronized = _synchronized_view_limits(
+        3,
+        panned_x,
+        panned_y,
+    )
+    reset = _synchronized_view_limits(3, original_x, original_y)
+
+    assert len(synchronized) == 3
+    assert all(limits == synchronized[0] for limits in synchronized)
+    assert all(limits == (original_x, original_y) for limits in reset)
