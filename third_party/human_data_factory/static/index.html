@@ -541,7 +541,10 @@ function queueUrl() {
     : base;
 }
 
-async function loadQueue(preserveImageId = null) {
+async function loadQueue(
+  preserveImageId = null,
+  {preserveViewport = false} = {}
+) {
   const value = await api(queueUrl());
   state.queue = value.images;
   if (preserveImageId !== null) {
@@ -554,7 +557,7 @@ async function loadQueue(preserveImageId = null) {
     );
   }
   if (state.queue.length) {
-    await loadImage();
+    await loadImage({preserveViewport});
   } else {
     state.image = null;
     state.bitmap = null;
@@ -563,8 +566,9 @@ async function loadQueue(preserveImageId = null) {
   }
 }
 
-async function loadImage() {
+async function loadImage({preserveViewport = false} = {}) {
   if (!state.queue.length) return;
+  const viewport = preserveViewport ? captureViewport() : null;
   const queued = state.queue[state.queueIndex];
   state.image = await api(
     `/api/projects/${state.projectId}/images/${queued.id}`
@@ -577,7 +581,8 @@ async function loadImage() {
   state.bitmap = await createImageBitmap(blob);
   state.paused = false;
   $("#continueBar").classList.remove("show");
-  fitImage();
+  if (viewport) restoreViewport(viewport);
+  else fitImage();
   renderLandmarks();
   updateSelected();
   updateFooter();
@@ -697,6 +702,29 @@ function fitImage() {
   state.panX = 0;
   state.panY = 0;
   draw();
+}
+
+function captureViewport() {
+  if (!state.image) return null;
+  const size = canvasMetrics();
+  const center = screenToSource(size.width / 2, size.height / 2);
+  return {
+    zoom: state.zoom,
+    centerX: center.x / Math.max(1, state.image.width - 1),
+    centerY: center.y / Math.max(1, state.image.height - 1)
+  };
+}
+
+function restoreViewport(viewport) {
+  state.zoom = viewport.zoom;
+  state.panX = 0;
+  state.panY = 0;
+  const size = canvasMetrics();
+  const sourceX = viewport.centerX * Math.max(1, state.image.width - 1);
+  const sourceY = viewport.centerY * Math.max(1, state.image.height - 1);
+  const center = sourceToScreen(sourceX, sourceY);
+  state.panX += size.width / 2 - center.x;
+  state.panY += size.height / 2 - center.y;
 }
 
 function canvasMetrics() {
@@ -882,7 +910,7 @@ async function saveLabel(annotation) {
     $("#saveStatus").textContent = error.message;
     $("#saveStatus").className = "error";
     if (error.message.toLowerCase().includes("reload")) {
-      await loadImage();
+      await loadImage({preserveViewport: state.mode === "focused"});
     }
   } finally {
     state.saving = false;
@@ -899,7 +927,7 @@ async function continueWorkflow() {
       return;
     }
     state.queueIndex += 1;
-    await loadImage();
+    await loadImage({preserveViewport: true});
     return;
   }
   if (state.selected + 1 < state.schema.length) {
@@ -1002,7 +1030,7 @@ async function moveImage(delta) {
   const target = state.queueIndex + delta;
   if (target < 0 || target >= state.queue.length) return;
   state.queueIndex = target;
-  await loadImage();
+  await loadImage({preserveViewport: state.mode === "focused"});
 }
 
 $("#previousImage").onclick = () => moveImage(-1).catch(showWorkspaceError);
@@ -1027,7 +1055,9 @@ async function undoLast() {
       `/api/projects/${state.projectId}/images/${state.image.id}/undo`,
       jsonOptions("POST", {annotator: state.annotator})
     );
-    await loadQueue(state.image.id);
+    await loadQueue(state.image.id, {
+      preserveViewport: state.mode === "focused"
+    });
     $("#saveStatus").textContent = "Undo saved";
     $("#saveStatus").className = "ok";
   } catch (error) {

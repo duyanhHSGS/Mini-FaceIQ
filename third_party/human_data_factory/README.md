@@ -24,7 +24,8 @@ copy or a custom browser-selected image folder.
 - **All landmarks:** annotate all 31 landmarks on one image, then continue to
   the next image.
 - **One focused landmark:** select one landmark and annotate it across the
-  entire image queue.
+  entire image queue. Zoom and pan persist across next/previous navigation
+  while that focused landmark stays selected.
 - **Auto Continue on:** a saved click advances immediately.
 - **Auto Continue off:** a saved click stays visible until Continue is pressed.
 
