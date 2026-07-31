@@ -83,6 +83,8 @@ class FactoryConfig:
     resume_checkpoint: str = ""
     initial_checkpoint: str = ""
     run_benchmark: bool = True
+    truth_source: str = "multipie"
+    human_export_path: str = ""
 
     def validate(self) -> None:
         if self.image_size <= 0 or self.heatmap_size <= 0:
@@ -106,6 +108,14 @@ class FactoryConfig:
         if self.resume_checkpoint and self.initial_checkpoint:
             raise ValueError(
                 "Choose either resume_checkpoint or initial_checkpoint, not both"
+            )
+        if self.truth_source not in {"multipie", "human"}:
+            raise ValueError("truth_source must be multipie or human")
+        if self.truth_source == "human" and not self.human_export_path:
+            raise ValueError("human truth_source requires human_export_path")
+        if self.truth_source == "multipie" and self.human_export_path:
+            raise ValueError(
+                "human_export_path is only valid when truth_source is human"
             )
         resolve_device(self.device)
 

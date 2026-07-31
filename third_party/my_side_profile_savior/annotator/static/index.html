@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sir FaceIQ Annotator™</title>
+  <style>
+    :root{color-scheme:dark;--bg:#080b10;--panel:#111722;--line:#263247;--text:#eef4ff;--muted:#8f9db3;--blue:#51a8ff;--amber:#ffb020;--green:#39d98a;--purple:#ad7cff;--red:#ff5d6c}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:13px Inter,Segoe UI,sans-serif;overflow:hidden}
+    button,input,select{font:inherit;color:inherit;background:#182130;border:1px solid #33415a;border-radius:6px;padding:6px 9px}
+    button{cursor:pointer}button:hover{border-color:var(--blue)}button:disabled{opacity:.45;cursor:not-allowed}
+    #boot{position:fixed;inset:0;z-index:9;background:#090d14;display:grid;place-items:center}
+    .boot-card{width:min(560px,90vw);padding:28px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:0 24px 80px #000}
+    .boot-card h1{margin:0 0 8px;font-size:26px}.boot-card p{color:var(--muted)}
+    .stack{display:grid;gap:10px}.row{display:flex;gap:8px;align-items:center}.row>*{min-width:0}.grow{flex:1}
+    #app{display:grid;grid-template-rows:48px 1fr 56px;height:100vh}
+    header{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--line);background:#0d121b}
+    header .brand{font-weight:800;font-size:16px;letter-spacing:.2px}header .meta{color:var(--muted)}
+    #workspace{display:grid;grid-template-columns:250px 1fr 300px;min-height:0}
+    aside{background:var(--panel);min-height:0;overflow:auto}#left{border-right:1px solid var(--line)}#right{border-left:1px solid var(--line)}
+    .pane-title{position:sticky;top:0;z-index:2;padding:10px;background:#111722eF;border-bottom:1px solid var(--line)}
+    #landmarkSearch{width:100%}.group-title{padding:10px 10px 5px;color:#7d8aa0;font-size:11px;text-transform:uppercase;letter-spacing:1px}
+    .landmark{display:grid;grid-template-columns:18px 1fr 23px;gap:6px;width:100%;padding:7px 9px;border:0;border-radius:0;background:transparent;text-align:left}
+    .landmark:hover,.landmark.selected{background:#1b2637}.dot{width:9px;height:9px;border-radius:50%;margin-top:4px;background:#6f7785}
+    .dot.unreviewed{background:#6f7785}.dot.placed{background:var(--green)}.dot.occluded{background:var(--purple)}.dot.out_of_frame{background:var(--red)}.dot.pending{background:var(--amber)}
+    .idx{color:#718099;text-align:right}.name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #stageWrap{position:relative;min-width:0;min-height:0;background:#05070b;overflow:hidden}
+    #canvas{display:block;width:100%;height:100%;cursor:crosshair}#canvas.panning{cursor:grabbing}
+    #inlineConfirm{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:none;align-items:center;gap:10px;padding:9px 12px;background:#151e2ced;border:1px solid var(--amber);border-radius:9px;box-shadow:0 8px 30px #000}
+    #inlineConfirm.show{display:flex}.key{padding:2px 5px;border:1px solid #63718a;border-bottom-width:2px;border-radius:4px;background:#252f40}
+    .section{padding:11px;border-bottom:1px solid var(--line)}.section h3{font-size:12px;margin:0 0 9px;color:#a9b8cd;text-transform:uppercase;letter-spacing:.8px}
+    #loupe{width:100%;height:160px;image-rendering:pixelated;background:#000;border:1px solid var(--line)}
+    .state-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.state-grid button.active{outline:2px solid var(--blue)}
+    .status-line{font-size:12px;color:var(--muted);word-break:break-word}.warn{color:var(--amber)}.error{color:var(--red)}.ok{color:var(--green)}
+    #history{max-height:170px;overflow:auto}.event{padding:6px;border-bottom:1px solid #202a3b;color:#9caabe}
+    footer{display:flex;align-items:center;gap:10px;padding:7px 12px;border-top:1px solid var(--line);background:#0d121b}
+    #progress{height:8px;flex:1;background:#232d3e;border-radius:20px;overflow:hidden}#progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--green));width:0}
+    #shortcuts{position:fixed;inset:8%;display:none;z-index:8;padding:24px;overflow:auto;background:#101723f7;border:1px solid #42516b;border-radius:14px;box-shadow:0 30px 100px #000}
+    #shortcuts.show{display:block}#shortcuts table{width:100%;border-collapse:collapse}#shortcuts td{padding:8px;border-bottom:1px solid #253147}
+    @media(max-width:1000px){#workspace{grid-template-columns:210px 1fr 250px}}
+  </style>
+</head>
+<body>
+  <div id="boot">
+    <div class="boot-card stack">
+      <div><h1>Sir FaceIQ Annotator™</h1><p>Local 31-point side-profile truth factory. No passwords. No cloud. No sneaky auto-labels.</p></div>
+      <label>Annotator profile <input id="profileName" class="grow" placeholder="human-name"></label>
+      <label>Project <select id="projectSelect" class="grow"></select></label>
+      <div class="row"><button id="refreshProjects">Refresh</button><button id="openProject" class="grow">Open precision workspace</button></div>
+      <details>
+        <summary>Create project</summary>
+        <div class="stack" style="margin-top:10px">
+          <input id="newProjectId" placeholder="project-id">
+          <select id="newProjectKind"><option value="multipie">Multi-PIE</option><option value="arbitrary">CSV / JSONL manifest</option></select>
+          <input id="manifestPath" placeholder="D:\path\manifest.csv (arbitrary only)">
+          <button id="createProject">Create frozen project</button>
+        </div>
+      </details>
+      <div id="bootStatus" class="status-line"></div>
+    </div>
+  </div>
+  <div id="app">
+    <header>
+      <span class="brand">Sir FaceIQ Annotator™</span>
+      <span id="projectMeta" class="meta"></span>
+      <span class="grow"></span>
+      <select id="passSelect"><option value="1">Pass 1 · assisted allowed</option><option value="2">Pass 2 · fully blind</option></select>
+      <select id="viewSelect"><option value="source">Full source</option><option value="crop">Training crop</option></select>
+      <button id="mirrorButton">Mirror [M]</button><button id="fitButton">Fit [F]</button><button id="helpButton">Shortcuts [?]</button>
+    </header>
+    <main id="workspace">
+      <aside id="left">
+        <div class="pane-title"><input id="landmarkSearch" placeholder="Search 31 landmarks"></div>
+        <div id="landmarks"></div>
+      </aside>
+      <section id="stageWrap">
+        <canvas id="canvas"></canvas>
+        <div id="inlineConfirm"><span id="confirmText">Confirm placement?</span><span><b class="key">Enter</b> save · <b class="key">Esc</b> cancel</span></div>
+      </section>
+      <aside id="right">
+        <div class="section"><h3>Nearest-neighbor loupe</h3><canvas id="loupe"></canvas><div id="cursorInfo" class="status-line">Move over image</div></div>
+        <div class="section"><h3>Face box</h3><div id="bboxStatus" class="status-line"></div><div class="row" style="margin-top:7px"><button id="confirmBbox">Confirm</button><button id="detectBbox">FaceBoxes once</button><button id="redrawBbox">Redraw</button></div></div>
+        <div class="section"><h3>Bbox-only region presets</h3><div class="row" style="flex-wrap:wrap"><button data-region="head">Head</button><button data-region="eye">Eye</button><button data-region="nose">Nose</button><button data-region="mouth">Mouth</button><button data-region="jaw">Jaw</button><button data-region="ear">Ear</button></div></div>
+        <div class="section"><h3 id="selectedName">Selected point</h3>
+          <div class="state-grid"><button data-state="placed">Placed</button><button data-state="unreviewed">Unreviewed [S]</button><button data-state="occluded">Occluded [O]</button><button data-state="out_of_frame">Out of frame [X]</button></div>
+          <label style="display:block;margin-top:8px">Confidence <select id="confidence"><option value="">None</option><option>easy</option><option>uncertain</option><option>hard</option></select></label>
+          <label style="display:block;margin-top:8px"><input id="autoNext" type="checkbox" checked> Auto-next</label>
+          <button id="adjudicateCurrent" style="width:100%;margin-top:8px">Adjudicate using current label</button>
+          <div id="outsideWarning" class="status-line warn"></div>
+        </div>
+        <div class="section"><h3>Suggestions · one point only</h3>
+          <div class="row"><button id="legacySuggestion">Legacy ghost</button><button id="customSuggestion">Custom ghost</button></div>
+          <input id="checkpointPath" style="width:100%;margin-top:7px" placeholder="Custom .pt checkpoint path">
+          <img id="heatmap" alt="Selected custom heatmap" style="display:none;width:100%;margin-top:7px;image-rendering:pixelated">
+          <div id="suggestionStatus" class="status-line"></div>
+        </div>
+        <div class="section"><h3>Optional comparison aids</h3><div class="row"><button id="previousGhost">Previous-image ghost</button><button id="multipieDots">Raw Multi-PIE dots</button></div><div class="status-line">Off by default. Comparison only; never accepted as truth.</div></div>
+        <div class="section"><h3>Autosave</h3><div id="saveStatus" class="status-line ok">Ready</div></div>
+        <div class="section"><h3>History</h3><div id="history"></div></div>
+      </aside>
+    </main>
+    <footer>
+      <button id="previousImage">◀ Previous [A]</button><span id="imageCounter">0 / 0</span><button id="nextImage">Next [D] ▶</button>
+      <span id="subjectInfo" class="meta"></span><div id="progress"><i></i></div><span id="progressText">0%</span>
+      <select id="queueFilter"><option value="">All splits</option><option>train</option><option>validation</option><option>test</option></select>
+      <button id="exportButton">Immutable export</button>
+    </footer>
+  </div>
+  <div id="shortcuts"><button style="float:right" id="closeHelp">Close</button><h2>Keyboard shortcuts</h2><table>
+    <tr><td>Click</td><td>Place/move selected point (inline confirmation)</td></tr><tr><td>Wheel</td><td>Zoom around pointer to pixel level</td></tr>
+    <tr><td>Right-drag</td><td>Pan</td></tr><tr><td>Double-click</td><td>Reset selected view</td></tr>
+    <tr><td>Arrows / Shift+arrows</td><td>Nudge 1 px / 0.25 px</td></tr><tr><td>O / X / S</td><td>Occluded / out of frame / unreviewed</td></tr>
+    <tr><td>F / M / T</td><td>Fit / mirror display / toggle auto-next</td></tr><tr><td>A / D</td><td>Previous / next image</td></tr>
+    <tr><td>W / E</td><td>Previous / next landmark</td></tr><tr><td>Ctrl+Z</td><td>Auditable undo</td></tr><tr><td>?</td><td>This overlay</td></tr>
+  </table></div>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const GROUPS=[["Head",["top_of_head","occiput","hairline_profile","forehead","glabella"]],["Eye",["orbitale","corneal_apex","eyelid_end","lower_eyelid","cheekbone"]],["Nose",["nasal_bridge_root","rhinion","supratip","nose_tip","infratip","columella","subnasale","subalare"]],["Mouth / chin",["upper_lip","mouth_corner","lower_lip","labiomental_fold","chin_point","chin_bottom"]],["Neck / jaw",["cervical_point","neck_point","lower_jaw_angle","upper_jaw_angle"]],["Ear",["tragus","intertragic_notch","porion"]]];
+const state={projectId:null,project:null,writerToken:null,profile:null,queue:[],queueIndex:0,image:null,bitmap:null,selected:0,pass:1,view:"source",mirror:false,zoom:1,panX:0,panY:0,region:null,pending:null,suggestion:null,previousGhost:null,showRaw:false,bboxMode:false,bboxStart:null,panning:null,cursor:null,events:[]};
+async function api(url,options={}){const r=await fetch(url,{headers:{"Content-Type":"application/json",...(options.headers||{})},...options});if(!r.ok){let x={};try{x=await r.json()}catch{}throw new Error(x.error||`${r.status} ${r.statusText}`)}if(r.status===204)return null;return r.json()}
+async function refreshProjects(){const x=await api("/api/projects");$("#projectSelect").innerHTML=x.projects.map(p=>`<option value="${p.project_id}">${p.project_id}</option>`).join("")||"<option value=''>No projects yet</option>"}
+$("#refreshProjects").onclick=()=>refreshProjects().catch(showBootError);
+$("#createProject").onclick=async()=>{try{$("#bootStatus").textContent="Freezing project…";await api("/api/projects",{method:"POST",body:JSON.stringify({project_id:$("#newProjectId").value,kind:$("#newProjectKind").value,manifest_path:$("#manifestPath").value})});await refreshProjects();$("#projectSelect").value=$("#newProjectId").value;$("#bootStatus").textContent="Project created."}catch(e){showBootError(e)}};
+$("#openProject").onclick=async()=>{try{state.profile=$("#profileName").value.trim();state.projectId=$("#projectSelect").value;if(!state.profile||!state.projectId)throw new Error("Choose a profile and project");const lock=await api(`/api/projects/${state.projectId}/writer`,{method:"POST",body:JSON.stringify({annotator_id:state.profile})});state.writerToken=lock.writer_token;state.project=await api(`/api/projects/${state.projectId}`);$("#projectMeta").textContent=`${state.projectId} · crop ×${state.project.crop_scale}`;$("#boot").style.display="none";renderLandmarks();await loadQueue()}catch(e){showBootError(e)}};
+function showBootError(e){$("#bootStatus").textContent=e.message;$("#bootStatus").className="status-line error"}
+function mappingByName(){return new Map(state.project.mapping.entries.map(x=>[x.name,x]))}
+function renderLandmarks(){const byName=mappingByName(),q=$("#landmarkSearch").value.toLowerCase();let html="";for(const [group,names] of GROUPS){const visible=names.filter(n=>n.includes(q));if(!visible.length)continue;html+=`<div class="group-title">${group}</div>`;for(const name of visible){const m=byName.get(name),label=state.image?.labels[m.model_index],s=label?.state||"unreviewed";html+=`<button class="landmark ${m.model_index===state.selected?"selected":""}" data-index="${m.model_index}"><i class="dot ${s}"></i><span class="name">${name.replaceAll("_"," ")}</span><span class="idx">${m.model_index}</span></button>`}}$("#landmarks").innerHTML=html;$$(".landmark").forEach(b=>b.onclick=()=>selectLandmark(+b.dataset.index))}
+$("#landmarkSearch").oninput=renderLandmarks;
+async function loadQueue(){const split=$("#queueFilter").value;const q=await api(`/api/projects/${state.projectId}/queue?pass=${state.pass}${split?`&split=${split}`:""}`);state.queue=q.images;state.queueIndex=Math.min(state.queueIndex,Math.max(0,state.queue.length-1));if(state.queue.length)await loadImage();else updateFooter()}
+async function loadImage(){const item=state.queue[state.queueIndex];state.image=await api(`/api/projects/${state.projectId}/images/${item.id}?pass=${state.pass}`);state.suggestion=null;state.previousGhost=null;state.showRaw=false;state.pending=null;$("#heatmap").style.display="none";state.bitmap=await createImageBitmap(await (await fetch(`/api/projects/${state.projectId}/images/${item.id}/pixels`)).blob());fit();renderLandmarks();updateSelected();updateFooter();loadHistory();draw()}
+function selectLandmark(i){state.selected=i;state.pending=null;state.suggestion=null;renderLandmarks();updateSelected();draw()}
+function updateSelected(){if(!state.image)return;const m=state.project.mapping.entries[state.selected],l=state.image.labels[state.selected];$("#selectedName").textContent=`${state.selected}. ${m.name.replaceAll("_"," ")}`;$("#confidence").value=l.confidence||"";$$("[data-state]").forEach(b=>b.classList.toggle("active",b.dataset.state===l.state));const outside=l.state==="placed"&&state.image.crop&&!inside(l.x,l.y,state.image.crop);$("#outsideWarning").textContent=outside?"⚠ Point is valid in source space but outside training crop; it will be masked.":"";$("#bboxStatus").textContent=`${state.image.bbox_state.replaceAll("_"," ")} · revision ${state.image.revision}`}
+function updateFooter(){const n=state.queue.length,i=n?state.queueIndex+1:0;$("#imageCounter").textContent=`${i} / ${n}`;$("#subjectInfo").textContent=state.image?`${state.image.split_name} · subject ${state.image.subject_id} · ${state.image.facing}`:"";const reviewed=state.queue.reduce((a,x)=>a+x.reviewed_count,0),total=n*31,p=total?100*reviewed/total:0;$("#progress i").style.width=`${p}%`;$("#progressText").textContent=`${p.toFixed(1)}%`}
+function bounds(){if(state.region)return state.region;if(state.view==="crop"&&state.image.crop)return state.image.crop;return[0,0,state.image.width,state.image.height]}
+function fit(){state.region=null;state.zoom=1;state.panX=0;state.panY=0;draw()}
+function transform(){const c=$("#canvas"),b=bounds(),bw=b[2]-b[0],bh=b[3]-b[1],s=Math.min(c.clientWidth/bw,c.clientHeight/bh)*state.zoom,ox=(c.clientWidth-bw*s)/2+state.panX,oy=(c.clientHeight-bh*s)/2+state.panY;return{b,s,ox,oy}}
+function sourceToScreen(x,y){const t=transform(),vx=state.mirror?state.image.width-x:x;return{x:t.ox+(vx-t.b[0])*t.s,y:t.oy+(y-t.b[1])*t.s}}
+function screenToSource(x,y){const t=transform();let sx=t.b[0]+(x-t.ox)/t.s;return{x:state.mirror?state.image.width-sx:sx,y:t.b[1]+(y-t.oy)/t.s}}
+function resizeCanvas(){const c=$("#canvas"),d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;if(c.width!==Math.round(w*d)||c.height!==Math.round(h*d)){c.width=Math.round(w*d);c.height=Math.round(h*d)}return d}
+function draw(){if(!state.bitmap||!state.image)return;const c=$("#canvas"),d=resizeCanvas(),ctx=c.getContext("2d"),t=transform();ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,c.clientWidth,c.clientHeight);ctx.save();ctx.translate(t.ox,t.oy);ctx.scale(t.s,t.s);if(state.mirror){ctx.translate(state.image.width-2*t.b[0],0);ctx.scale(-1,1)}ctx.imageSmoothingEnabled=t.s<8;ctx.drawImage(state.bitmap,-t.b[0],-t.b[1]);ctx.restore();if(state.image.bbox){const p1=sourceToScreen(state.image.bbox[0],state.image.bbox[1]),p2=sourceToScreen(state.image.bbox[2],state.image.bbox[3]);ctx.strokeStyle="#51a8ff";ctx.lineWidth=1;ctx.strokeRect(Math.min(p1.x,p2.x),p1.y,Math.abs(p2.x-p1.x),p2.y-p1.y)}if(state.showRaw&&state.image.raw_points)for(const p of state.image.raw_points)point(ctx,p[0],p[1],"#ff5d6c",2,true);if(state.previousGhost)for(const p of state.previousGhost)point(ctx,p.x,p.y,"#ad7cff",3,true);for(const l of state.image.labels){if(l.state!=="placed")continue;point(ctx,l.x,l.y,l.landmark_index===state.selected?"#fff":"#39d98a",l.landmark_index===state.selected?5:3)}if(state.suggestion)point(ctx,state.suggestion.x,state.suggestion.y,"#ffb020",6,true);if(state.pending)point(ctx,state.pending.x,state.pending.y,"#51a8ff",6,true);drawLoupe()}
+function point(ctx,x,y,color,r,ghost=false){const p=sourceToScreen(x,y);ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fillStyle=color;ctx.globalAlpha=ghost ? .65 : 1;ctx.fill();ctx.strokeStyle="#07101b";ctx.lineWidth=2;ctx.stroke();ctx.globalAlpha=1}
+function inside(x,y,b){return x>=b[0]&&x<=b[2]&&y>=b[1]&&y<=b[3]}
+async function saveAnnotation(annotation,confirm=false){if(confirm){state.pending=annotation;$("#inlineConfirm").classList.add("show");$("#confirmText").textContent=`Place ${state.project.mapping.entries[state.selected].name.replaceAll("_"," ")} at (${annotation.x.toFixed(2)}, ${annotation.y.toFixed(2)})?`;draw();return}const l=state.image.labels[state.selected];$("#saveStatus").textContent="Saving…";$("#saveStatus").className="status-line warn";try{const saved=await api(`/api/projects/${state.projectId}/images/${state.image.id}/passes/${state.pass}/landmarks/${state.selected}`,{method:"PUT",body:JSON.stringify({annotator_id:state.profile,writer_token:state.writerToken,expected_revision:l.revision,annotation:{...annotation,confidence:$("#confidence").value||null}})});state.image.labels[state.selected]={...l,...saved,landmark_index:state.selected};state.pending=null;$("#inlineConfirm").classList.remove("show");$("#saveStatus").textContent=`Saved revision ${saved.revision}`;$("#saveStatus").className="status-line ok";renderLandmarks();updateSelected();draw();loadHistory();if($("#autoNext").checked&&annotation.state!=="unreviewed")selectLandmark((state.selected+1)%31)}catch(e){$("#saveStatus").textContent=e.message;$("#saveStatus").className="status-line error"}}
+function confirmPending(){if(state.pending)saveAnnotation({...state.pending,origin:state.suggestion?"accepted_suggestion":"manual",provider_fingerprint:state.suggestion?.provider_fingerprint||null,suggestion_exposed:!!state.suggestion},false)}
+function cancelPending(){state.pending=null;$("#inlineConfirm").classList.remove("show");draw()}
+$("#canvas").onmousedown=e=>{if(e.button===2){state.panning={x:e.clientX,y:e.clientY,panX:state.panX,panY:state.panY};$("#canvas").classList.add("panning");return}if(e.button!==0)return;const r=e.currentTarget.getBoundingClientRect(),p=screenToSource(e.clientX-r.left,e.clientY-r.top);if(state.bboxMode){if(!state.bboxStart){state.bboxStart=p;$("#bboxStatus").textContent="Click the opposite bbox corner";return}const b=[Math.min(p.x,state.bboxStart.x),Math.min(p.y,state.bboxStart.y),Math.max(p.x,state.bboxStart.x),Math.max(p.y,state.bboxStart.y)];state.bboxMode=false;state.bboxStart=null;saveBbox(b);return}saveAnnotation({state:"placed",x:p.x,y:p.y,origin:"manual",suggestion_exposed:false},true)};
+window.onmouseup=()=>{state.panning=null;$("#canvas").classList.remove("panning")};
+window.onmousemove=e=>{const c=$("#canvas"),r=c.getBoundingClientRect();if(state.panning){state.panX=state.panning.panX+e.clientX-state.panning.x;state.panY=state.panning.panY+e.clientY-state.panning.y;draw();return}if(e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom){state.cursor=screenToSource(e.clientX-r.left,e.clientY-r.top);$("#cursorInfo").textContent=`source x ${state.cursor.x.toFixed(2)} · y ${state.cursor.y.toFixed(2)}`;drawLoupe()}};
+$("#canvas").oncontextmenu=e=>e.preventDefault();$("#canvas").ondblclick=e=>{e.preventDefault();fit()};
+$("#canvas").onwheel=e=>{e.preventDefault();const r=e.currentTarget.getBoundingClientRect(),before=screenToSource(e.clientX-r.left,e.clientY-r.top),old=state.zoom;state.zoom=Math.max(1,Math.min(80,state.zoom*(e.deltaY<0?1.25:.8)));const after=sourceToScreen(before.x,before.y);state.panX+=e.clientX-r.left-after.x;state.panY+=e.clientY-r.top-after.y;if(old!==state.zoom)draw()};
+function drawLoupe(){if(!state.cursor||!state.bitmap)return;const c=$("#loupe"),d=devicePixelRatio||1;c.width=Math.round(c.clientWidth*d);c.height=Math.round(c.clientHeight*d);const ctx=c.getContext("2d");ctx.setTransform(d,0,0,d,0,0);ctx.imageSmoothingEnabled=false;const size=21,scale=Math.min(c.clientWidth,c.clientHeight)/size;ctx.clearRect(0,0,c.clientWidth,c.clientHeight);ctx.drawImage(state.bitmap,Math.round(state.cursor.x)-10,Math.round(state.cursor.y)-10,size,size,(c.clientWidth-size*scale)/2,(c.clientHeight-size*scale)/2,size*scale,size*scale);ctx.strokeStyle="#ff4d5d";ctx.beginPath();ctx.moveTo(c.clientWidth/2-8,c.clientHeight/2);ctx.lineTo(c.clientWidth/2+8,c.clientHeight/2);ctx.moveTo(c.clientWidth/2,c.clientHeight/2-8);ctx.lineTo(c.clientWidth/2,c.clientHeight/2+8);ctx.stroke()}
+$$("[data-state]").forEach(b=>b.onclick=()=>saveAnnotation({state:b.dataset.state,x:null,y:null,origin:null,suggestion_exposed:false}));
+$("#confidence").onchange=()=>{const l=state.image.labels[state.selected];saveAnnotation({state:l.state,x:l.x,y:l.y,origin:l.origin,provider_fingerprint:l.provider_fingerprint,suggestion_exposed:!!l.suggestion_exposed})};
+$("#adjudicateCurrent").onclick=async()=>{const l=state.image.labels[state.selected];if(l.state==="unreviewed"){ $("#saveStatus").textContent="Place or choose a definitive state first.";return}try{await api(`/api/projects/${state.projectId}/images/${state.image.id}/adjudication/${state.selected}`,{method:"PUT",body:JSON.stringify({annotator_id:state.profile,writer_token:state.writerToken,annotation:{state:l.state,x:l.x,y:l.y}})});$("#saveStatus").textContent="Third-human adjudication saved"}catch(e){$("#saveStatus").textContent=e.message}};
+async function moveImage(delta){if(!state.queue.length)return;state.queueIndex=(state.queueIndex+delta+state.queue.length)%state.queue.length;await loadImage()}
+$("#previousImage").onclick=()=>moveImage(-1);$("#nextImage").onclick=()=>moveImage(1);$("#fitButton").onclick=fit;$("#mirrorButton").onclick=()=>{state.mirror=!state.mirror;draw()};$("#viewSelect").onchange=e=>{state.view=e.target.value;fit()};$("#passSelect").onchange=async e=>{state.pass=+e.target.value;await loadQueue()};$("#queueFilter").onchange=loadQueue;
+$("#helpButton").onclick=()=>$("#shortcuts").classList.add("show");$("#closeHelp").onclick=()=>$("#shortcuts").classList.remove("show");
+async function saveBbox(bbox){try{const x=await api(`/api/projects/${state.projectId}/images/${state.image.id}/bbox`,{method:"PUT",body:JSON.stringify({annotator_id:state.profile,writer_token:state.writerToken,expected_revision:state.image.revision,bbox})});state.image.bbox=x.bbox;state.image.crop=x.crop;state.image.revision=x.revision;state.image.bbox_state="confirmed";updateSelected();draw()}catch(e){$("#bboxStatus").textContent=e.message}}
+$("#confirmBbox").onclick=()=>{if(state.image.bbox)saveBbox(state.image.bbox)};
+$("#redrawBbox").onclick=()=>{state.bboxMode=true;state.bboxStart=null;$("#bboxStatus").textContent="Redraw mode: click two opposite corners"};
+$("#detectBbox").onclick=async()=>{try{$("#bboxStatus").textContent="Running cached FaceBoxes once…";const x=await api(`/api/projects/${state.projectId}/images/${state.image.id}/detect-bbox`,{method:"POST",body:JSON.stringify({annotator_id:state.profile,writer_token:state.writerToken,expected_revision:state.image.revision})});state.image.bbox=x.bbox;state.image.crop=x.crop;state.image.revision=x.revision;state.image.bbox_state="needs_confirmation";updateSelected();draw()}catch(e){$("#bboxStatus").textContent=e.message}};
+$$("[data-region]").forEach(b=>b.onclick=()=>{if(!state.image?.bbox)return;const [x1,y1,x2,y2]=state.image.bbox,w=x2-x1,h=y2-y1,front=state.image.facing==="right"?x2:x1,dir=state.image.facing==="right"?-1:1;const ranges={head:[.05,.52,.95],eye:[.28,.48,.28],nose:[.38,.63,.25],mouth:[.58,.78,.28],jaw:[.60,.98,.50],ear:[.28,.72,.32]},r=ranges[b.dataset.region],cy=y1+h*(r[0]+r[1])/2,hh=h*(r[1]-r[0])*.7,ww=w*r[2],cx=b.dataset.region==="ear"?front+dir*w*.72:front+dir*w*.20;state.region=[cx-ww/2,cy-hh/2,cx+ww/2,cy+hh/2];state.zoom=1;state.panX=state.panY=0;draw()});
+async function requestSuggestion(provider){if(state.pass===2){$("#suggestionStatus").textContent="Blind pass: all aids are locked.";return}try{$("#suggestionStatus").textContent="Loading one point…";const cp=$("#checkpointPath").value;const q=provider==="custom"?`?checkpoint=${encodeURIComponent(cp)}`:"";const x=await api(`/api/projects/${state.projectId}/images/${state.image.id}/suggestions/${provider}/${state.selected}${q}`);state.suggestion=x;if(x.heatmap_png){$("#heatmap").src=x.heatmap_png;$("#heatmap").style.display="block"}await api(`/api/projects/${state.projectId}/images/${state.image.id}/passes/${state.pass}/exposure`,{method:"POST",body:JSON.stringify({annotator_id:state.profile,writer_token:state.writerToken,source:"model"})});$("#suggestionStatus").textContent=`${provider} ghost · ${x.cached?"cache hit":"computed once"}`;draw()}catch(e){$("#suggestionStatus").textContent=e.message}}
+$("#legacySuggestion").onclick=()=>requestSuggestion("legacy");$("#customSuggestion").onclick=()=>requestSuggestion("custom");
+async function exposeAid(source){await api(`/api/projects/${state.projectId}/images/${state.image.id}/passes/${state.pass}/exposure`,{method:"POST",body:JSON.stringify({annotator_id:state.profile,writer_token:state.writerToken,source})})}
+$("#multipieDots").onclick=async()=>{if(state.pass===2||!state.image.raw_points)return;state.showRaw=!state.showRaw;if(state.showRaw)await exposeAid("multipie");draw()};
+$("#previousGhost").onclick=async()=>{if(state.pass===2||state.queueIndex===0)return;if(state.previousGhost){state.previousGhost=null;draw();return}const prior=await api(`/api/projects/${state.projectId}/images/${state.queue[state.queueIndex-1].id}?pass=${state.pass}`);state.previousGhost=prior.labels.filter(x=>x.state==="placed").map(x=>({x:x.x/prior.width*state.image.width,y:x.y/prior.height*state.image.height}));await exposeAid("previous_image");draw()};
+async function loadHistory(){const x=await api(`/api/projects/${state.projectId}/images/${state.image.id}/history`);state.events=x.events;$("#history").innerHTML=x.events.slice(0,30).map(e=>`<div class="event"><b>${e.action}</b> · L${e.landmark_index??"—"} · ${new Date(e.created_at).toLocaleTimeString()} ${e.before_json?`<button data-undo="${e.id}">${e.action==="undo"?"redo":"undo"}</button>`:""}</div>`).join("");$$("[data-undo]").forEach(b=>b.onclick=()=>undo(+b.dataset.undo))}
+async function undo(id){try{await api(`/api/projects/${state.projectId}/history/${id}/undo`,{method:"POST",body:JSON.stringify({annotator_id:state.profile,writer_token:state.writerToken})});await loadImage()}catch(e){$("#saveStatus").textContent=e.message}}
+$("#exportButton").onclick=async()=>{try{const x=await api(`/api/projects/${state.projectId}/export`,{method:"POST",body:JSON.stringify({annotator_id:state.profile,writer_token:state.writerToken})});$("#saveStatus").textContent=`Export ${x.export_id} frozen`}catch(e){$("#saveStatus").textContent=e.message}};
+window.onkeydown=e=>{if(e.key==="Enter"&&state.pending){confirmPending();return}if(e.key==="Escape"){cancelPending();$("#shortcuts").classList.remove("show");return}if(e.ctrlKey&&["z","y"].includes(e.key.toLowerCase())){e.preventDefault();const redo=e.key.toLowerCase()==="y",inverted=new Set(state.events.map(x=>x.inverse_of).filter(Boolean)),event=state.events.find(x=>x.before_json&&!inverted.has(x.id)&&(redo?x.action==="undo":x.action!=="undo"));if(event)undo(event.id);return}if(["INPUT","SELECT"].includes(e.target.tagName))return;const k=e.key.toLowerCase();if(k==="o")saveAnnotation({state:"occluded",x:null,y:null});else if(k==="x")saveAnnotation({state:"out_of_frame",x:null,y:null});else if(k==="s")saveAnnotation({state:"unreviewed",x:null,y:null});else if(k==="f")fit();else if(k==="m"){$("#mirrorButton").click()}else if(k==="t")$("#autoNext").checked=!$("#autoNext").checked;else if(k==="a")moveImage(-1);else if(k==="d")moveImage(1);else if(k==="w")selectLandmark((state.selected+30)%31);else if(k==="e")selectLandmark((state.selected+1)%31);else if(k==="?")$("#shortcuts").classList.toggle("show");else if(e.key.startsWith("Arrow")){e.preventDefault();const l=state.image.labels[state.selected];if(l.state!=="placed")return;const n=e.shiftKey ? .25 : 1,dx=e.key==="ArrowLeft"?-n:e.key==="ArrowRight"?n:0,dy=e.key==="ArrowUp"?-n:e.key==="ArrowDown"?n:0;saveAnnotation({state:"placed",x:l.x+dx,y:l.y+dy,origin:l.origin||"manual",provider_fingerprint:l.provider_fingerprint,suggestion_exposed:!!l.suggestion_exposed})}};
+window.onresize=draw;window.onbeforeunload=()=>{if(state.projectId&&state.writerToken)navigator.sendBeacon(`/api/projects/${state.projectId}/writer/release`,new Blob([JSON.stringify({writer_token:state.writerToken})],{type:"application/json"}))};
+refreshProjects().catch(showBootError);
+</script>
+</body>
+</html>

@@ -255,9 +255,13 @@ def test_config_rejects_resume_and_initial_checkpoint_together():
 
 
 def test_resume_accepts_mapping_snapshot_from_another_path(tmp_path):
+    rows = [
+        f"landmark_{index} | dense | {index} | {index}"
+        for index in range(31)
+    ]
     current_path = _mapping_file(
         tmp_path,
-        ["nose_tip | sparse | 30 | 19"],
+        rows,
     )
     mapping = load_landmark_mapping(current_path)
     saved = mapping.snapshot()
@@ -274,6 +278,49 @@ def test_resume_accepts_mapping_snapshot_from_another_path(tmp_path):
     }
 
     _validate_resume(checkpoint, config, mapping)
+
+
+def test_strict_validator_rejects_landmark_count_and_dataset_index_gap():
+    mapping = load_landmark_mapping(PACKAGE_DIR / "user-custom.txt")
+    config = FactoryConfig(
+        annotation_path="annotations.txt",
+        mapping_path=str(PACKAGE_DIR / "user-custom.txt"),
+        runs_root="runs",
+    )
+    checkpoint = {
+        "mapping": mapping.snapshot(),
+        "output_layout": mapping.output_layout(),
+        "config": config.to_dict(),
+    }
+    checkpoint["mapping"]["landmark_count"] = 30
+    with pytest.raises(ValueError, match="landmark_count"):
+        _validate_resume(checkpoint, config, mapping)
+
+    checkpoint = {
+        "mapping": mapping.snapshot(),
+        "output_layout": mapping.output_layout(),
+        "config": config.to_dict(),
+    }
+    checkpoint["output_layout"][2]["dataset_index"] = 18
+    with pytest.raises(ValueError, match="dataset_index"):
+        _validate_resume(checkpoint, config, mapping)
+
+
+def test_inference_emits_active_slot_without_dataset_index():
+    mapping = load_landmark_mapping(PACKAGE_DIR / "user-custom.txt")
+    checkpoint = {
+        "mapping": mapping.snapshot(),
+        "output_layout": mapping.output_layout(all_slots=True),
+    }
+
+    layout = _output_layout_from_checkpoint(checkpoint)
+
+    assert len(layout) == 31
+    assert layout[0] == {
+        "model_index": 0,
+        "dataset_index": None,
+        "name": "top_of_head",
+    }
 
 
 def test_atomic_checkpoint_and_factory_state_helpers(tmp_path):

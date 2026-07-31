@@ -6,10 +6,13 @@ my_side_profile_savior/
 |-- model.py           # MobileNetV3-Large plus 31 heatmap decoder and loss
 |-- train.py           # Headless resumable trainer and CLI
 |-- inference.py       # CPU/CUDA-safe checkpoint and FaceBoxes inference
+|-- checkpoint_contract.py # Shared strict 31-slot checkpoint validation
+|-- human_dataset.py   # Immutable human-export truth loader
 |-- benchmark.py       # Frozen custom-versus-legacy NME/PCK graduation exam
 |-- factory_config.py  # Defaults, seed, devices, and atomic artifacts
 |-- factory_state.py   # Pure UI/subprocess state helpers
 |-- ui.py              # Tkinter training and QA control room
+|-- annotator/         # Loopback Flask + SQLite + Canvas annotation workspace
 `-- visualizer_temp.py # Human dataset/legacy mapping visualizer
 
 Run weights are intentionally stored under git-plz-ignore/profile_factory_runs,

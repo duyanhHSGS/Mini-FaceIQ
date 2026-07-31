@@ -51,19 +51,26 @@ class LandmarkMapping:
     def names_by_model_index(self) -> dict[int, str]:
         return {entry.model_index: entry.name for entry in self.entries}
 
-    def active_mask(self, *, dtype: torch.dtype = torch.float32) -> torch.Tensor:
+    def active_mask(
+        self,
+        *,
+        dtype: torch.dtype = torch.float32,
+        all_slots: bool = False,
+    ) -> torch.Tensor:
+        if all_slots:
+            return torch.ones(len(self.entries), dtype=dtype)
         mask = torch.zeros(len(self.entries), dtype=dtype)
         for entry in self.confirmed_entries:
             mask[entry.model_index] = 1
         return mask
 
-    def output_layout(self) -> list[dict[str, object]]:
+    def output_layout(self, *, all_slots: bool = False) -> list[dict[str, object]]:
         return [
             {
                 "model_index": entry.model_index,
                 "name": entry.name,
                 "dataset_index": entry.dataset_index,
-                "active": entry.confirmed,
+                "active": bool(all_slots or entry.confirmed),
             }
             for entry in self.entries
         ]

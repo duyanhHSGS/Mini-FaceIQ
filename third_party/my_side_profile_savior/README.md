@@ -4,6 +4,37 @@ This directory is an experimental training and QA factory. It does not replace
 Mini-FaceIQ's production `third_party.adapter_side` provider and is not imported
 by `main.py`.
 
+## Sir FaceIQ Annotator
+
+Launch the factory-only browser annotator from the repository root:
+
+```powershell
+.venv\Scripts\python.exe -m third_party.my_side_profile_savior.annotator
+```
+
+It binds only to `127.0.0.1`, opens the browser automatically, and stores
+projects below `git-plz-ignore/profile_annotation_projects/<project-id>/`.
+SQLite is the editable source of truth. Every mutation is transactional,
+revision checked, immediately saved, and appended to a permanent audit history.
+Only one browser receives the writer lease for a project.
+
+Multi-PIE projects reference existing images and annotation bboxes. Arbitrary
+CSV/JSONL rows require `image_path`, `subject_id`, and `facing` (`left` or
+`right`), with optional camera, session, and bbox fields. Arbitrary images are
+EXIF-normalized into project-owned PNG files. Corrupt and duplicate pixels are
+rejected. A missing bbox receives one cached FaceBoxes attempt and remains
+human-confirmation/redraw work.
+
+Project creation freezes the worksheet's 31 names/model indices, deterministic
+`Mini-FaceIQ` subject split, and crop scale `1.5`. Points remain floating
+original-image coordinates. Outside-crop points are preserved, warned about,
+reported in QA, and masked from training.
+
+Every export is a new immutable timestamped directory containing
+`manifest.json`, `labels.jsonl`, long-form `labels.csv`, `split.json`, and
+`qa.json`. Pixels are referenced by relocatable paths and verified SHA-256
+values. The separate `visualizer_temp.py` mapping tool remains unchanged.
+
 ## Current contract
 
 - The network emits 31 heatmaps in the worksheet's Mini-FaceIQ landmark order.
@@ -13,6 +44,19 @@ by `main.py`.
 - `NONE`, blank, `?`, and tentative values ending in `?` are masked.
 - Every checkpoint embeds an immutable mapping snapshot and subject split.
 - Only PyTorch `.pt` checkpoints are produced. There is no ONNX/app export.
+
+Those defaults describe Multi-PIE truth mode. Human-export training is opt-in
+and activates all 31 model slots while per-sample visibility controls loss:
+
+```powershell
+.venv\Scripts\python.exe -m third_party.my_side_profile_savior.train `
+  --truth-source human `
+  --human-export git-plz-ignore\profile_annotation_projects\<project-id>\exports\<export-id>
+```
+
+Human mode consumes only explicit immutable-export truth and its frozen split.
+It never falls back to mapped Multi-PIE coordinates. Checkpoints record the
+human export ID and `labels.jsonl` SHA-256.
 
 The current dataset line contains an image path, four bounding-box values, five
 auxiliary points, and 39 profile landmarks. Parsing retains that raw file
@@ -94,6 +138,11 @@ checkpoint" instead: it starts a new immutable run, keeps compatible 31-slot
 network weights, and creates a fresh optimizer and mapping snapshot. Checkpoints
 without the complete 31-slot worksheet layout are rejected.
 
+One shared strict validator is used by training, initialization, resume,
+inference, and summaries. It requires exactly 31 ordered mapping/layout rows,
+`mapping.landmark_count == 31`, matching names and optional dataset provenance,
+and explicit boolean activity for every output.
+
 ## Benchmark
 
 The frozen test identities never overlap training or validation. Both custom
@@ -102,6 +151,12 @@ receive NME `1.0`. Reports include NME and PCK at 2%, 5%, and 10%.
 
 The experiment graduates only if custom mean test NME is lower than legacy
 3DDFA-V2 for every confirmed landmark individually.
+
+Human benchmark mode uses only placed blind-consensus or adjudicated test truth.
+It reports bbox-diagonal NME, PCK 2/5/10, missing/invalid predictions as NME
+`1.0`, and unavailable truth separately. Human graduation also requires at
+least 50 unique frozen test subjects with unexposed blind consensus/adjudicated
+truth for the landmark.
 
 ## QA rules
 

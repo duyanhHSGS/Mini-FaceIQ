@@ -17,7 +17,8 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Subset
 
-from .benchmark import run_benchmark
+from .benchmark import run_benchmark, run_human_benchmark
+from .checkpoint_contract import validate_checkpoint_layout
 from .dataset import (
     AugmentationSettings,
     ProfileLandmarkDataset,
@@ -34,6 +35,7 @@ from .factory_config import (
     seed_everything,
 )
 from .mapping import LandmarkMapping, load_landmark_mapping
+from .human_dataset import HumanExportLandmarkDataset
 from .model import (
     LANDMARK_COUNT as MODEL_LANDMARK_COUNT,
     ProfileLandmarkModel,
@@ -94,22 +96,35 @@ def _make_loaders(
     *,
     device: torch.device,
     seed: int,
-) -> tuple[DataLoader, DataLoader, ProfileLandmarkDataset]:
-    train_dataset = ProfileLandmarkDataset(
-        config.annotation_path,
-        image_size=config.image_size,
-        bbox_scale=config.bbox_scale,
-        verify_images=True,
-        augmentation=_augmentation_from_config(config),
-        mapping=mapping,
-    )
-    evaluation_dataset = ProfileLandmarkDataset(
-        config.annotation_path,
-        image_size=config.image_size,
-        bbox_scale=config.bbox_scale,
-        verify_images=True,
-        mapping=mapping,
-    )
+) -> tuple[DataLoader, DataLoader, Any]:
+    if config.truth_source == "human":
+        train_dataset = HumanExportLandmarkDataset(
+            config.human_export_path,
+            image_size=config.image_size,
+            verify_images=True,
+            augmentation=_augmentation_from_config(config),
+        )
+        evaluation_dataset = HumanExportLandmarkDataset(
+            config.human_export_path,
+            image_size=config.image_size,
+            verify_images=True,
+        )
+    else:
+        train_dataset = ProfileLandmarkDataset(
+            config.annotation_path,
+            image_size=config.image_size,
+            bbox_scale=config.bbox_scale,
+            verify_images=True,
+            augmentation=_augmentation_from_config(config),
+            mapping=mapping,
+        )
+        evaluation_dataset = ProfileLandmarkDataset(
+            config.annotation_path,
+            image_size=config.image_size,
+            bbox_scale=config.bbox_scale,
+            verify_images=True,
+            mapping=mapping,
+        )
     train_indices = subject_disjoint_indices(
         train_dataset.records,
         set(split.train),
@@ -269,11 +284,21 @@ def _checkpoint_payload(
         "scaler_state": scaler.state_dict(),
         "config": config.to_dict(),
         "mapping": mapping.snapshot(),
-        "output_layout": mapping.output_layout(),
+        "output_layout": mapping.output_layout(
+            all_slots=config.truth_source == "human"
+        ),
         "split": split.to_dict(),
         "best_validation_nme": best_validation_nme,
         "epochs_without_improvement": epochs_without_improvement,
         "curves": curves,
+        "human_export": (
+            {
+                "export_id": getattr(config, "_human_export_id", None),
+                "labels_sha256": getattr(config, "_human_export_hash", None),
+            }
+            if config.truth_source == "human"
+            else None
+        ),
     }
 
 
@@ -281,44 +306,11 @@ def _validate_checkpoint_layout(
     checkpoint: dict[str, Any],
     mapping: LandmarkMapping,
 ) -> None:
-    stored_layout = checkpoint.get("output_layout")
-    expected_layout = mapping.output_layout()
-    stored_mapping = checkpoint.get("mapping", {})
-    stored_mapping_entries = (
-        stored_mapping.get("entries")
-        if isinstance(stored_mapping, dict)
-        else None
+    truth_source = checkpoint.get("config", {}).get("truth_source", "multipie")
+    validate_checkpoint_layout(
+        checkpoint,
+        expected_layout=mapping.output_layout(all_slots=truth_source == "human"),
     )
-    if not isinstance(stored_layout, list) or len(stored_layout) != len(
-        expected_layout
-    ):
-        raise ValueError(
-            f"Checkpoint output_layout must contain "
-            f"{len(expected_layout)} entries"
-        )
-    if not isinstance(stored_mapping_entries, list) or len(
-        stored_mapping_entries
-    ) != len(expected_layout):
-        raise ValueError(
-            f"Checkpoint mapping must contain {len(expected_layout)} entries"
-        )
-    stored_slots = [
-        (item.get("model_index"), item.get("name"))
-        for item in stored_layout
-        if isinstance(item, dict)
-    ]
-    stored_mapping_slots = [
-        (item.get("model_index"), item.get("name"))
-        for item in stored_mapping_entries
-        if isinstance(item, dict)
-    ]
-    expected_slots = [
-        (item["model_index"], item["name"]) for item in expected_layout
-    ]
-    if stored_slots != expected_slots or stored_mapping_slots != expected_slots:
-        raise ValueError(
-            "Checkpoint output_layout does not match the 31 worksheet slots"
-        )
 
 
 def _validate_resume(
@@ -351,12 +343,28 @@ def _validate_resume(
         "brightness_jitter",
         "contrast_jitter",
         "blur_probability",
+        "truth_source",
+        "human_export_path",
     )
     for key in strict_keys:
         if old.get(key) != getattr(config, key):
             raise ValueError(
                 f"Cannot resume with a different {key}: "
                 f"checkpoint={old.get(key)}, requested={getattr(config, key)}"
+            )
+    if config.truth_source == "human":
+        export = HumanExportLandmarkDataset(
+            config.human_export_path,
+            image_size=config.image_size,
+            verify_images=False,
+        )
+        provenance = checkpoint.get("human_export", {})
+        if provenance != {
+            "export_id": export.export_id,
+            "labels_sha256": export.export_hash,
+        }:
+            raise ValueError(
+                "Cannot resume from a different immutable human export"
             )
 
 
@@ -372,6 +380,15 @@ def run_training(config: FactoryConfig) -> Path:
             f"The 31-output factory requires exactly {MODEL_LANDMARK_COUNT} "
             f"worksheet rows, got {len(mapping.entries)}"
         )
+    human_dataset: HumanExportLandmarkDataset | None = None
+    if config.truth_source == "human":
+        human_dataset = HumanExportLandmarkDataset(
+            config.human_export_path,
+            image_size=config.image_size,
+            verify_images=True,
+        )
+        config._human_export_id = human_dataset.export_id
+        config._human_export_hash = human_dataset.export_hash
     resume_path = (
         Path(config.resume_checkpoint).expanduser().resolve()
         if config.resume_checkpoint
@@ -395,16 +412,19 @@ def run_training(config: FactoryConfig) -> Path:
                     f"Initial checkpoint has no model_state: {initial_path}"
                 )
             _validate_checkpoint_layout(initial_checkpoint, mapping)
-        split_dataset = ProfileLandmarkDataset(
-            config.annotation_path,
-            image_size=config.image_size,
-            bbox_scale=config.bbox_scale,
-            verify_images=True,
-        )
-        split = make_subject_split(
-            split_dataset.records,
-            seed_text=config.seed_text,
-        )
+        if human_dataset is not None:
+            split = human_dataset.split
+        else:
+            split_dataset = ProfileLandmarkDataset(
+                config.annotation_path,
+                image_size=config.image_size,
+                bbox_scale=config.bbox_scale,
+                verify_images=True,
+            )
+            split = make_subject_split(
+                split_dataset.records,
+                seed_text=config.seed_text,
+            )
 
     stop_path = run_dir / "STOP"
     if stop_path.exists():
@@ -427,6 +447,12 @@ def run_training(config: FactoryConfig) -> Path:
             "state": "starting",
             "device": str(device),
             "confirmed_count": mapping.confirmed_count,
+            "active_count": (
+                len(mapping.entries)
+                if config.truth_source == "human"
+                else mapping.confirmed_count
+            ),
+            "truth_source": config.truth_source,
             "run_dir": str(run_dir),
         },
         status_path,
@@ -462,7 +488,9 @@ def run_training(config: FactoryConfig) -> Path:
     scaler = torch.cuda.amp.GradScaler(
         enabled=config.amp and device.type == "cuda"
     )
-    active_mask = mapping.active_mask().to(device)
+    active_mask = mapping.active_mask(
+        all_slots=config.truth_source == "human"
+    ).to(device)
     start_epoch = 0
     best_validation_nme = math.inf
     epochs_without_improvement = 0
@@ -592,14 +620,23 @@ def run_training(config: FactoryConfig) -> Path:
             },
             status_path,
         )
-        benchmark_result = run_benchmark(
-            checkpoint_path=best_path,
-            dataset=evaluation_dataset,
-            split=split,
-            mapping=mapping,
-            output_path=run_dir / "benchmark.json",
-            device=config.device,
-        )
+        if config.truth_source == "human":
+            benchmark_result = run_human_benchmark(
+                checkpoint_path=best_path,
+                dataset=evaluation_dataset,
+                mapping=mapping,
+                output_path=run_dir / "benchmark.json",
+                device=config.device,
+            )
+        else:
+            benchmark_result = run_benchmark(
+                checkpoint_path=best_path,
+                dataset=evaluation_dataset,
+                split=split,
+                mapping=mapping,
+                output_path=run_dir / "benchmark.json",
+                device=config.device,
+            )
     atomic_json_save(
         {
             "state": state,
@@ -653,6 +690,12 @@ def _parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=True,
     )
+    parser.add_argument(
+        "--truth-source",
+        choices=("multipie", "human"),
+        default="multipie",
+    )
+    parser.add_argument("--human-export", default="")
     return parser
 
 
@@ -690,6 +733,8 @@ def _config_from_args(args: argparse.Namespace) -> FactoryConfig:
         resume_checkpoint=args.resume,
         initial_checkpoint=args.initial_checkpoint,
         run_benchmark=args.benchmark,
+        truth_source=args.truth_source,
+        human_export_path=args.human_export,
     )
 
 

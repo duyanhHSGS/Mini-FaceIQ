@@ -15,6 +15,7 @@ from .dataset import ProfileLandmarkDataset, SubjectSplit, subject_disjoint_indi
 from .factory_config import atomic_json_save
 from .inference import FactoryPredictor
 from .mapping import LandmarkMapping
+from .human_dataset import HumanExportLandmarkDataset
 
 
 PCK_THRESHOLDS = (0.02, 0.05, 0.10)
@@ -246,6 +247,139 @@ def run_benchmark(
         "legacy": legacy_summary,
         "per_landmark_wins": wins,
         "graduated": bool(wins) and all(wins.values()),
+    }
+    atomic_json_save(result, output_path)
+    return result
+
+
+def run_human_benchmark(
+    *,
+    checkpoint_path: str | Path,
+    dataset: HumanExportLandmarkDataset,
+    mapping: LandmarkMapping,
+    output_path: str | Path,
+    device: str = "auto",
+) -> dict[str, Any]:
+    """Benchmark only exported blind consensus/adjudicated test truth."""
+
+    output_path = Path(output_path).expanduser().resolve()
+    cache_path = output_path.with_name("legacy_baseline_cache.json")
+    fingerprint_payload = {
+        "export_id": dataset.export_id,
+        "export_hash": dataset.export_hash,
+        "provider_sha256": _file_digest(
+            Path(__file__).resolve().parents[1] / "providers" / "side_3ddfa.py"
+        ),
+        "failure_penalty": FAILURE_PENALTY,
+    }
+    fingerprint = hashlib.sha256(
+        json.dumps(fingerprint_payload, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    legacy_cache: dict[str, Any] = {}
+    if cache_path.is_file():
+        with cache_path.open("r", encoding="utf-8") as handle:
+            cached = json.load(handle)
+        if cached.get("fingerprint") == fingerprint:
+            legacy_cache = dict(cached.get("samples", {}))
+
+    names = [entry.name for entry in mapping.entries]
+    custom_errors = {name: [] for name in names}
+    legacy_errors = {name: [] for name in names}
+    unavailable = {name: 0 for name in names}
+    predictor = FactoryPredictor(checkpoint_path, device=device)
+    test_indices = [
+        index
+        for index, record in enumerate(dataset.records)
+        if record.split_name == "test"
+    ]
+    for index in test_indices:
+        sample = dataset[index]
+        record = dataset.records[index]
+        crop_box = tuple(float(value) for value in sample["crop_xyxy"].tolist())
+        with Image.open(record.image_path) as source:
+            crop = source.convert("RGB").crop(crop_box)
+        custom = predictor.predict_crop(crop)
+        custom_by_name = {
+            item["name"]: np.asarray([item["x"], item["y"]], dtype=np.float64)
+            for item in custom["predictions"]
+        }
+        legacy_result = legacy_cache.get(record.relative_image_path)
+        if legacy_result is None:
+            raw = _legacy_on_crop(crop)
+            legacy_result = {
+                "error": raw.get("error"),
+                "landmarks": raw.get("landmarks", {}),
+            }
+            legacy_cache[record.relative_image_path] = legacy_result
+        targets = sample["landmarks"].numpy()
+        visibility = sample["visibility"].numpy()
+        crop_xyxy = sample["crop_xyxy"].numpy()
+        bbox_xyxy = sample["bbox_xyxy"].numpy()
+        legacy_landmarks = legacy_result.get("landmarks", {})
+        for entry in mapping.entries:
+            model_index = entry.model_index
+            if not bool(visibility[model_index]):
+                unavailable[entry.name] += 1
+                continue
+            target = targets[model_index]
+            custom_errors[entry.name].append(
+                normalized_landmark_error(
+                    custom_by_name.get(entry.name),
+                    target,
+                    crop_xyxy=crop_xyxy,
+                    bbox_xyxy=bbox_xyxy,
+                )
+            )
+            legacy_item = legacy_landmarks.get(entry.name)
+            legacy_xy = (
+                np.asarray(
+                    [legacy_item.get("x"), legacy_item.get("y")],
+                    dtype=np.float64,
+                )
+                if legacy_item is not None
+                else None
+            )
+            legacy_errors[entry.name].append(
+                normalized_landmark_error(
+                    legacy_xy,
+                    target,
+                    crop_xyxy=crop_xyxy,
+                    bbox_xyxy=bbox_xyxy,
+                )
+            )
+    atomic_json_save(
+        {"fingerprint": fingerprint, "samples": legacy_cache},
+        cache_path,
+    )
+    custom_summary = _summarize(custom_errors)
+    legacy_summary = _summarize(legacy_errors)
+    wins = per_landmark_wins(custom_summary, legacy_summary, names)
+    qa_path = dataset.export_dir / "qa.json"
+    with qa_path.open("r", encoding="utf-8") as handle:
+        export_qa = json.load(handle)
+    eligibility = {
+        name: bool(
+            export_qa.get("per_landmark", {})
+            .get(name, {})
+            .get("graduation_eligible", False)
+        )
+        for name in names
+    }
+    result = {
+        "checkpoint": str(Path(checkpoint_path).resolve()),
+        "human_export_id": dataset.export_id,
+        "human_export_hash": dataset.export_hash,
+        "test_subjects": list(dataset.split.test),
+        "test_images": len(test_indices),
+        "active_count": len(names),
+        "failure_penalty_nme": FAILURE_PENALTY,
+        "pck_thresholds": list(PCK_THRESHOLDS),
+        "unavailable_truth": unavailable,
+        "custom": custom_summary,
+        "legacy": legacy_summary,
+        "graduation_eligibility": eligibility,
+        "per_landmark_wins": wins,
+        "graduated": all(eligibility.values()) and all(wins.values()),
     }
     atomic_json_save(result, output_path)
     return result
