@@ -6,8 +6,8 @@ import numpy as np
 import cv2
 
 _PROVIDER_DIR = os.path.dirname(os.path.abspath(__file__))
-_THIRD_PARTY_DIR = os.path.dirname(_PROVIDER_DIR)
-_3DDFA_DIR = os.path.join(_THIRD_PARTY_DIR, "3DDFA_V2")
+_packages_DIR = os.path.dirname(_PROVIDER_DIR)
+_3DDFA_DIR = os.path.join(_packages_DIR, "3DDFA_V2")
 if _3DDFA_DIR not in sys.path:
     sys.path.insert(0, _3DDFA_DIR)
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'

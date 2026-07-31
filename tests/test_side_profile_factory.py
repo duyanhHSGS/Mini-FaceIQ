@@ -8,39 +8,39 @@ from PIL import Image
 import pytest
 import torch
 
-from third_party.my_side_profile_savior.benchmark import (
+from packages.my_side_profile_savior.benchmark import (
     FAILURE_PENALTY,
     normalized_landmark_error,
     per_landmark_wins,
 )
-from third_party.my_side_profile_savior.dataset import (
+from packages.my_side_profile_savior.dataset import (
     AugmentationSettings,
     ProfileAnnotation,
     _augment_crop,
     _select_model_landmarks,
     make_subject_split,
 )
-from third_party.my_side_profile_savior.factory_config import (
+from packages.my_side_profile_savior.factory_config import (
     FactoryConfig,
     atomic_torch_save,
     encoded_seed,
     resolve_device,
 )
-from third_party.my_side_profile_savior.factory_state import (
+from packages.my_side_profile_savior.factory_state import (
     latest_best_checkpoint,
     request_graceful_stop,
     status_progress,
 )
-from third_party.my_side_profile_savior.inference import (
+from packages.my_side_profile_savior.inference import (
     _output_layout_from_checkpoint,
 )
-from third_party.my_side_profile_savior.mapping import load_landmark_mapping
-from third_party.my_side_profile_savior.model import (
+from packages.my_side_profile_savior.mapping import load_landmark_mapping
+from packages.my_side_profile_savior.model import (
     ProfileLandmarkModel,
     masked_landmark_loss,
 )
-from third_party.my_side_profile_savior.train import _validate_resume
-from third_party.my_side_profile_savior.ui import (
+from packages.my_side_profile_savior.train import _validate_resume
+from packages.my_side_profile_savior.ui import (
     _default_landmark_color,
     _draw_points,
     _hover_label_text,
@@ -54,7 +54,7 @@ from third_party.my_side_profile_savior.ui import (
 
 PACKAGE_DIR = (
     Path(__file__).resolve().parents[1]
-    / "third_party"
+    / "packages"
     / "my_side_profile_savior"
 )
 

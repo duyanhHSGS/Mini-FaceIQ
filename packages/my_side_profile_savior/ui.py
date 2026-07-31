@@ -658,7 +658,7 @@ class FactoryApp(tk.Tk):
         command = [
             sys.executable,
             "-m",
-            "third_party.my_side_profile_savior.train",
+            "packages.my_side_profile_savior.train",
             "--config",
             str(launcher_path),
         ]
@@ -1235,7 +1235,7 @@ class FactoryApp(tk.Tk):
             if custom.get("error"):
                 raise RuntimeError(custom["error"])
 
-            from third_party.providers.side_3ddfa import detect_side
+            from packages.providers.side_3ddfa import detect_side
 
             legacy = detect_side(str(self.qa_image_path))
             mapping = load_landmark_mapping(

@@ -7,26 +7,26 @@ from PIL import Image
 import pytest
 from werkzeug.datastructures import FileStorage
 
-from third_party.human_data_factory.app import create_app
-from third_party.human_data_factory.domain import (
+from packages.human_data_factory.app import create_app
+from packages.human_data_factory.domain import (
     advance_position,
     source_to_view,
     validate_label,
     view_to_source,
 )
-from third_party.human_data_factory.projects import (
+from packages.human_data_factory.projects import (
     create_project,
     export_project,
     import_uploaded_files,
     project_store,
 )
-from third_party.human_data_factory.schema import LANDMARKS
-from third_party.human_data_factory.store import StaleRevisionError
+from packages.human_data_factory.schema import LANDMARKS
+from packages.human_data_factory.store import StaleRevisionError
 
 
 PACKAGE_DIR = (
     Path(__file__).resolve().parents[1]
-    / "third_party"
+    / "packages"
     / "human_data_factory"
 )
 

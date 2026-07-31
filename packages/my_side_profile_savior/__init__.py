@@ -1,7 +1,7 @@
 """Experimental side-profile landmark model factory.
 
 This package is intentionally isolated from Mini-FaceIQ's production adapter.
-Nothing here is imported by ``main.py`` or ``third_party.adapter_side``. Public
+Nothing here is imported by ``main.py`` or ``packages.adapter_side``. Public
 symbols are lazy so importing the package does not initialize Torch/torchvision.
 """
 

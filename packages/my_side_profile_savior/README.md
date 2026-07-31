@@ -1,7 +1,7 @@
 # Side-Profile Landmark Model Factory
 
 This directory is an experimental training and QA factory. It does not replace
-Mini-FaceIQ's production `third_party.adapter_side` provider and is not imported
+Mini-FaceIQ's production `packages.adapter_side` provider and is not imported
 by `main.py`.
 
 All factory-owned inputs, reference material, and generated runs live inside
@@ -30,29 +30,29 @@ the model targets.
 Windows:
 
 ```powershell
-.venv\Scripts\python.exe -m third_party.my_side_profile_savior.ui
+.venv\Scripts\python.exe -m packages.my_side_profile_savior.ui
 ```
 
 Linux desktop:
 
 ```bash
-python -m third_party.my_side_profile_savior.ui
+python -m packages.my_side_profile_savior.ui
 ```
 
 Linux may require its system `python3-tk` package. The UI requires a graphical
 desktop. Headless machines can use the CLI:
 
 ```bash
-python -m third_party.my_side_profile_savior.train --device auto
+python -m packages.my_side_profile_savior.train --device auto
 ```
 
 List every CLI option:
 
 ```bash
-python -m third_party.my_side_profile_savior.train --help
+python -m packages.my_side_profile_savior.train --help
 ```
 
-Do not run these commands from inside `third_party/my_side_profile_savior`;
+Do not run these commands from inside `packages/my_side_profile_savior`;
 run them from the Mini-FaceIQ repository root so package imports remain stable.
 
 ## GPU and CPU behavior
@@ -73,7 +73,7 @@ machine. The first pretrained run may download MobileNetV3-Large weights.
 ## Run artifacts
 
 Each run gets a timestamped directory under
-`third_party/my_side_profile_savior/profile_factory_runs`:
+`packages/my_side_profile_savior/profile_factory_runs`:
 
 ```text
 YYYYMMDD-HHMMSS/
