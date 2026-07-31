@@ -1,0 +1,3 @@
+[submodule "packages/human_data_factory"]
+	path = packages/human_data_factory
+	url = https://github.com/duyanhHSGS/human_data_factory.git
