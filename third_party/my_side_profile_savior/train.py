@@ -42,15 +42,13 @@ from .model import (
 
 
 PACKAGE_DIR = Path(__file__).resolve().parent
-REPOSITORY_ROOT = PACKAGE_DIR.parents[1]
 DEFAULT_ANNOTATIONS = (
-    REPOSITORY_ROOT
-    / "git-plz-ignore"
+    PACKAGE_DIR
     / "MultiPIE"
     / "MultiPIE_profile_train.txt"
 )
 DEFAULT_MAPPING = PACKAGE_DIR / "user-custom.txt"
-DEFAULT_RUNS = REPOSITORY_ROOT / "git-plz-ignore" / "profile_factory_runs"
+DEFAULT_RUNS = PACKAGE_DIR / "profile_factory_runs"
 
 
 def _append_jsonl(path: Path, value: dict[str, Any]) -> None:

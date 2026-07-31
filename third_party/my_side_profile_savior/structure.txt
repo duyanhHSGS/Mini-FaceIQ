@@ -1,5 +1,9 @@
 my_side_profile_savior/
 |-- README.md          # Factory usage, CUDA/CPU, artifacts, and safety boundary
+|-- MultiPIE/          # Private dataset and annotations (Git-ignored)
+|-- profile_factory_runs/ # Generated checkpoints and reports (Git-ignored)
+|-- profile_landmarks_preview.png # Generated mapping preview (Git-ignored)
+|-- Copy of landmarks.docx # Private landmark word guide (Git-ignored)
 |-- user-custom.txt    # Human-owned semantic mapping worksheet
 |-- mapping.py         # Parses confirmed/masked mapping rows
 |-- dataset.py         # Multi-PIE loading, crop, augmentation, subject split
@@ -12,5 +16,5 @@ my_side_profile_savior/
 |-- ui.py              # Tkinter training and QA control room
 `-- visualizer_temp.py # Human dataset/legacy mapping visualizer
 
-Run weights are intentionally stored under git-plz-ignore/profile_factory_runs,
-not inside this source directory. Nothing here changes the production adapter.
+Private data and run weights stay beside the factory under Git-ignored paths.
+Nothing here changes the production adapter.

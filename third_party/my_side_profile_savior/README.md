@@ -4,6 +4,11 @@ This directory is an experimental training and QA factory. It does not replace
 Mini-FaceIQ's production `third_party.adapter_side` provider and is not imported
 by `main.py`.
 
+All factory-owned inputs, reference material, and generated runs live inside
+this directory. The private `MultiPIE/` dataset, `profile_factory_runs/`,
+`profile_landmarks_preview.png`, and `Copy of landmarks.docx` guide are ignored
+by Git.
+
 ## Current contract
 
 - The network emits 31 heatmaps in the worksheet's Mini-FaceIQ landmark order.
@@ -68,7 +73,7 @@ machine. The first pretrained run may download MobileNetV3-Large weights.
 ## Run artifacts
 
 Each run gets a timestamped directory under
-`git-plz-ignore/profile_factory_runs`:
+`third_party/my_side_profile_savior/profile_factory_runs`:
 
 ```text
 YYYYMMDD-HHMMSS/

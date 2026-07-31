@@ -29,18 +29,14 @@ except ImportError:
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+PACKAGE_DIR = Path(__file__).resolve().parent
 DEFAULT_ANNOTATIONS = (
-    REPOSITORY_ROOT
-    / "git-plz-ignore"
+    PACKAGE_DIR
     / "MultiPIE"
     / "MultiPIE_profile_train.txt"
 )
-DEFAULT_OUTPUT = (
-    REPOSITORY_ROOT
-    / "git-plz-ignore"
-    / "profile_landmarks_preview.png"
-)
-DEFAULT_MAPPING = Path(__file__).resolve().parent / "user-custom.txt"
+DEFAULT_OUTPUT = PACKAGE_DIR / "profile_landmarks_preview.png"
+DEFAULT_MAPPING = PACKAGE_DIR / "user-custom.txt"
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
