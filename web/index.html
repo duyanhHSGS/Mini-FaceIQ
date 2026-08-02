@@ -1813,6 +1813,15 @@
       border-color: var(--line);
     }
 
+    .catalogItem.calculated {
+      background: rgba(126, 226, 168, 0.07);
+      box-shadow: inset 2px 0 0 var(--green);
+    }
+
+    .catalogItem.calculated .catalogName {
+      color: var(--green);
+    }
+
     .catalogName {
       font-size: 12px;
     }
@@ -1887,7 +1896,8 @@
     }
 
     .pill.ideal,
-    .pill.ready {
+    .pill.ready,
+    .pill.calculated {
       border-color: rgba(126, 226, 168, 0.22);
       background: rgba(126, 226, 168, 0.08);
       color: var(--green);
@@ -2749,7 +2759,7 @@
             <label for="metricSort">Sort measurements</label>
             <div class="toolbarControls">
               <select id="metricSort">
-                <option value="default">Default order</option>
+                <option value="importance">Importance</option>
                 <option value="score-desc">Highest score first</option>
                 <option value="score-asc">Lowest score first</option>
               </select>
@@ -2945,6 +2955,57 @@
       { id: "ramus_to_mandible", name: "Ramus to Mandible Ratio", category: "Jaw", description: "Ramus height compared with mandibular body length.", requires: ["chin_bottom", "lower_jaw_angle", "tragus", "upper_jaw_angle", "chin_point"] },
       { id: "gonion_to_mouth", name: "Gonion to Mouth Line", category: "Jaw", description: "Gonion height relative to mouth corner.", requires: ["chin_bottom", "lower_jaw_angle", "tragus", "upper_jaw_angle", "mouth_corner"] }
     ];
+    const metricImportanceGroups = {
+      front: [
+        {
+          groupWeight: 0.40,
+          key: ["midface_ratio", "face_width_to_height", "lower_third"],
+          standard: ["bitemporal_width", "bigonial_width", "jaw_slope", "middle_third", "top_third", "total_facial_width_to_height", "lower_third_proportion"]
+        },
+        {
+          groupWeight: 0.30,
+          key: ["lateral_canthal_tilt", "eye_separation_ratio"],
+          standard: ["cheekbone_height", "eye_aspect_ratio", "eyebrow_tilt", "one_eye_apart", "eyebrow_low_setedness", "brow_length_to_face_width"]
+        },
+        {
+          groupWeight: 0.30,
+          key: ["jaw_frontal_angle", "chin_to_philtrum"],
+          standard: ["nose_bridge_to_width", "cupids_bow_depth", "mouth_corner_position", "interpupillary_mouth_width", "intercanthal_nasal_width", "ipsilateral_alar_angle", "mouth_width_to_nose_width", "nose_tip_position", "deviation_iaa_jfa", "lower_lip_to_upper_lip"]
+        }
+      ],
+      side: [
+        {
+          groupWeight: 0.35,
+          key: ["recession_frankfort", "total_facial_convexity"],
+          standard: ["facial_convexity_nasion", "anterior_facial_depth", "facial_depth_to_height", "facial_convexity_glabella", "interior_midface_projection", "z_angle"]
+        },
+        {
+          groupWeight: 0.35,
+          key: ["nasal_projection", "nasolabial_angle"],
+          standard: ["nasal_tip_angle", "nasal_width_to_height", "nasofrontal_angle", "upper_forehead_slope", "browridge_inclination", "nose_tip_rotation", "nasofacial_angle", "nasomental_angle", "frankfort_tip_angle"]
+        },
+        {
+          groupWeight: 0.30,
+          key: ["gonial_angle", "lower_lip_e_line"],
+          standard: ["upper_lip_s_line", "upper_lip_burstone", "holdaway_h_line", "mentolabial_angle", "upper_lip_e_line", "submental_cervical_angle", "orbital_vector", "lower_lip_s_line", "lower_lip_burstone", "mandibular_plane_angle", "ramus_to_mandible", "gonion_to_mouth"]
+        }
+      ]
+    };
+
+    function buildMetricImportance(groups) {
+      const importance = Object.create(null);
+      groups.forEach(({ groupWeight, key, standard }) => {
+        const totalWeight = key.length * 2 + standard.length;
+        key.forEach(id => { importance[id] = groupWeight * 2 / totalWeight; });
+        standard.forEach(id => { importance[id] = groupWeight / totalWeight; });
+      });
+      return importance;
+    }
+
+    const metricImportanceByProfile = {
+      front: buildMetricImportance(metricImportanceGroups.front),
+      side: buildMetricImportance(metricImportanceGroups.side)
+    };
     let measurementDefs = frontMeasurementDefs;
     let defs = [];
     let defsByProfile = { front: null, side: null };
@@ -3455,6 +3516,7 @@
 
     function renderMeasurementCatalog() {
       const readyCount = measurementDefs.filter(item => item.requires.every(hasPlacedLandmark)).length;
+      const calculatedIds = new Set(currentMeasurements.map(item => item.id));
       const shouldCollapse = hasCalculatedResults && readyCount === measurementDefs.length && currentMeasurements.length > 0;
       measurementCatalogEl.classList.toggle("collapsed", shouldCollapse);
       measurementCatalogEl.innerHTML = `
@@ -3464,10 +3526,11 @@
     </button>
     ${measurementDefs.map(item => {
         const missing = item.requires.filter(id => !hasPlacedLandmark(id));
-        const state = missing.length === 0 ? "ready" : "waiting";
-        const label = missing.length === 0 ? "ready" : `${missing.length} missing`;
+        const calculated = calculatedIds.has(item.id);
+        const state = calculated ? "calculated" : (missing.length === 0 ? "ready" : "waiting");
+        const label = calculated ? "calculated" : (missing.length === 0 ? "ready" : `${missing.length} missing`);
         return `
-        <div class="catalogItem">
+        <div class="catalogItem${calculated ? " calculated" : ""}">
           <div>
             <div class="catalogName">${item.name}</div>
             <div class="catalogDesc">${item.category}</div>
@@ -3971,7 +4034,10 @@
     function getSortedMeasurements() {
       const mode = metricSort.value;
       const ranked = currentMeasurements.map((item, order) => ({ item, order }));
-      if (mode === "score-desc") {
+      if (mode === "importance") {
+        const importance = metricImportanceByProfile[profileMode] || {};
+        ranked.sort((a, b) => ((importance[b.item.id] || 0) - (importance[a.item.id] || 0)) || a.order - b.order);
+      } else if (mode === "score-desc") {
         ranked.sort((a, b) => (b.item.score - a.item.score) || a.order - b.order);
       } else if (mode === "score-asc") {
         ranked.sort((a, b) => (a.item.score - b.item.score) || a.order - b.order);
@@ -4403,7 +4469,7 @@
       const nextMissing = missing[0];
       index = nextMissing ? defs.findIndex(def => def.id === nextMissing.id) : Math.max(0, defs.length - 1);
       activeMetricId = null;
-      metricSort.value = "default";
+      metricSort.value = "importance";
       disarmClearProfile();
       clearInlineStatus(landmarkConfirmNote);
       if (resultsByProfile[profileMode]) {
