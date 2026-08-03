@@ -4030,6 +4030,10 @@
       if (!payload.success) {
         throw new Error(payload.error || "Calculation failed");
       }
+      payload.data.scoringContext = {
+        gender: body.gender,
+        ethnicity: body.ethnicity
+      };
       return payload.data;
     }
 
@@ -4180,13 +4184,39 @@
       return "unknown";
     }
 
-    function formatMetricCopyLine(item) {
-      return `${item.name} : ${item.value} ${unitLabel(item.unit)} ${item.score}/10`;
+    function formatCopyNumber(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return String(value);
+      return number.toFixed(2).replace(/\.?0+$/, "");
+    }
+
+    function ethnicityCopyLabel(ethnicity) {
+      const labels = {
+        asian: "east asian",
+        caucasian: "caucasian",
+        black: "black",
+        hispanic: "hispanic",
+        middle_eastern: "middle eastern",
+        south_asian: "south asian",
+        mixed: "mixed"
+      };
+      return labels[ethnicity] || String(ethnicity || "selected ethnicity").replaceAll("_", " ");
+    }
+
+    function formatMetricCopyLine(item, ethnicity) {
+      const unit = unitLabel(item.unit);
+      const ideal = Array.isArray(item.idealRange) ? item.idealRange : [];
+      const idealText = ideal.length >= 2
+        ? `${formatCopyNumber(ideal[0])}${unit}\u2013${formatCopyNumber(ideal[1])}${unit}`
+        : "unknown";
+      return `${item.name} : ${formatCopyNumber(item.value)}${unit} (ideal for ${ethnicityCopyLabel(ethnicity)} ${idealText}) -> ${formatCopyNumber(item.score)}/10`;
     }
 
     async function copyScores() {
       if (!currentMeasurements.length) return;
-      const text = getSortedMeasurements().map(formatMetricCopyLine).join("\n");
+      const activeData = resultsByProfile[profileMode] || {};
+      const ethnicity = activeData.scoringContext?.ethnicity || document.getElementById("ethnicity").value;
+      const text = getSortedMeasurements().map(item => formatMetricCopyLine(item, ethnicity)).join("\n");
       try {
         await navigator.clipboard.writeText(text);
       } catch {
@@ -4245,18 +4275,18 @@
       // Side profile measurements
       if (hasSide) {
         frag.push("\nSide profile:");
+        const ethnicity = sideData.scoringContext?.ethnicity || document.getElementById("ethnicity").value;
         sideData.sideMeasurements.forEach(item => {
-          const unit = unitLabel(item.unit);
-          frag.push(`${item.name} : ${item.value} ${unit} => ${item.score}/10`);
+          frag.push(formatMetricCopyLine(item, ethnicity));
         });
       }
 
       // Front profile measurements
       if (hasFront) {
         frag.push("\nFront profile:");
+        const ethnicity = frontData.scoringContext?.ethnicity || document.getElementById("ethnicity").value;
         frontData.frontMeasurements.forEach(item => {
-          const unit = unitLabel(item.unit);
-          frag.push(`${item.name} : ${item.value} ${unit} => ${item.score}/10`);
+          frag.push(formatMetricCopyLine(item, ethnicity));
         });
       }
 
