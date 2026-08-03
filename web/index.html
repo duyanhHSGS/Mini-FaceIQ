@@ -1112,6 +1112,27 @@
       box-shadow: 0 7px 18px rgba(0, 0, 0, 0.2);
     }
 
+    .landmarkMethodTabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 12px;
+    }
+
+    .landmarkMethodBtn {
+      min-height: 38px;
+      padding: 8px 10px;
+      border-color: transparent;
+      background: transparent;
+      color: var(--muted);
+      box-shadow: none;
+    }
+
+    .landmarkMethodBtn.active {
+      border-color: rgba(94, 234, 212, 0.34);
+      background: var(--cyan-soft);
+      color: var(--cyan);
+    }
+
     .current {
       position: relative;
       margin-top: 13px;
@@ -1608,6 +1629,18 @@
       font-size: 10px;
     }
 
+    .zoomControls .linesToggle {
+      min-width: 68px;
+      color: var(--muted-strong);
+      font-size: 10px;
+    }
+
+    .zoomControls .linesToggle.active {
+      border-color: rgba(94, 234, 212, 0.42);
+      background: var(--cyan-soft);
+      color: var(--cyan);
+    }
+
     .canvasWrap {
       position: relative;
       height: calc(100vh - 172px);
@@ -1630,6 +1663,7 @@
 
     main.tab-landmarks canvas {
       cursor: crosshair;
+      touch-action: none;
     }
 
     canvas.isZoomed {
@@ -1639,6 +1673,10 @@
     canvas.isDragging,
     main.tab-landmarks canvas.isDragging {
       cursor: grabbing;
+    }
+
+    main.tab-landmarks canvas.isLandmarkDragging {
+      cursor: move;
     }
 
     .canvasEmpty {
@@ -2585,12 +2623,18 @@
           <div class="panelIntro">
             <span class="eyebrow">Step 02 / Geometry</span>
             <h2>Map the face</h2>
-            <p>Start with detection, then review each point like a tiny geometry detective.</p>
+            <p>Choose automatic detection or build the landmark map manually, then drag any dot to refine it.</p>
           </div>
 
           <div class="subTabs" role="group" aria-label="Landmark profile">
             <button class="modeBtn" data-profile-target="front" type="button">Front landmarks</button>
             <button class="modeBtn" data-profile-target="side" type="button">Side landmarks</button>
+          </div>
+          <div class="subTabs landmarkMethodTabs" role="group" aria-label="Landmark placement method">
+            <button class="landmarkMethodBtn active" data-landmark-method="auto" type="button"
+              aria-pressed="true">Automatic</button>
+            <button class="landmarkMethodBtn" data-landmark-method="manual" type="button"
+              aria-pressed="false">Manual</button>
           </div>
           <button id="autoBtn" class="success fullButton" type="button">Auto-detect landmarks</button>
 
@@ -2730,7 +2774,8 @@
               <span id="viewerProfile" class="profilePill">Front profile</span>
               <span id="viewerState" class="viewerState">No image loaded</span>
             </div>
-            <div class="zoomControls" role="group" aria-label="Canvas zoom controls">
+            <div class="zoomControls" role="group" aria-label="Canvas display and zoom controls">
+              <button id="linesToggleBtn" class="linesToggle active" type="button" aria-pressed="true">Lines on</button>
               <button id="zoomOutBtn" type="button" aria-label="Zoom out">−</button>
               <button id="zoomResetBtn" class="zoomReset" type="button" aria-label="Reset zoom">100%</button>
               <button id="zoomInBtn" type="button" aria-label="Zoom in">+</button>
@@ -2825,6 +2870,7 @@
     const calcBtn = document.getElementById("calcBtn");
     const calcAllBtn = document.getElementById("calcAllBtn");
     const autoBtn = document.getElementById("autoBtn");
+    const linesToggleBtn = document.getElementById("linesToggleBtn");
     const clearBtn = document.getElementById("clearBtn");
     const featureImageInput = document.getElementById("featureImageInput");
     const useFrontForFeatureBtn = document.getElementById("useFrontForFeatureBtn");
@@ -2854,6 +2900,7 @@
     const noticeClose = document.getElementById("noticeClose");
     const tabButtons = [...document.querySelectorAll(".tabBtn")];
     const modeButtons = [...document.querySelectorAll(".modeBtn")];
+    const landmarkMethodButtons = [...document.querySelectorAll(".landmarkMethodBtn")];
     const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
     const TAB_CONTEXT = {
       upload: {
@@ -2864,7 +2911,7 @@
       landmarks: {
         eyebrow: "Step 02 / Geometry",
         heading: "Review every landmark with precision",
-        description: "Detect a first draft, inspect one point at a time, and use visible zoom controls for careful placement."
+        description: "Choose automatic or manual placement, inspect the full face map, and drag any point into position."
       },
       measurements: {
         eyebrow: "Step 03 / Analysis",
@@ -3018,6 +3065,8 @@
     let imagesByProfile = { front: new Image(), side: new Image() };
     let imageLoadedByProfile = { front: false, side: false };
     let resultsByProfile = { front: null, side: null };
+    let landmarkMethodByProfile = { front: "auto", side: "auto" };
+    let linesVisibleByProfile = { front: true, side: true };
     let viewByProfile = {
       front: { scale: 1, offsetX: 0, offsetY: 0 },
       side: { scale: 1, offsetX: 0, offsetY: 0 }
@@ -3031,6 +3080,7 @@
     let activeMetricId = null;
     let activeTab = "upload";
     let canvasDrag = null;
+    let landmarkDrag = null;
     let suppressCanvasClick = false;
 
     function showNotice(message, state = "info", duration = 5200) {
@@ -3061,6 +3111,7 @@
 
     function setModeControlsDisabled(disabled) {
       modeButtons.forEach(button => { button.disabled = disabled; });
+      landmarkMethodButtons.forEach(button => { button.disabled = disabled; });
     }
 
     function disarmClearProfile() {
@@ -3159,11 +3210,15 @@
       const view = viewByProfile[profileMode];
       const panHint = view.scale > 1 ? " · Drag or use arrow keys to pan" : "";
       canvasHint.textContent = activeTab === "landmarks"
-        ? `Scroll or use +/-/0 to zoom · Click or tap the photo to place the active point${panHint}`
+        ? `Click empty space to place the active point · Drag any dot to correct it · Use +/-/0 to zoom${panHint}`
         : (activeTab === "measurements"
           ? `Hover, focus, or tap a result to isolate it · Use +/-/0 to zoom${panHint}`
           : `Scroll or use +/-/0 to inspect the photo${panHint}`);
       canvas.classList.toggle("isZoomed", imageLoaded && view.scale > 1);
+      linesToggleBtn.disabled = !imageLoaded;
+      linesToggleBtn.classList.toggle("active", linesVisibleByProfile[profileMode]);
+      linesToggleBtn.setAttribute("aria-pressed", String(linesVisibleByProfile[profileMode]));
+      linesToggleBtn.textContent = linesVisibleByProfile[profileMode] ? "Lines on" : "Lines off";
       zoomResetBtn.textContent = `${Math.round(view.scale * 100)}%`;
       zoomOutBtn.disabled = !imageLoaded || view.scale <= 1;
       zoomResetBtn.disabled = !imageLoaded || (view.scale === 1 && view.offsetX === 0 && view.offsetY === 0);
@@ -3264,6 +3319,28 @@
       lower_third_proportion: { lines: [["nasal_base", "mouth_middle"], ["nasal_base", "chin_bottom"]] }
     };
 
+    const FACE_CONTOURS = {
+      front: [
+        ["hairline", "left_temple", "left_cheekbone", "left_upper_jaw_angle", "left_lower_jaw_angle", "left_chin", "chin_bottom", "right_chin", "right_lower_jaw_angle", "right_upper_jaw_angle", "right_cheekbone", "right_temple", "hairline"],
+        ["left_brow_head", "left_brow_inner_corner", "left_brow_arch", "left_brow_peak", "left_brow_tail"],
+        ["right_brow_head", "right_brow_inner_corner", "right_brow_arch", "right_brow_peak", "right_brow_tail"],
+        ["left_medial_canthus", "left_upper_eyelid", "left_lateral_canthus", "left_lower_eyelid", "left_medial_canthus"],
+        ["right_medial_canthus", "right_upper_eyelid", "right_lateral_canthus", "right_lower_eyelid", "right_medial_canthus"],
+        ["left_medial_canthus", "left_upper_eyelid_crease", "left_eyelid_hood_end", "left_lateral_canthus"],
+        ["right_medial_canthus", "right_upper_eyelid_crease", "right_eyelid_hood_end", "right_lateral_canthus"],
+        ["left_nose_bridge", "left_nose_side", "nasal_base", "nose_bottom", "right_nose_side", "right_nose_bridge"],
+        ["left_mouth_corner", "cupids_bow", "inner_cupids_bow", "right_mouth_corner", "mouth_middle", "lower_lip_center", "left_mouth_corner"]
+      ],
+      side: [
+        ["hairline_profile", "top_of_head", "occiput", "neck_point", "cervical_point"],
+        ["hairline_profile", "forehead", "glabella", "nasal_bridge_root", "rhinion", "supratip", "nose_tip", "infratip", "columella", "subnasale", "upper_lip", "mouth_corner", "lower_lip", "labiomental_fold", "chin_point", "chin_bottom", "lower_jaw_angle", "upper_jaw_angle", "cervical_point", "neck_point"],
+        ["porion", "tragus", "intertragic_notch"],
+        ["eyelid_end", "corneal_apex", "lower_eyelid", "orbitale", "eyelid_end"],
+        ["orbitale", "cheekbone", "upper_jaw_angle"],
+        ["nasal_bridge_root", "subalare", "subnasale"]
+      ]
+    };
+
     function fitCanvas() {
       const rect = canvas.getBoundingClientRect();
       const ratio = window.devicePixelRatio || 1;
@@ -3326,6 +3403,42 @@
       };
     }
 
+    function traceFaceContours(landmarkMap) {
+      ctx.beginPath();
+      (FACE_CONTOURS[profileMode] || []).forEach((path) => {
+        let previousPoint = null;
+        path.forEach((id) => {
+          const landmark = landmarkMap.get(id);
+          if (!landmark) {
+            previousPoint = null;
+            return;
+          }
+          const point = toCanvasPoint(landmark);
+          if (previousPoint) {
+            ctx.moveTo(previousPoint.x, previousPoint.y);
+            ctx.lineTo(point.x, point.y);
+          }
+          previousPoint = point;
+        });
+      });
+    }
+
+    function drawFaceContours(landmarkMap) {
+      if (!linesVisibleByProfile[profileMode] || landmarkMap.size < 2) return;
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      traceFaceContours(landmarkMap);
+      ctx.lineWidth = 3.25;
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.52)";
+      ctx.stroke();
+      traceFaceContours(landmarkMap);
+      ctx.lineWidth = 1.35;
+      ctx.strokeStyle = "rgba(46, 238, 132, 0.96)";
+      ctx.stroke();
+      ctx.restore();
+    }
+
     function draw() {
       ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
       viewCrop = getZoomCrop();
@@ -3349,27 +3462,29 @@
       const focusedIds = getActiveMeasurementLandmarkIds();
       const visibleLandmarks = focusedIds
         ? []
-        : activeTab === "landmarks"
-          ? landmarks.filter(lm => defs[index] && lm.id === defs[index].id)
-          : landmarks;
+        : landmarks.filter(landmark => Number.isFinite(Number(landmark.x)) && Number.isFinite(Number(landmark.y)));
+      const landmarkMap = new Map(visibleLandmarks.map(landmark => [landmark.id, landmark]));
+      const defIndexById = new Map(defs.map((def, defIndex) => [def.id, defIndex]));
+      if (!focusedIds) drawFaceContours(landmarkMap);
 
       visibleLandmarks.forEach((lm) => {
-        const def = defs.find(d => d.id === lm.id) || {};
-        const i = defs.findIndex(d => d.id === lm.id);
-        const x = drawBox.x + lm.x * drawBox.w;
-        const y = drawBox.y + lm.y * drawBox.h;
-        const color = def.color || "#2dd4bf";
+        const i = defIndexById.get(lm.id) ?? -1;
+        const point = toCanvasPoint(lm);
+        const isActive = activeTab === "landmarks" && (i === index || landmarkDrag?.id === lm.id);
         ctx.beginPath();
-        ctx.arc(x, y, i === index ? 5 : 3.5, 0, Math.PI * 2);
-        ctx.fillStyle = color;
+        ctx.arc(point.x, point.y, isActive ? 4 : 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = "#ef4444";
         ctx.fill();
-        ctx.lineWidth = 2;
+        ctx.lineWidth = isActive ? 1.75 : 1.25;
         ctx.strokeStyle = "#fff";
         ctx.stroke();
-        ctx.font = "700 11px system-ui";
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#fff";
-        ctx.fillText(String(i + 1), x, y - 9);
+        if (isActive) {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 6.25, 0, Math.PI * 2);
+          ctx.lineWidth = 1.25;
+          ctx.strokeStyle = "rgba(94, 234, 212, 0.95)";
+          ctx.stroke();
+        }
       });
 
       drawActiveMeasurement();
@@ -3551,8 +3666,15 @@
       landmarkProgress.setAttribute("aria-valuetext", `${placed} of ${defs.length} landmarks placed`);
       calcBtn.disabled = defs.length === 0 || getMissingLandmarks().length > 0;
       calcAllBtn.disabled = !canCalculateBothProfiles();
-      autoBtn.disabled = !imageLoaded;
+      const landmarkMethod = landmarkMethodByProfile[profileMode];
+      autoBtn.hidden = landmarkMethod !== "auto";
+      autoBtn.disabled = !imageLoaded || landmarkMethod !== "auto";
       autoBtn.textContent = "Auto-detect landmarks";
+      landmarkMethodButtons.forEach((button) => {
+        const isActive = button.dataset.landmarkMethod === landmarkMethod;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+      });
       document.getElementById("prevBtn").disabled = !defs.length || index <= 0;
       document.getElementById("nextBtn").disabled = !defs.length || index >= defs.length - 1;
       document.getElementById("undoBtn").disabled = placementHistoryByProfile[profileMode].length === 0;
@@ -3568,7 +3690,9 @@
         : "Place the side landmarks, then calculate the side profile metrics.";
       if (def) {
         stepText.innerHTML = `<strong>${index + 1}/${defs.length}</strong> ${def.label}`;
-        stepHint.textContent = "Click the image to place or replace this point.";
+        stepHint.textContent = landmarkMethod === "manual"
+          ? "Click the image to place this point, or drag any visible dot to correct it."
+          : "Run detection for a first draft, then drag any visible dot to correct it.";
       } else {
         stepText.textContent = "Loading landmarks...";
         stepHint.textContent = "";
@@ -3679,24 +3803,70 @@
       syncUi();
     }
 
+    function getCanvasPointerPosition(event) {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      return {
+        x,
+        y,
+        nx: viewCrop.x + ((x - drawBox.x) / drawBox.w) * viewCrop.w,
+        ny: viewCrop.y + ((y - drawBox.y) / drawBox.h) * viewCrop.h
+      };
+    }
+
+    function findNearestCanvasLandmark(x, y, hitRadius = 10) {
+      let nearest = null;
+      let nearestDistance = hitRadius;
+      landmarks.forEach((landmark) => {
+        const point = toCanvasPoint(landmark);
+        const distance = Math.hypot(point.x - x, point.y - y);
+        if (distance <= nearestDistance) {
+          nearest = landmark;
+          nearestDistance = distance;
+        }
+      });
+      return nearest;
+    }
+
     canvas.addEventListener("click", (event) => {
       if (suppressCanvasClick) {
         suppressCanvasClick = false;
         return;
       }
       if (!imageLoaded || activeTab !== "landmarks") return;
-      const rect = canvas.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      const nx = viewCrop.x + ((x - drawBox.x) / drawBox.w) * viewCrop.w;
-      const ny = viewCrop.y + ((y - drawBox.y) / drawBox.h) * viewCrop.h;
+      const { nx, ny } = getCanvasPointerPosition(event);
       if (nx < 0 || nx > 1 || ny < 0 || ny > 1) return;
       setPoint(nx, ny);
     });
 
     canvas.addEventListener("pointerdown", (event) => {
       const view = viewByProfile[profileMode];
-      if (!imageLoaded || view.scale <= 1 || (event.pointerType === "mouse" && event.button !== 0)) return;
+      if (!imageLoaded || (event.pointerType === "mouse" && event.button !== 0)) return;
+      if (activeTab === "landmarks") {
+        const pointer = getCanvasPointerPosition(event);
+        const nearest = findNearestCanvasLandmark(pointer.x, pointer.y);
+        if (nearest) {
+          const landmarkIndex = defs.findIndex(def => def.id === nearest.id);
+          index = landmarkIndex >= 0 ? landmarkIndex : index;
+          landmarkDrag = {
+            pointerId: event.pointerId,
+            id: nearest.id,
+            index,
+            startX: event.clientX,
+            startY: event.clientY,
+            previous: { ...nearest },
+            moved: false,
+            invalidated: false
+          };
+          canvas.setPointerCapture(event.pointerId);
+          canvas.classList.add("isLandmarkDragging");
+          event.preventDefault();
+          syncUi();
+          return;
+        }
+      }
+      if (view.scale <= 1) return;
       canvasDrag = {
         pointerId: event.pointerId,
         startX: event.clientX,
@@ -3709,6 +3879,29 @@
     });
 
     canvas.addEventListener("pointermove", (event) => {
+      if (landmarkDrag && landmarkDrag.pointerId === event.pointerId) {
+        const dx = event.clientX - landmarkDrag.startX;
+        const dy = event.clientY - landmarkDrag.startY;
+        if (!landmarkDrag.moved && Math.hypot(dx, dy) < 2) return;
+        landmarkDrag.moved = true;
+        event.preventDefault();
+        const pointer = getCanvasPointerPosition(event);
+        const nx = Math.min(1, Math.max(0, pointer.nx));
+        const ny = Math.min(1, Math.max(0, pointer.ny));
+        if (!landmarkDrag.invalidated) {
+          resultsByProfile[profileMode] = null;
+          clearRenderedResults();
+          clearInlineStatus(landmarkConfirmNote);
+          landmarkDrag.invalidated = true;
+        }
+        const def = defs[landmarkDrag.index] || {};
+        landmarks = landmarks.map(landmark => landmark.id === landmarkDrag.id
+          ? { ...landmark, x: Number(nx.toFixed(6)), y: Number(ny.toFixed(6)), label: def.label || landmark.label }
+          : landmark);
+        landmarksByProfile[profileMode] = landmarks;
+        draw();
+        return;
+      }
       if (!canvasDrag || canvasDrag.pointerId !== event.pointerId) return;
       const dx = event.clientX - canvasDrag.startX;
       const dy = event.clientY - canvasDrag.startY;
@@ -3723,6 +3916,23 @@
     });
 
     function finishCanvasDrag(event) {
+      if (landmarkDrag && landmarkDrag.pointerId === event.pointerId) {
+        const completedDrag = landmarkDrag;
+        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+        landmarkDrag = null;
+        canvas.classList.remove("isLandmarkDragging");
+        if (completedDrag.moved) {
+          placementHistoryByProfile[profileMode].push({
+            id: completedDrag.id,
+            index: completedDrag.index,
+            previous: completedDrag.previous
+          });
+        }
+        suppressCanvasClick = true;
+        window.setTimeout(() => { suppressCanvasClick = false; }, 0);
+        syncUi();
+        return;
+      }
       if (!canvasDrag || canvasDrag.pointerId !== event.pointerId) return;
       const didMove = canvasDrag.moved;
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
@@ -3770,6 +3980,12 @@
 
     zoomInBtn.addEventListener("click", () => {
       setCanvasScale(viewByProfile[profileMode].scale * 1.25);
+    });
+
+    linesToggleBtn.addEventListener("click", () => {
+      linesVisibleByProfile[profileMode] = !linesVisibleByProfile[profileMode];
+      updateCanvasChrome();
+      draw();
     });
 
     canvas.addEventListener("keydown", (event) => {
@@ -3864,6 +4080,22 @@
 
     sideImageInput.addEventListener("change", () => {
       loadProfileImage("side", sideImageInput.files && sideImageInput.files[0]);
+    });
+
+    landmarkMethodButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const nextMethod = button.dataset.landmarkMethod;
+        if (!nextMethod || nextMethod === landmarkMethodByProfile[profileMode]) return;
+        landmarkMethodByProfile[profileMode] = nextMethod;
+        clearInlineStatus(landmarkConfirmNote);
+        syncUi();
+        showNotice(
+          nextMethod === "auto"
+            ? `${profileMode === "front" ? "Front" : "Side"} profile set to automatic detection. Existing points were preserved.`
+            : `${profileMode === "front" ? "Front" : "Side"} profile set to manual placement. Existing points were preserved.`,
+          "info"
+        );
+      });
     });
 
     autoBtn.onclick = async () => {
