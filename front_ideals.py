@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 
-# These transformations retain the existing scoring falloff bounds and female
+# These transformations retain the existing legacy reference bounds and female
 # derivation contract. Confirmed non-Asian male ideal plateaus are applied from
 # MALE_LIVE_FRONT_PLATEAUS instead of being inferred from these factors.
 ETHNIC_FACTORS = {
@@ -69,8 +69,8 @@ ETHNIC_FACTORS = {
 
 
 # East-Asian male ideal plateaus transcribed from the saved FaceIQ cohort notes.
-# Outer min/max values remain scoring falloff bounds rather than additional
-# ideal ranges.
+# Outer min/max values remain legacy API reference bounds; exponential scoring
+# uses idealMin, idealMax, and decayRate instead.
 MALE_ASIAN_FRONT = {
     "lateral_canthal_tilt": {"min": -2.57, "max": 19.67, "idealMin": 7.70, "idealMax": 9.40, "description": "Lateral Canthal Tilt (degrees)"},
     "nose_bridge_to_width": {"min": 1.16, "max": 3.04, "idealMin": 2.06, "idealMax": 2.14, "description": "Nose Bridge to Nose Width Ratio"},
@@ -217,6 +217,47 @@ MALE_LIVE_FRONT_PLATEAUS = {
 }
 
 
+# East-Asian raw-distance exponential fits from the saved celebrity payloads.
+# These are numerical estimates, not confirmed FaceIQ server constants.
+# They currently apply to every demographic because no other fitted k tables
+# were supplied; each demographic still uses its own ideal plateau.
+FRONT_DECAY_RATES = {
+    "nose_bridge_to_width": 3.63391254,
+    "mouth_width_to_nose_width": 9.75152406,
+    "total_facial_width_to_height": 10.91408892,
+    "eyebrow_tilt": 0.16513146,
+    "midface_ratio": 6.40137774,
+    "lateral_canthal_tilt": 0.16815601,
+    "eye_separation_ratio": 0.29852281,
+    "bitemporal_width": 0.19378893,
+    "one_eye_apart": 8.43829569,
+    "jaw_slope": 0.10115101,
+    "cupids_bow_depth": 0.42745836,
+    "face_width_to_height": 5.15794334,
+    "jaw_frontal_angle": 0.10786339,
+    "top_third": 0.11338787,
+    "lower_lip_to_upper_lip": 1.06118484,
+    "brow_length_to_face_width": 10.72486905,
+    "interpupillary_mouth_width": 5.27309475,
+    "middle_third": 0.17187012,
+    "lower_third": 0.29066025,
+    "bigonial_width": 0.07526685,
+    "lower_third_proportion": 0.95820067,
+    "chin_to_philtrum": 2.24219367,
+    "ipsilateral_alar_angle": 0.09043885,
+    "deviation_iaa_jfa": 0.11876869,
+    "eyebrow_low_setedness": 1.27236550,
+    "eye_aspect_ratio": 1.59067658,
+    "cheekbone_height": 0.06653490,
+    "intercanthal_nasal_width": 3.53663547,
+    "mouth_corner_position": 0.36537740,
+    "nose_tip_position": 0.53211208,
+}
+
+for _key, _decay_rate in FRONT_DECAY_RATES.items():
+    MALE_ASIAN_FRONT[_key]["decayRate"] = _decay_rate
+
+
 def _adjust(value, delta):
     return round(value + delta, 2)
 
@@ -348,6 +389,11 @@ def build_front_ideals():
     female = {}
     for ethnicity, values in male.items():
         female[ethnicity] = _build_female_front(values)
+
+    for gender_values in (male, female):
+        for ethnicity_values in gender_values.values():
+            for key, decay_rate in FRONT_DECAY_RATES.items():
+                ethnicity_values[key]["decayRate"] = decay_rate
 
     return {"male": male, "female": female}
 

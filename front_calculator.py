@@ -5,8 +5,6 @@ from front_ideals import get_front_ideals
 from front_landmarks import normalize_front_landmarks
 
 
-SCORING_K = -2
-SCORING_FLOOR = 1.0
 PENALTY_THRESHOLD = 3.5
 PENALTY_MULTIPLIER = 0.25
 PENALTY_CAP = 1
@@ -70,22 +68,14 @@ def vdist(a, b):
     return abs(a["y"] - b["y"])
 
 
-def calculate_plateau_gaussian_score(value, range_min, range_max, ideal_min, ideal_max):
+def calculate_plateau_exponential_score(value, ideal_min, ideal_max, decay_rate):
     if ideal_min <= value <= ideal_max:
         return 10.0
-    if value <= range_min or value >= range_max:
-        return SCORING_FLOOR
     if value < ideal_min:
-        d = ideal_min - value
-        length = ideal_min - range_min
+        distance = ideal_min - value
     else:
-        d = value - ideal_max
-        length = range_max - ideal_max
-    if length <= 0:
-        return SCORING_FLOOR
-    ratio = d / length
-    score = 10 * math.exp(SCORING_K * ratio * ratio)
-    return round(min(10.0, max(SCORING_FLOOR, score)), 1)
+        distance = value - ideal_max
+    return 10 * math.exp(-decay_rate * distance)
 
 
 def classify_deviation(value, ideal_min, ideal_max):
@@ -95,7 +85,12 @@ def classify_deviation(value, ideal_min, ideal_max):
 
 
 def create_measurement(mid, name, value, unit, category, description, ideal):
-    score = calculate_plateau_gaussian_score(value, ideal["min"], ideal["max"], ideal["idealMin"], ideal["idealMax"])
+    score = calculate_plateau_exponential_score(
+        value,
+        ideal["idealMin"],
+        ideal["idealMax"],
+        ideal["decayRate"],
+    )
     deviation = classify_deviation(value, ideal["idealMin"], ideal["idealMax"])
     return {
         "id": mid,

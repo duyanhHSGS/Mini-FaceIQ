@@ -160,6 +160,50 @@ MALE_LIVE_SIDE_PLATEAUS = {
 }
 
 
+# East-Asian raw-distance exponential fits from the saved celebrity payloads.
+# These are numerical estimates, not confirmed FaceIQ server constants.
+# They currently apply to every demographic because no other fitted k tables
+# were supplied; each demographic still uses its own ideal plateau.
+SIDE_DECAY_RATES = {
+    "nasal_tip_angle": 0.11391012,
+    "gonial_angle": 0.11530861,
+    "lower_lip_s_line": 0.46353763,
+    "submental_cervical_angle": 0.10332529,
+    "nose_tip_rotation": 0.05788103,
+    "nasal_width_to_height": 4.69247420,
+    "facial_convexity_glabella": 0.12628152,
+    "facial_convexity_nasion": 0.12342309,
+    "anterior_facial_depth": 0.02752229,
+    "ramus_to_mandible": 4.58800056,
+    "lower_lip_burstone": 0.46134616,
+    "frankfort_tip_angle": 0.07075416,
+    "lower_lip_e_line": 0.39553507,
+    "nasofacial_angle": 0.21618365,
+    "nasomental_angle": 0.12332481,
+    "holdaway_h_line": 0.35929666,
+    "upper_lip_s_line": 0.45369174,
+    "z_angle": 0.11257144,
+    "browridge_inclination": 0.19883563,
+    "nasofrontal_angle": 0.07113399,
+    "nasolabial_angle": 0.02659119,
+    "total_facial_convexity": 0.04151767,
+    "nasal_projection": 3.28710710,
+    "upper_lip_e_line": 0.43486641,
+    "upper_lip_burstone": 0.23074595,
+    "mandibular_plane_angle": 0.20649541,
+    "mentolabial_angle": 0.04833538,
+    "gonion_to_mouth": 0.06637477,
+    "recession_frankfort": 0.11711794,
+    "orbital_vector": 0.06133280,
+    "facial_depth_to_height": 7.64792413,
+    "interior_midface_projection": 0.08143703,
+    "upper_forehead_slope": 0.17174793,
+}
+
+for _key, _decay_rate in SIDE_DECAY_RATES.items():
+    MALE_ASIAN_SIDE[_key]["decayRate"] = _decay_rate
+
+
 def _adjust(value, delta):
     return round(value + delta, 2)
 
@@ -277,6 +321,11 @@ def build_side_ideals():
     female = {}
     for ethnicity, values in male.items():
         female[ethnicity] = _build_female_side(values)
+
+    for gender_values in (male, female):
+        for ethnicity_values in gender_values.values():
+            for key, decay_rate in SIDE_DECAY_RATES.items():
+                ethnicity_values[key]["decayRate"] = decay_rate
 
     return {"male": male, "female": female}
 
