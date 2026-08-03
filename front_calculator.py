@@ -317,7 +317,7 @@ def calculate_front_measurements(front_landmarks, gender="male", ethnicity="asia
     if hairline and chin_bottom and left_cheekbone and right_cheekbone:
         total_height = vdist(hairline, chin_bottom)
         if total_height > 0:
-            add("total_facial_width_to_height", "Total Facial Width to Height Ratio", dist(left_cheekbone, right_cheekbone) / total_height, "ratio", "Proportions", "Bizygomatic width to total facial height.")
+            add("total_facial_width_to_height", "Total Facial Width to Height Ratio", total_height / dist(left_cheekbone, right_cheekbone) , "ratio", "Proportions", "Bizygomatic width to total facial height.")
 
     if chin_bottom and lower_lip_center and cupids_bow and nasal_base:
         philtrum = vdist(cupids_bow, nasal_base)
