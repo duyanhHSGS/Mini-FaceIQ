@@ -49,6 +49,15 @@ def distance_to_line(point, line_start, line_end):
     return 0 if denom == 0 else abs(a * point["x"] + b * point["y"] + c) / denom
 
 
+def position_along_line(point, line_start, line_end):
+    dx = line_end["x"] - line_start["x"]
+    dy = line_end["y"] - line_start["y"]
+    length_squared = dx * dx + dy * dy
+    if length_squared == 0:
+        return None
+    return ((point["x"] - line_start["x"]) * dx + (point["y"] - line_start["y"]) * dy) / length_squared
+
+
 def midpoint(a, b):
     return {"id": "mid", "x": (a["x"] + b["x"]) / 2, "y": (a["y"] + b["y"]) / 2, "label": ""}
 
@@ -223,11 +232,18 @@ def calculate_front_measurements(front_landmarks, gender="male", ethnicity="asia
     if vals:
         add("jaw_slope", "Jaw Slope", sum(vals) / len(vals), "degrees", "Jaw", "Average left and right jaw slope angles.")
 
-    if right_brow_head and right_brow_inner and left_brow_head and left_brow_inner and nasal_base and hairline and chin_bottom:
-        brow_mid = midpoint(midpoint(right_brow_head, right_brow_inner), midpoint(left_brow_head, left_brow_inner))
-        total_height = vdist(hairline, chin_bottom)
-        if total_height > 0:
-            add("middle_third", "Middle Third", vdist(brow_mid, nasal_base) / total_height * 100, "percentage", "Proportions", "Middle facial third relative to total facial height.")
+    if hairline and chin_bottom:
+        brow_position = None
+        nasal_position = position_along_line(nasal_base, hairline, chin_bottom) if nasal_base else None
+        if right_brow_head and right_brow_inner and left_brow_head and left_brow_inner:
+            brow_mid = midpoint(midpoint(right_brow_head, right_brow_inner), midpoint(left_brow_head, left_brow_inner))
+            brow_position = position_along_line(brow_mid, hairline, chin_bottom)
+        if brow_position is not None:
+            add("top_third", "Top Third", brow_position * 100, "percentage", "Proportions", "Hairline-to-brow share measured along the hairline-to-chin facial axis.")
+        if brow_position is not None and nasal_position is not None:
+            add("middle_third", "Middle Third", (nasal_position - brow_position) * 100, "percentage", "Proportions", "Brow-to-nasal-base share measured along the hairline-to-chin facial axis.")
+        if nasal_position is not None:
+            add("lower_third", "Lower Third", (1 - nasal_position) * 100, "percentage", "Proportions", "Nasal-base-to-chin share measured along the hairline-to-chin facial axis.")
 
     vals = []
     if left_medial and left_lateral and left_upper_eyelid and left_lower_eyelid and vdist(left_upper_eyelid, left_lower_eyelid) > 0:
@@ -262,16 +278,12 @@ def calculate_front_measurements(front_landmarks, gender="male", ethnicity="asia
     if vals:
         add("eyebrow_tilt", "Eyebrow Tilt", sum(vals) / len(vals), "degrees", "Brows", "Average signed eyebrow tilt from horizontal.")
 
-    if chin_bottom and nasal_base and hairline:
-        total_height = vdist(hairline, chin_bottom)
-        if total_height > 0:
-            add("lower_third", "Lower Third", vdist(chin_bottom, nasal_base) / total_height * 100, "percentage", "Proportions", "Lower facial third relative to total facial height.")
-
     if left_cheekbone and right_cheekbone and cupids_bow and right_brow_head and right_brow_inner and left_brow_head and left_brow_inner:
-        brow_y = ((right_brow_head["y"] + right_brow_inner["y"]) / 2 + (left_brow_head["y"] + left_brow_inner["y"]) / 2) / 2
-        face_height = abs(cupids_bow["y"] - brow_y)
+        left_brow_mid = midpoint(left_brow_head, left_brow_inner)
+        right_brow_mid = midpoint(right_brow_head, right_brow_inner)
+        face_height = distance_to_line(cupids_bow, left_brow_mid, right_brow_mid)
         if face_height > 0:
-            add("face_width_to_height", "Face Width to Height Ratio", abs(right_cheekbone["x"] - left_cheekbone["x"]) / face_height, "ratio", "Proportions", "Bizygomatic width to Cupid's bow-brow midpoint height.")
+            add("face_width_to_height", "Face Width to Height Ratio", dist(left_cheekbone, right_cheekbone) / face_height, "ratio", "Proportions", "Bizygomatic width divided by the perpendicular distance from Cupid's bow to the brow-midpoint line.")
 
     if left_mouth_corner and right_mouth_corner and left_pupil and right_pupil:
         pupil_dist = dist(left_pupil, right_pupil)
@@ -286,12 +298,6 @@ def calculate_front_measurements(front_landmarks, gender="male", ethnicity="asia
         medial_dist = dist(left_medial, right_medial)
         if medial_dist > 0:
             add("intercanthal_nasal_width", "Intercanthal-Nasal Width Ratio", dist(left_nose_side, right_nose_side) / medial_dist, "ratio", "Proportions", "Nasal width to intercanthal distance.")
-
-    if hairline and right_brow_head and right_brow_inner and left_brow_head and left_brow_inner and chin_bottom:
-        brow_mid = midpoint(midpoint(right_brow_head, right_brow_inner), midpoint(left_brow_head, left_brow_inner))
-        total_height = vdist(hairline, chin_bottom)
-        if total_height > 0:
-            add("top_third", "Top Third", vdist(hairline, brow_mid) / total_height * 100, "percentage", "Proportions", "Upper facial third relative to total facial height.")
 
     if left_medial and right_medial and left_lateral and right_lateral:
         avg_eye_width = (dist(left_medial, left_lateral) + dist(right_medial, right_lateral)) / 2

@@ -2892,23 +2892,23 @@
       { id: "lateral_canthal_tilt", name: "Lateral Canthal Tilt", category: "Eyes", description: "Eye angle relative to horizontal.", requires: ["left_medial_canthus", "left_lateral_canthus", "right_medial_canthus", "right_lateral_canthus"] },
       { id: "nose_bridge_to_width", name: "Nose Bridge to Nose Width Ratio", category: "Nose", description: "Nose side width compared with nose bridge width.", requires: ["left_nose_side", "right_nose_side", "left_nose_bridge", "right_nose_bridge"] },
       { id: "bitemporal_width", name: "Bitemporal Width", category: "Head", description: "Temple width compared with cheekbone face width.", requires: ["left_temple", "right_temple", "left_cheekbone", "right_cheekbone"] },
-      { id: "cheekbone_height", name: "Cheekbone Height", category: "Cheeks", description: "Vertical positioning of cheekbones.", requires: ["cupids_bow", "left_cheekbone", "right_cheekbone", "left_pupil", "right_pupil"] },
+      { id: "cheekbone_height", name: "Cheekbone Height", category: "Cheeks", description: "Perpendicular Cupid's-bow distances to the cheekbone and pupil lines.", requires: ["cupids_bow", "left_cheekbone", "right_cheekbone", "left_pupil", "right_pupil"] },
       { id: "cupids_bow_depth", name: "Cupid's Bow Depth", category: "Mouth", description: "Vertical depth of the cupid's bow.", requires: ["cupids_bow", "inner_cupids_bow"] },
       { id: "bigonial_width", name: "Bigonial Width", category: "Jaw", description: "Jaw width compared with cheekbone face width.", requires: ["left_upper_jaw_angle", "right_upper_jaw_angle", "left_cheekbone", "right_cheekbone"] },
       { id: "jaw_slope", name: "Jaw Slope", category: "Jaw", description: "Average left and right jaw slope angles.", requires: ["left_cheekbone", "left_upper_jaw_angle", "left_lower_jaw_angle", "left_chin", "right_cheekbone", "right_upper_jaw_angle", "right_lower_jaw_angle", "right_chin"] },
-      { id: "middle_third", name: "Middle Third", category: "Proportions", description: "Middle facial third relative to total face height.", requires: ["right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner", "nasal_base", "hairline", "chin_bottom"] },
+      { id: "middle_third", name: "Middle Third", category: "Proportions", description: "Brow-to-nasal-base share along the hairline-to-chin facial axis.", requires: ["right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner", "nasal_base", "hairline", "chin_bottom"] },
       { id: "eye_aspect_ratio", name: "Eye Aspect Ratio", category: "Eyes", description: "Width-to-height ratio of eyes.", requires: ["left_medial_canthus", "left_lateral_canthus", "left_upper_eyelid", "left_lower_eyelid", "right_medial_canthus", "right_lateral_canthus", "right_upper_eyelid", "right_lower_eyelid"] },
       { id: "mouth_corner_position", name: "Mouth Corner Position", category: "Mouth", description: "Mouth corner height relative to mouth middle.", requires: ["mouth_middle", "left_mouth_corner", "right_mouth_corner"] },
       { id: "eye_separation_ratio", name: "Eye Separation Ratio", category: "Eyes", description: "Interpupillary distance vs face width.", requires: ["left_pupil", "right_pupil", "left_cheekbone", "right_cheekbone"] },
       { id: "eyebrow_tilt", name: "Eyebrow Tilt", category: "Brows", description: "Brow angle from horizontal.", requires: ["left_brow_head", "left_brow_inner_corner", "left_brow_arch", "left_brow_peak", "right_brow_head", "right_brow_inner_corner", "right_brow_arch", "right_brow_peak"] },
-      { id: "lower_third", name: "Lower Third", category: "Proportions", description: "Lower facial third relative to total face height.", requires: ["chin_bottom", "nasal_base", "hairline"] },
-      { id: "face_width_to_height", name: "Face Width to Height Ratio", category: "Proportions", description: "Cheekbone width compared with midface height.", requires: ["left_cheekbone", "right_cheekbone", "cupids_bow", "right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner"] },
+      { id: "lower_third", name: "Lower Third", category: "Proportions", description: "Nasal-base-to-chin share along the hairline-to-chin facial axis.", requires: ["chin_bottom", "nasal_base", "hairline"] },
+      { id: "face_width_to_height", name: "Face Width to Height Ratio", category: "Proportions", description: "Cheekbone width divided by the perpendicular Cupid's-bow distance to the brow-midpoint line.", requires: ["left_cheekbone", "right_cheekbone", "cupids_bow", "right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner"] },
       { id: "interpupillary_mouth_width", name: "Interpupillary-Mouth Width Ratio", category: "Proportions", description: "Mouth width compared with interpupillary distance.", requires: ["left_mouth_corner", "right_mouth_corner", "left_pupil", "right_pupil"] },
       { id: "jaw_frontal_angle", name: "Jaw Frontal Angle", category: "Jaw", description: "Angle between the left and right lower jaw lines.", requires: ["left_lower_jaw_angle", "left_chin", "right_lower_jaw_angle", "right_chin"] },
       { id: "intercanthal_nasal_width", name: "Intercanthal-Nasal Width Ratio", category: "Proportions", description: "Nasal width compared with inner eye corner spacing.", requires: ["left_nose_side", "right_nose_side", "left_medial_canthus", "right_medial_canthus"] },
-      { id: "top_third", name: "Top Third", category: "Proportions", description: "Upper facial third relative to total face height.", requires: ["hairline", "right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner", "chin_bottom"] },
+      { id: "top_third", name: "Top Third", category: "Proportions", description: "Hairline-to-brow share along the hairline-to-chin facial axis.", requires: ["hairline", "right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner", "chin_bottom"] },
       { id: "one_eye_apart", name: "One Eye Apart Test", category: "Proportions", description: "Intercanthal spacing validation.", requires: ["left_medial_canthus", "right_medial_canthus", "left_lateral_canthus", "right_lateral_canthus"] },
-      { id: "midface_ratio", name: "Midface Ratio", category: "Proportions", description: "Interpupillary distance compared with midface height.", requires: ["left_pupil", "right_pupil", "inner_cupids_bow"] },
+      { id: "midface_ratio", name: "Midface Ratio", category: "Proportions", description: "Interpupillary distance divided by the perpendicular inner-Cupid's-bow distance to the pupil line.", requires: ["left_pupil", "right_pupil", "inner_cupids_bow"] },
       { id: "ipsilateral_alar_angle", name: "Ipsilateral Alar Angle", category: "Nose", description: "Nasal base angle using eyelid hood endpoints.", requires: ["nasal_base", "left_eyelid_hood_end", "right_eyelid_hood_end"] },
       { id: "mouth_width_to_nose_width", name: "Mouth Width to Nose Width Ratio", category: "Proportions", description: "Mouth width compared with nose width.", requires: ["left_mouth_corner", "right_mouth_corner", "left_nose_side", "right_nose_side"] },
       { id: "total_facial_width_to_height", name: "Total Facial Width to Height Ratio", category: "Proportions", description: "Cheekbone width compared with full face height.", requires: ["hairline", "chin_bottom", "left_cheekbone", "right_cheekbone"] },
@@ -3200,27 +3200,58 @@
       resultsToolbar.classList.remove("active");
     }
 
+    const FRONT_BROW_CENTER_GUIDE = {
+      midpoint: [
+        { midpoint: ["left_brow_head", "left_brow_inner_corner"] },
+        { midpoint: ["right_brow_head", "right_brow_inner_corner"] }
+      ]
+    };
+
     const MEASUREMENT_GUIDES = {
       lateral_canthal_tilt: { lines: [["left_medial_canthus", "left_lateral_canthus"], ["right_medial_canthus", "right_lateral_canthus"]] },
       nose_bridge_to_width: { lines: [["left_nose_side", "right_nose_side"], ["left_nose_bridge", "right_nose_bridge"]] },
       bitemporal_width: { lines: [["left_temple", "right_temple"], ["left_cheekbone", "right_cheekbone"]] },
-      cheekbone_height: { lines: [["left_cheekbone", "right_cheekbone"], ["left_pupil", "right_pupil"], ["cupids_bow", "left_cheekbone"], ["cupids_bow", "left_pupil"]], points: ["cupids_bow"] },
+      cheekbone_height: {
+        lines: [["left_cheekbone", "right_cheekbone"], ["left_pupil", "right_pupil"]],
+        projections: [["cupids_bow", "left_cheekbone", "right_cheekbone"], ["cupids_bow", "left_pupil", "right_pupil"]]
+      },
       cupids_bow_depth: { lines: [["cupids_bow", "inner_cupids_bow"]] },
       bigonial_width: { lines: [["left_upper_jaw_angle", "right_upper_jaw_angle"], ["left_cheekbone", "right_cheekbone"]] },
       jaw_slope: { lines: [["left_cheekbone", "left_upper_jaw_angle"], ["left_lower_jaw_angle", "left_chin"], ["right_cheekbone", "right_upper_jaw_angle"], ["right_lower_jaw_angle", "right_chin"]] },
-      middle_third: { lines: [["hairline", "chin_bottom"], ["left_brow_head", "nasal_base"], ["right_brow_head", "nasal_base"]] },
+      middle_third: {
+        lines: [["hairline", "chin_bottom"]],
+        axisSegments: [[FRONT_BROW_CENTER_GUIDE, "nasal_base", "hairline", "chin_bottom"]],
+        projections: [[FRONT_BROW_CENTER_GUIDE, "hairline", "chin_bottom"], ["nasal_base", "hairline", "chin_bottom"]]
+      },
       eye_aspect_ratio: { lines: [["left_medial_canthus", "left_lateral_canthus"], ["left_upper_eyelid", "left_lower_eyelid"], ["right_medial_canthus", "right_lateral_canthus"], ["right_upper_eyelid", "right_lower_eyelid"]] },
       mouth_corner_position: { lines: [["left_mouth_corner", "mouth_middle"], ["right_mouth_corner", "mouth_middle"]] },
       eye_separation_ratio: { lines: [["left_pupil", "right_pupil"], ["left_cheekbone", "right_cheekbone"]] },
       eyebrow_tilt: { lines: [["left_brow_head", "left_brow_peak"], ["right_brow_head", "right_brow_peak"]] },
-      lower_third: { lines: [["nasal_base", "chin_bottom"], ["hairline", "chin_bottom"]] },
-      face_width_to_height: { lines: [["left_cheekbone", "right_cheekbone"], ["cupids_bow", "left_brow_head"], ["cupids_bow", "right_brow_head"]] },
+      lower_third: {
+        lines: [["hairline", "chin_bottom"]],
+        axisSegments: [["nasal_base", "chin_bottom", "hairline", "chin_bottom"]],
+        projections: [["nasal_base", "hairline", "chin_bottom"]]
+      },
+      face_width_to_height: {
+        lines: [
+          ["left_cheekbone", "right_cheekbone"],
+          [{ midpoint: ["left_brow_head", "left_brow_inner_corner"] }, { midpoint: ["right_brow_head", "right_brow_inner_corner"] }]
+        ],
+        projections: [["cupids_bow", { midpoint: ["left_brow_head", "left_brow_inner_corner"] }, { midpoint: ["right_brow_head", "right_brow_inner_corner"] }]]
+      },
       interpupillary_mouth_width: { lines: [["left_mouth_corner", "right_mouth_corner"], ["left_pupil", "right_pupil"]] },
       jaw_frontal_angle: { lines: [["left_lower_jaw_angle", "left_chin"], ["right_lower_jaw_angle", "right_chin"]] },
       intercanthal_nasal_width: { lines: [["left_nose_side", "right_nose_side"], ["left_medial_canthus", "right_medial_canthus"]] },
-      top_third: { lines: [["hairline", "left_brow_head"], ["hairline", "right_brow_head"], ["hairline", "chin_bottom"]] },
+      top_third: {
+        lines: [["hairline", "chin_bottom"]],
+        axisSegments: [["hairline", FRONT_BROW_CENTER_GUIDE, "hairline", "chin_bottom"]],
+        projections: [[FRONT_BROW_CENTER_GUIDE, "hairline", "chin_bottom"]]
+      },
       one_eye_apart: { lines: [["left_medial_canthus", "right_medial_canthus"], ["left_medial_canthus", "left_lateral_canthus"], ["right_medial_canthus", "right_lateral_canthus"]] },
-      midface_ratio: { lines: [["left_pupil", "right_pupil"], ["inner_cupids_bow", "left_pupil"], ["inner_cupids_bow", "right_pupil"]] },
+      midface_ratio: {
+        lines: [["left_pupil", "right_pupil"]],
+        projections: [["inner_cupids_bow", "left_pupil", "right_pupil"]]
+      },
       ipsilateral_alar_angle: { lines: [["nasal_base", "left_eyelid_hood_end"], ["nasal_base", "right_eyelid_hood_end"]] },
       mouth_width_to_nose_width: { lines: [["left_mouth_corner", "right_mouth_corner"], ["left_nose_side", "right_nose_side"]] },
       total_facial_width_to_height: { lines: [["left_cheekbone", "right_cheekbone"], ["hairline", "chin_bottom"]] },
@@ -3348,11 +3379,26 @@
       const guide = getMeasurementGuide(activeMetricId);
       if (!guide) return null;
       const ids = new Set();
+      const addRefIds = (ref) => {
+        if (typeof ref === "string") {
+          ids.add(ref);
+        } else if (ref && Array.isArray(ref.midpoint)) {
+          ref.midpoint.forEach(addRefIds);
+        }
+      };
       (guide.lines || []).forEach((line) => {
-        ids.add(line[0]);
-        ids.add(line[1]);
+        addRefIds(line[0]);
+        addRefIds(line[1]);
       });
-      (guide.points || []).forEach((id) => ids.add(id));
+      (guide.projections || []).forEach((projection) => {
+        addRefIds(projection[0]);
+        addRefIds(projection[1]);
+        addRefIds(projection[2]);
+      });
+      (guide.axisSegments || []).forEach((segment) => {
+        segment.forEach(addRefIds);
+      });
+      (guide.points || []).forEach(addRefIds);
       return ids;
     }
 
@@ -3372,6 +3418,19 @@
       return landmarks.find(lm => lm.id === id && Number.isFinite(Number(lm.x)) && Number.isFinite(Number(lm.y)));
     }
 
+    function resolveGuidePoint(ref) {
+      if (typeof ref === "string") return getLandmark(ref);
+      if (!ref || !Array.isArray(ref.midpoint) || ref.midpoint.length !== 2) return null;
+      const first = resolveGuidePoint(ref.midpoint[0]);
+      const second = resolveGuidePoint(ref.midpoint[1]);
+      if (!first || !second) return null;
+      return {
+        id: `midpoint:${ref.midpoint.join(":")}`,
+        x: (Number(first.x) + Number(second.x)) / 2,
+        y: (Number(first.y) + Number(second.y)) / 2
+      };
+    }
+
     function toCanvasPoint(lm) {
       return {
         x: drawBox.x + ((Number(lm.x) - viewCrop.x) / viewCrop.w) * drawBox.w,
@@ -3379,8 +3438,7 @@
       };
     }
 
-    function drawGuidePoint(lm, label) {
-      const point = toCanvasPoint(lm);
+    function drawCanvasGuidePoint(point, label) {
       ctx.beginPath();
       ctx.arc(point.x, point.y, 3.25, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(45, 212, 191, 0.95)";
@@ -3396,12 +3454,11 @@
       }
     }
 
-    function drawGuideLine(a, b, index) {
-      const start = getLandmark(a);
-      const end = getLandmark(b);
-      if (!start || !end) return;
-      const p1 = toCanvasPoint(start);
-      const p2 = toCanvasPoint(end);
+    function drawGuidePoint(lm, label) {
+      drawCanvasGuidePoint(toCanvasPoint(lm), label);
+    }
+
+    function strokeGuideSegment(p1, p2, index) {
       ctx.save();
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -3419,16 +3476,67 @@
       ctx.lineTo(p2.x, p2.y);
       ctx.stroke();
       ctx.restore();
+    }
+
+    function drawGuideLine(a, b, index) {
+      const start = resolveGuidePoint(a);
+      const end = resolveGuidePoint(b);
+      if (!start || !end) return;
+      const p1 = toCanvasPoint(start);
+      const p2 = toCanvasPoint(end);
+      strokeGuideSegment(p1, p2, index);
       drawGuidePoint(start);
       drawGuidePoint(end);
+    }
+
+    function projectCanvasPointToLine(source, start, end) {
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const lengthSquared = dx * dx + dy * dy;
+      if (lengthSquared <= 0.0001) return null;
+      const t = ((source.x - start.x) * dx + (source.y - start.y) * dy) / lengthSquared;
+      return { x: start.x + t * dx, y: start.y + t * dy };
+    }
+
+    function drawGuideProjection(pointRef, lineStartRef, lineEndRef) {
+      const point = resolveGuidePoint(pointRef);
+      const lineStart = resolveGuidePoint(lineStartRef);
+      const lineEnd = resolveGuidePoint(lineEndRef);
+      if (!point || !lineStart || !lineEnd) return;
+      const source = toCanvasPoint(point);
+      const start = toCanvasPoint(lineStart);
+      const end = toCanvasPoint(lineEnd);
+      const projected = projectCanvasPointToLine(source, start, end);
+      if (!projected) return;
+      strokeGuideSegment(source, projected, 1);
+      drawCanvasGuidePoint(source);
+      drawCanvasGuidePoint(projected);
+    }
+
+    function drawGuideAxisSegment(fromRef, toRef, axisStartRef, axisEndRef) {
+      const from = resolveGuidePoint(fromRef);
+      const to = resolveGuidePoint(toRef);
+      const axisStart = resolveGuidePoint(axisStartRef);
+      const axisEnd = resolveGuidePoint(axisEndRef);
+      if (!from || !to || !axisStart || !axisEnd) return;
+      const start = toCanvasPoint(axisStart);
+      const end = toCanvasPoint(axisEnd);
+      const projectedFrom = projectCanvasPointToLine(toCanvasPoint(from), start, end);
+      const projectedTo = projectCanvasPointToLine(toCanvasPoint(to), start, end);
+      if (!projectedFrom || !projectedTo) return;
+      strokeGuideSegment(projectedFrom, projectedTo, 1);
+      drawCanvasGuidePoint(projectedFrom);
+      drawCanvasGuidePoint(projectedTo);
     }
 
     function drawActiveMeasurement() {
       const guide = getMeasurementGuide(activeMetricId);
       if (!guide || !imageLoaded) return;
       (guide.lines || []).forEach((line, i) => drawGuideLine(line[0], line[1], i));
-      (guide.points || []).forEach((id) => {
-        const lm = getLandmark(id);
+      (guide.axisSegments || []).forEach((segment) => drawGuideAxisSegment(segment[0], segment[1], segment[2], segment[3]));
+      (guide.projections || []).forEach((projection) => drawGuideProjection(projection[0], projection[1], projection[2]));
+      (guide.points || []).forEach((ref) => {
+        const lm = resolveGuidePoint(ref);
         if (lm) drawGuidePoint(lm);
       });
     }
