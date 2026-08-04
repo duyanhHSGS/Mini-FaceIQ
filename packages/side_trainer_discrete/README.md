@@ -75,6 +75,11 @@ image is resized to the checkpoint's training size for inference and the
 normalized prediction is mapped back to original pixel coordinates. EXIF phone
 rotation is applied before prediction and display.
 
+Every successful run automatically saves a full-resolution annotated PNG under
+`packages/side_trainer_discrete/output/`. Output filenames contain the source
+stem, predicted landmark, and a collision-safe timestamp; source images are
+never modified or overwritten.
+
 Resolution compatibility does not guarantee accuracy on unfamiliar crops,
 poses, or image domains; the specialist still sees a resized 256x256 input.
 

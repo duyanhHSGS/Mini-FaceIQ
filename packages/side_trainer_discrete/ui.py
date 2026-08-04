@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 import json
+import os
 from pathlib import Path
 import queue
 import subprocess
@@ -26,6 +28,7 @@ from .inference import DiscreteLandmarkPredictor
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 REPOSITORY_ROOT = PACKAGE_DIR.parents[1]
+OUTPUT_ROOT = PACKAGE_DIR / "output"
 
 
 class DiscreteTrainerApp(tk.Tk):
@@ -265,8 +268,17 @@ class DiscreteTrainerApp(tk.Tk):
                 result = predictor.predict(opened)
             result["model_input_size"] = predictor.image_size
             result["label_count"] = predictor.label_count
+            annotated = self._render_inference_image(image_path, result)
+            output_path = self._save_inference_output(
+                source_path=image_path,
+                annotated=annotated,
+                landmark_id=str(result["landmark"]),
+            )
             self.inference_queue.put(
-                ("ok", (image_path, checkpoint_path, result))
+                (
+                    "ok",
+                    (image_path, checkpoint_path, output_path, result),
+                )
             )
         except Exception as exc:
             self.inference_queue.put(("error", str(exc)))
@@ -276,6 +288,14 @@ class DiscreteTrainerApp(tk.Tk):
         image_path: Path,
         prediction: dict[str, object] | None,
     ) -> None:
+        image = self._render_inference_image(image_path, prediction)
+        self._display_inference_image(image)
+
+    def _render_inference_image(
+        self,
+        image_path: Path,
+        prediction: dict[str, object] | None,
+    ) -> Image.Image:
         with Image.open(image_path) as opened:
             image = ImageOps.exif_transpose(opened).convert("RGB")
         if prediction is not None:
@@ -299,13 +319,40 @@ class DiscreteTrainerApp(tk.Tk):
                 fill="white",
                 width=line_width,
             )
-        image.thumbnail((620, 330), Image.Resampling.LANCZOS)
-        self.inference_photo = ImageTk.PhotoImage(image)
+        return image
+
+    def _display_inference_image(self, image: Image.Image) -> None:
+        preview = image.copy()
+        preview.thumbnail((620, 330), Image.Resampling.LANCZOS)
+        self.inference_photo = ImageTk.PhotoImage(preview)
         self.inference_preview.configure(image=self.inference_photo, text="")
 
+    def _save_inference_output(
+        self,
+        *,
+        source_path: Path,
+        annotated: Image.Image,
+        landmark_id: str,
+    ) -> Path:
+        OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        safe_landmark = "".join(
+            character
+            for character in landmark_id
+            if character.isalnum() or character in {"-", "_"}
+        ) or "landmark"
+        destination = (
+            OUTPUT_ROOT
+            / f"{source_path.stem}__{safe_landmark}__{stamp}.png"
+        )
+        temporary = destination.with_suffix(".tmp.png")
+        annotated.save(temporary, format="PNG")
+        os.replace(temporary, destination)
+        return destination
+
     def _show_inference_result(self, payload: object) -> None:
-        image_path, checkpoint_path, result = payload
-        self._draw_inference_image(image_path, prediction=result)
+        image_path, checkpoint_path, output_path, result = payload
+        self._draw_inference_image(output_path, prediction=None)
         with Image.open(image_path) as opened:
             width, height = ImageOps.exif_transpose(opened).size
         self.inference_result.configure(
@@ -316,7 +363,7 @@ class DiscreteTrainerApp(tk.Tk):
                 f"{width}x{height} -> {result['model_input_size']}x"
                 f"{result['model_input_size']} model input | "
                 f"{result['label_count']} training labels | "
-                f"{checkpoint_path.name}"
+                f"{checkpoint_path.name} | saved {output_path}"
             )
         )
 
