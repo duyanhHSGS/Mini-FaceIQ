@@ -8,16 +8,27 @@
   <style>
     :root {
       color-scheme: dark;
-      --bg: #101114;
-      --panel: #17191f;
-      --line: #2b2f3a;
-      --text: #f6f7fb;
-      --muted: #aab1c2;
-      --cyan: #2dd4bf;
-      --blue: #60a5fa;
+      --bg: #070b12;
+      --panel: #0e151f;
+      --panel-raised: #131d2a;
+      --surface: #0a1019;
+      --line: rgba(148, 163, 184, 0.16);
+      --line-strong: rgba(148, 163, 184, 0.28);
+      --text: #f7f9fc;
+      --muted: #91a0b4;
+      --muted-strong: #bbc5d2;
+      --cyan: #5eead4;
+      --cyan-strong: #2dd4bf;
+      --cyan-soft: rgba(94, 234, 212, 0.11);
+      --blue: #86a8ff;
       --red: #fb7185;
-      --green: #86efac;
-      --amber: #fbbf24;
+      --green: #7ee2a8;
+      --amber: #f3c969;
+      --radius-sm: 10px;
+      --radius: 15px;
+      --radius-lg: 22px;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+      --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
     * {
@@ -27,8 +38,14 @@
     body {
       margin: 0;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg);
+      min-width: 320px;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 78% -10%, rgba(45, 212, 191, 0.13), transparent 34rem),
+        radial-gradient(circle at 38% 115%, rgba(134, 168, 255, 0.08), transparent 42rem),
+        var(--bg);
       color: var(--text);
+      overflow-x: hidden;
     }
 
     main {
@@ -598,6 +615,1475 @@
       font-size: 12px;
     }
 
+    /* Precision workspace refresh */
+    html {
+      background: var(--bg);
+      scroll-behavior: smooth;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0.28;
+      background-image:
+        linear-gradient(rgba(148, 163, 184, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 88%);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    ::selection {
+      color: #03110e;
+      background: var(--cyan);
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .skipLink {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 100;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      background: var(--text);
+      color: var(--bg);
+      font-weight: 800;
+      transform: translateY(-160%);
+      transition: transform 160ms var(--ease);
+    }
+
+    .skipLink:focus {
+      transform: translateY(0);
+    }
+
+    main {
+      position: relative;
+      grid-template-columns: minmax(340px, 390px) minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+      grid-template-areas:
+        "sidebar navigation"
+        "sidebar workspace";
+      transition: grid-template-columns 220ms var(--ease);
+    }
+
+    main.uploadCollapsed {
+      grid-template-columns: 72px minmax(0, 1fr);
+    }
+
+    aside {
+      grid-area: sidebar;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      height: 100vh;
+      height: 100dvh;
+      max-height: none;
+      padding: 24px;
+      border-right: 1px solid var(--line);
+      background: rgba(10, 16, 25, 0.88);
+      box-shadow: 18px 0 60px rgba(0, 0, 0, 0.15);
+      backdrop-filter: blur(24px);
+      scrollbar-gutter: stable;
+    }
+
+    main.uploadCollapsed aside {
+      padding: 18px 12px;
+    }
+
+    main.uploadCollapsed .brandLockup {
+      display: none;
+    }
+
+    main.uploadCollapsed .uploadHeader {
+      justify-content: center;
+    }
+
+    section {
+      grid-area: workspace;
+      padding: 16px clamp(18px, 2.5vw, 38px) 38px;
+    }
+
+    h1,
+    h2,
+    .stat b,
+    .metric,
+    .fileState {
+      font-variant-numeric: tabular-nums;
+    }
+
+    h1 {
+      font-size: 25px;
+      letter-spacing: -0.045em;
+    }
+
+    h1 span {
+      color: var(--cyan);
+    }
+
+    h2 {
+      letter-spacing: -0.02em;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .eyebrow {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: 0.15em;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    .uploadHeader {
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brandLockup {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brandMark {
+      position: relative;
+      flex: 0 0 44px;
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(94, 234, 212, 0.34);
+      border-radius: 14px;
+      background:
+        linear-gradient(145deg, rgba(94, 234, 212, 0.18), rgba(134, 168, 255, 0.08)),
+        var(--surface);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 12px 28px rgba(0, 0, 0, 0.24);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+
+    .brandMark::after {
+      content: "";
+      position: absolute;
+      right: 7px;
+      bottom: 7px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan);
+    }
+
+    .uploadTitle p {
+      margin-top: 5px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .collapseBtn {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .collapseBtn::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-bottom: 2px solid currentColor;
+      border-left: 2px solid currentColor;
+      transform: rotate(45deg) translate(1px, -1px);
+      transition: transform 180ms var(--ease);
+    }
+
+    main.uploadCollapsed .collapseBtn::before {
+      content: "";
+      transform: rotate(225deg) translate(1px, -1px);
+    }
+
+    .uploadBody {
+      padding-top: 18px;
+    }
+
+    .workflowContext {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .contextDot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 12px rgba(94, 234, 212, 0.72);
+    }
+
+    .workflowContext small,
+    .workflowContext strong {
+      display: block;
+    }
+
+    .workflowContext small {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .workflowContext strong {
+      margin-top: 1px;
+      font-size: 12px;
+    }
+
+    .contextTag,
+    .profilePill,
+    .sessionBadge {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted-strong);
+      background: rgba(255, 255, 255, 0.035);
+      white-space: nowrap;
+    }
+
+    .contextTag {
+      padding: 4px 7px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .panelIntro {
+      margin-bottom: 17px;
+    }
+
+    .panelIntro h2 {
+      margin: 0;
+      font-size: 19px;
+    }
+
+    .panelIntro p {
+      margin-top: 7px;
+      font-size: 12px;
+    }
+
+    .uploadStack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .fileField,
+    .settingsCard,
+    .advancedPanel,
+    .insightCard {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .fileField {
+      padding: 12px;
+      transition: border-color 160ms var(--ease), background-color 160ms var(--ease);
+    }
+
+    .fileField:focus-within {
+      border-color: rgba(94, 234, 212, 0.5);
+      background: var(--cyan-soft);
+    }
+
+    .fileField label {
+      margin: 0 0 9px;
+    }
+
+    .fileLabelTitle,
+    .fileLabelMeta {
+      display: block;
+    }
+
+    .fileLabelTitle {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .fileLabelMeta {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    select,
+    input[type="file"],
+    textarea {
+      border-color: var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      transition: border-color 160ms var(--ease), box-shadow 160ms var(--ease), background-color 160ms var(--ease);
+    }
+
+    select {
+      min-height: 44px;
+      padding: 10px 12px;
+      color: var(--text);
+    }
+
+    input[type="file"] {
+      min-height: 45px;
+      padding: 5px;
+      color: var(--muted-strong);
+      font-size: 11px;
+    }
+
+    input[type="file"]::file-selector-button {
+      min-height: 33px;
+      margin-right: 10px;
+      padding: 7px 11px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--panel-raised);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 750;
+    }
+
+    .fileState {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 10px;
+      overflow-wrap: anywhere;
+    }
+
+    .fileState::before {
+      content: "";
+      flex: 0 0 6px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .fileState.ready {
+      color: var(--green);
+    }
+
+    .settingsCard {
+      margin-top: 14px;
+      padding: 13px;
+    }
+
+    .sectionLabel {
+      color: var(--muted-strong);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    .settingsCard label {
+      margin-top: 11px;
+    }
+
+    button {
+      min-height: 42px;
+      padding: 10px 13px;
+      border-color: var(--line);
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.055);
+      color: var(--text);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+      transition:
+        transform 160ms var(--ease),
+        border-color 160ms var(--ease),
+        background-color 160ms var(--ease),
+        box-shadow 160ms var(--ease),
+        color 160ms var(--ease);
+    }
+
+    button.primary {
+      border-color: rgba(94, 234, 212, 0.42);
+      background: linear-gradient(135deg, var(--cyan), #77dacb);
+      color: #041411;
+      box-shadow: 0 10px 26px rgba(45, 212, 191, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    }
+
+    button.success {
+      border-color: rgba(134, 168, 255, 0.36);
+      background: linear-gradient(135deg, rgba(134, 168, 255, 0.24), rgba(94, 234, 212, 0.15));
+      color: #dfe8ff;
+    }
+
+    button.dangerGhost {
+      color: #fda4af;
+    }
+
+    button:disabled {
+      opacity: 0.38;
+      box-shadow: none;
+      transform: none;
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible,
+    .help:focus-visible,
+    canvas:focus-visible,
+    summary:focus-visible,
+    .metric:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    .fullButton {
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .buttonGap {
+      margin-top: 8px;
+    }
+
+    .controlLabel {
+      margin: 18px 0 8px;
+      color: var(--muted-strong);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .subTabs {
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: var(--surface);
+    }
+
+    .modeBtn {
+      min-height: 38px;
+      padding: 8px 10px;
+      border-color: transparent;
+      background: transparent;
+      color: var(--muted);
+      box-shadow: none;
+    }
+
+    .modeBtn.active {
+      border-color: var(--line);
+      background: var(--panel-raised);
+      color: var(--text);
+      box-shadow: 0 7px 18px rgba(0, 0, 0, 0.2);
+    }
+
+    .landmarkMethodTabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 12px;
+    }
+
+    .landmarkMethodBtn {
+      min-height: 38px;
+      padding: 8px 10px;
+      border-color: transparent;
+      background: transparent;
+      color: var(--muted);
+      box-shadow: none;
+    }
+
+    .landmarkMethodBtn.active {
+      border-color: rgba(94, 234, 212, 0.34);
+      background: var(--cyan-soft);
+      color: var(--cyan);
+    }
+
+    .current {
+      position: relative;
+      margin-top: 13px;
+      padding: 15px;
+      border-color: rgba(94, 234, 212, 0.23);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(94, 234, 212, 0.075), rgba(255, 255, 255, 0.02));
+      overflow: hidden;
+    }
+
+    .current::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 2px;
+      background: linear-gradient(to bottom, transparent, var(--cyan), transparent);
+    }
+
+    .currentTop {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .currentTop > span:first-child {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .countBadge {
+      flex: 0 0 auto;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: rgba(94, 234, 212, 0.1);
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .current p {
+      font-size: 11px;
+    }
+
+    .progress {
+      height: 7px;
+      border: 0;
+      background: rgba(0, 0, 0, 0.32);
+      box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .bar {
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan-strong), var(--cyan), #a7f3d0);
+      box-shadow: 0 0 14px rgba(94, 234, 212, 0.25);
+      transition: width 220ms var(--ease);
+    }
+
+    .confirmNote {
+      min-height: 0;
+      margin-top: 9px;
+      padding: 9px 10px;
+      border: 1px solid rgba(126, 226, 168, 0.2);
+      border-radius: 10px;
+      background: rgba(126, 226, 168, 0.08);
+      color: var(--green);
+      font-size: 11px;
+    }
+
+    .confirmNote:empty {
+      display: none;
+    }
+
+    .confirmNote[data-state="error"] {
+      border-color: rgba(251, 113, 133, 0.22);
+      background: rgba(251, 113, 133, 0.08);
+      color: #fda4af;
+    }
+
+    .advancedPanel {
+      margin-top: 15px;
+      overflow: hidden;
+    }
+
+    .advancedPanel summary {
+      padding: 12px 13px;
+      color: var(--muted-strong);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+      list-style-position: inside;
+    }
+
+    .advancedContent {
+      padding: 0 12px 12px;
+    }
+
+    .advancedContent textarea {
+      min-height: 150px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .insightCard {
+      margin: 13px 0;
+      padding: 13px;
+      color: var(--muted-strong);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .insightCard strong {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    .workspaceHeader {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      max-width: 1500px;
+      margin: 0 auto 16px;
+    }
+
+    .workspaceHeader h2 {
+      margin: 0;
+      font-size: clamp(20px, 2.2vw, 28px);
+      letter-spacing: -0.04em;
+    }
+
+    .workspaceHeader p {
+      max-width: 680px;
+      margin-top: 6px;
+      font-size: 12px;
+    }
+
+    .sessionBadge {
+      flex: 0 0 auto;
+      gap: 7px;
+      padding: 7px 10px;
+      font-size: 10px;
+      font-weight: 750;
+    }
+
+    .sessionBadge::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 9px rgba(126, 226, 168, 0.65);
+    }
+
+    .topTabs {
+      grid-area: navigation;
+      position: sticky;
+      top: 14px;
+      z-index: 20;
+      width: auto;
+      max-width: none;
+      margin: 14px clamp(18px, 2.5vw, 38px) 0;
+      padding: 5px;
+      gap: 4px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: rgba(10, 16, 25, 0.82);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+      backdrop-filter: blur(20px);
+    }
+
+    .tabBtn {
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr);
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+      min-height: 54px;
+      padding: 7px 9px;
+      border-color: transparent;
+      background: transparent;
+      box-shadow: none;
+      color: var(--muted);
+      text-align: left;
+    }
+
+    .tabIndex {
+      width: 29px;
+      height: 29px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.035);
+      color: var(--muted-strong);
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: 0.02em;
+    }
+
+    .tabCopy {
+      min-width: 0;
+    }
+
+    .tabCopy strong,
+    .tabCopy small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tabCopy strong {
+      color: inherit;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .tabCopy small {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 550;
+    }
+
+    .tabBtn.active {
+      border-color: rgba(94, 234, 212, 0.2);
+      background: linear-gradient(145deg, rgba(94, 234, 212, 0.13), rgba(94, 234, 212, 0.055));
+      color: var(--text);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .tabBtn.active .tabIndex {
+      border-color: rgba(94, 234, 212, 0.45);
+      background: var(--cyan);
+      color: #03130f;
+      box-shadow: 0 0 18px rgba(94, 234, 212, 0.15);
+    }
+
+    .tabBtn.complete:not(.active) .tabIndex {
+      border-color: rgba(126, 226, 168, 0.28);
+      background: rgba(126, 226, 168, 0.09);
+      color: var(--green);
+    }
+
+    .tabBtn[data-tab="features"] {
+      box-shadow: inset 1px 0 0 var(--line);
+    }
+
+    .uploadWelcome,
+    .analysisLayout,
+    .featureDemo {
+      max-width: 1500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .uploadWelcome {
+      display: none;
+      grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+      gap: 16px;
+    }
+
+    main.tab-upload .uploadWelcome {
+      display: grid;
+    }
+
+    main.tab-upload .analysisLayout {
+      display: none;
+    }
+
+    .welcomeCard,
+    .captureCard {
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: linear-gradient(145deg, rgba(19, 29, 42, 0.92), rgba(10, 16, 25, 0.92));
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+    }
+
+    .welcomeCard {
+      min-height: 420px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(24px, 4vw, 48px);
+    }
+
+    .welcomeCard::before {
+      content: "";
+      position: absolute;
+      top: -160px;
+      right: -140px;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(94, 234, 212, 0.17), transparent 68%);
+      pointer-events: none;
+    }
+
+    .welcomeCard h3 {
+      position: relative;
+      max-width: 680px;
+      margin: 0;
+      font-size: clamp(30px, 4.2vw, 58px);
+      line-height: 0.98;
+      letter-spacing: -0.06em;
+    }
+
+    .welcomeCard > div > p {
+      position: relative;
+      max-width: 620px;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+
+    .workflowMap {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 48px;
+    }
+
+    .workflowMap::before {
+      content: "";
+      position: absolute;
+      top: 15px;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg, var(--cyan), rgba(134, 168, 255, 0.5));
+    }
+
+    .workflowNode {
+      position: relative;
+      padding-top: 42px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.35;
+    }
+
+    .workflowNode::before {
+      content: attr(data-step);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(94, 234, 212, 0.35);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 850;
+      box-shadow: 0 0 0 5px rgba(10, 16, 25, 0.85);
+    }
+
+    .workflowNode strong {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--text);
+      font-size: 11px;
+    }
+
+    .captureCard {
+      padding: 24px;
+    }
+
+    .captureCard h3 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -0.03em;
+    }
+
+    .captureList {
+      display: grid;
+      gap: 12px;
+      margin: 22px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .captureList li {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr);
+      gap: 10px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .captureList li::before {
+      content: "";
+      width: 24px;
+      height: 24px;
+      border: 1px solid rgba(94, 234, 212, 0.25);
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at center, var(--cyan) 0 2px, transparent 3px),
+        rgba(94, 234, 212, 0.06);
+    }
+
+    .captureList strong {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    .analysisLayout {
+      gap: 18px;
+      grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.82fr);
+    }
+
+    main.uploadCollapsed .analysisLayout {
+      grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.8fr);
+    }
+
+    main.tab-summary .analysisLayout {
+      grid-template-columns: minmax(0, 980px);
+      justify-content: center;
+    }
+
+    .viewerPane {
+      top: 106px;
+    }
+
+    .viewerToolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 50px;
+      margin-bottom: 8px;
+      padding: 7px 8px 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(14, 21, 31, 0.82);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+      backdrop-filter: blur(16px);
+    }
+
+    .viewerMeta {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .profilePill {
+      padding: 5px 8px;
+      border-color: rgba(94, 234, 212, 0.2);
+      background: var(--cyan-soft);
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 850;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .viewerState {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 10px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .zoomControls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .zoomControls button {
+      min-width: 42px;
+      min-height: 42px;
+      padding: 6px 9px;
+      border-radius: 9px;
+      font-size: 13px;
+      box-shadow: none;
+    }
+
+    .zoomControls .zoomReset {
+      min-width: 58px;
+      color: var(--muted-strong);
+      font-size: 10px;
+    }
+
+    .zoomControls .linesToggle {
+      min-width: 68px;
+      color: var(--muted-strong);
+      font-size: 10px;
+    }
+
+    .zoomControls .linesToggle.active {
+      border-color: rgba(94, 234, 212, 0.42);
+      background: var(--cyan-soft);
+      color: var(--cyan);
+    }
+
+    .canvasWrap {
+      position: relative;
+      height: calc(100vh - 172px);
+      height: calc(100dvh - 172px);
+      min-height: 540px;
+      border-color: var(--line-strong);
+      border-radius: var(--radius-lg);
+      background:
+        radial-gradient(circle at center, rgba(94, 234, 212, 0.045), transparent 46%),
+        #05080d;
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+    }
+
+    canvas {
+      position: relative;
+      z-index: 1;
+      border-radius: inherit;
+      cursor: default;
+    }
+
+    main.tab-landmarks canvas {
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    canvas.isZoomed {
+      touch-action: none;
+    }
+
+    canvas.isDragging,
+    main.tab-landmarks canvas.isDragging {
+      cursor: grabbing;
+    }
+
+    main.tab-landmarks canvas.isLandmarkDragging {
+      cursor: move;
+    }
+
+    .canvasEmpty {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      padding: 24px;
+      pointer-events: none;
+      text-align: center;
+    }
+
+    .emptyGlyph {
+      width: 68px;
+      height: 68px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 16px;
+      border: 1px solid rgba(94, 234, 212, 0.26);
+      border-radius: 22px;
+      background: rgba(94, 234, 212, 0.07);
+      color: var(--cyan);
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      box-shadow: 0 0 50px rgba(94, 234, 212, 0.08);
+    }
+
+    .canvasEmpty strong,
+    .canvasEmpty span {
+      display: block;
+    }
+
+    .canvasEmpty strong {
+      font-size: 15px;
+    }
+
+    .canvasEmpty span {
+      max-width: 290px;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .canvasHint {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      z-index: 3;
+      max-width: calc(100% - 24px);
+      padding: 7px 9px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(5, 8, 13, 0.78);
+      color: var(--muted-strong);
+      font-size: 9px;
+      pointer-events: none;
+      backdrop-filter: blur(12px);
+    }
+
+    .resultsPane {
+      padding-top: 2px;
+    }
+
+    .resultsHeader {
+      margin-bottom: 12px;
+    }
+
+    .resultsHeader h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .resultsHeader p {
+      margin-top: 5px;
+      font-size: 11px;
+    }
+
+    .score {
+      gap: 9px;
+      margin-top: 0;
+    }
+
+    .stat {
+      position: relative;
+      min-height: 82px;
+      padding: 13px;
+      overflow: hidden;
+      border-color: var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(19, 29, 42, 0.88), rgba(10, 16, 25, 0.88));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+    }
+
+    .resultsPane > .score .stat:first-child {
+      grid-column: span 2;
+      border-color: rgba(94, 234, 212, 0.24);
+      background: linear-gradient(145deg, rgba(94, 234, 212, 0.13), rgba(19, 29, 42, 0.9));
+    }
+
+    .stat b {
+      color: var(--text);
+      font-size: 25px;
+      letter-spacing: -0.045em;
+    }
+
+    .resultsPane > .score .stat:first-child b {
+      color: var(--cyan);
+      font-size: 33px;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: 0.035em;
+      text-transform: uppercase;
+    }
+
+    .measurementCatalog,
+    .metrics,
+    .resultsToolbar,
+    .featureCard {
+      border-color: var(--line);
+      border-radius: var(--radius);
+      background: rgba(14, 21, 31, 0.78);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .measurementCatalog {
+      margin-top: 13px;
+    }
+
+    .catalogHeader,
+    .metric.header {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .catalogHeader {
+      width: 100%;
+      min-height: 0;
+      padding: 12px 13px;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      border-radius: 0;
+      color: var(--muted-strong);
+      box-shadow: none;
+      font-size: 11px;
+      text-align: left;
+    }
+
+    .measurementCatalog .catalogHeader:not(:disabled):hover,
+    .measurementCatalog .catalogHeader:active {
+      background: rgba(255, 255, 255, 0.04);
+      box-shadow: none;
+      transform: none;
+    }
+
+    .catalogHeader span:last-child {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 650;
+    }
+
+    .catalogItem {
+      padding: 11px 13px;
+      border-color: var(--line);
+    }
+
+    .catalogItem.calculated {
+      background: rgba(126, 226, 168, 0.07);
+      box-shadow: inset 2px 0 0 var(--green);
+    }
+
+    .catalogItem.calculated .catalogName {
+      color: var(--green);
+    }
+
+    .catalogName {
+      font-size: 12px;
+    }
+
+    .catalogDesc {
+      font-size: 11px;
+    }
+
+    .resultsToolbar {
+      margin-top: 13px;
+      padding: 9px 10px;
+    }
+
+    .resultsToolbar label {
+      color: var(--muted-strong);
+      font-size: 11px;
+    }
+
+    .metrics {
+      margin-top: 8px;
+      overflow: visible;
+    }
+
+    .metrics:empty {
+      display: none;
+    }
+
+    .metric {
+      min-height: 50px;
+      padding: 10px 13px;
+      border-color: var(--line);
+      font-size: 11px;
+      transition: background-color 140ms var(--ease), box-shadow 140ms var(--ease);
+    }
+
+    .metric:not(.header):hover,
+    .metric.active,
+    .metric:focus-visible {
+      background: rgba(94, 234, 212, 0.07);
+      box-shadow: inset 2px 0 0 var(--cyan);
+    }
+
+    .metric.header {
+      color: var(--muted);
+      font-size: 9px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .metricName {
+      color: var(--muted-strong);
+      font-weight: 700;
+    }
+
+    .help {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      min-height: 36px;
+      padding: 0;
+      border-color: var(--line);
+      background: var(--surface);
+      font-size: 10px;
+      box-shadow: none;
+    }
+
+    .pill {
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      font-size: 9px;
+      font-weight: 750;
+    }
+
+    .pill.ideal,
+    .pill.ready,
+    .pill.calculated {
+      border-color: rgba(126, 226, 168, 0.22);
+      background: rgba(126, 226, 168, 0.08);
+      color: var(--green);
+    }
+
+    .pill.low,
+    .pill.high,
+    .pill.waiting {
+      border-color: rgba(243, 201, 105, 0.22);
+      background: rgba(243, 201, 105, 0.08);
+      color: var(--amber);
+    }
+
+    main.tab-features .featureDemo {
+      gap: 18px;
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
+    }
+
+    .featureCard {
+      padding: 20px;
+    }
+
+    .featureCard h2 {
+      font-size: 18px;
+    }
+
+    .featureCard p {
+      font-size: 11px;
+    }
+
+    .heatmapPreview {
+      max-height: 72vh;
+      border-color: var(--line);
+      border-radius: var(--radius);
+      object-fit: contain;
+    }
+
+    .featureRegion {
+      border-color: var(--line);
+      border-radius: 11px;
+      background: rgba(255, 255, 255, 0.022);
+    }
+
+    #featureStatus[data-state="ready"] {
+      color: var(--green);
+    }
+
+    #featureStatus[data-state="working"] {
+      color: var(--blue);
+    }
+
+    #featureStatus[data-state="error"] {
+      color: #fda4af;
+    }
+
+    .workspaceFootnote {
+      max-width: 1500px;
+      margin: 16px auto 0;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    .appNotice {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 100;
+      width: min(380px, calc(100vw - 32px));
+      display: grid;
+      grid-template-columns: 8px minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 11px;
+      padding: 13px;
+      border: 1px solid var(--line-strong);
+      border-radius: 14px;
+      background: rgba(14, 21, 31, 0.96);
+      box-shadow: var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-12px);
+      transition: opacity 180ms var(--ease), transform 180ms var(--ease);
+      backdrop-filter: blur(18px);
+    }
+
+    .appNotice.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .noticeDot {
+      width: 8px;
+      height: 8px;
+      margin-top: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px rgba(94, 234, 212, 0.48);
+    }
+
+    .appNotice[data-state="error"] .noticeDot {
+      background: var(--red);
+      box-shadow: 0 0 10px rgba(251, 113, 133, 0.45);
+    }
+
+    .appNotice[data-state="success"] .noticeDot {
+      background: var(--green);
+      box-shadow: 0 0 10px rgba(126, 226, 168, 0.48);
+    }
+
+    .noticeText {
+      color: var(--muted-strong);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .noticeClose {
+      min-width: 38px;
+      min-height: 38px;
+      padding: 3px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 16px;
+      box-shadow: none;
+    }
+
+    @media (hover: hover) {
+      button:not(:disabled):hover {
+        border-color: var(--line-strong);
+        background-color: rgba(255, 255, 255, 0.085);
+        transform: translateY(-1px);
+      }
+
+      button.primary:not(:disabled):hover {
+        border-color: rgba(94, 234, 212, 0.64);
+        background: linear-gradient(135deg, #76f0dd, #88e2d3);
+        box-shadow: 0 13px 30px rgba(45, 212, 191, 0.2);
+      }
+
+      .tabBtn:not(:disabled):hover,
+      .modeBtn:not(:disabled):hover {
+        background-color: rgba(255, 255, 255, 0.045);
+        transform: none;
+      }
+    }
+
     @media (max-width: 1220px) {
       main:not(.uploadCollapsed) .analysisLayout {
         grid-template-columns: 1fr;
@@ -697,173 +2183,671 @@
         grid-template-columns: 1fr;
       }
     }
+
+    @keyframes panelIn {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .tabPanel,
+    main.tab-features .featureDemo,
+    main.tab-upload .uploadWelcome {
+      animation: panelIn 190ms var(--ease) both;
+    }
+
+    @media (max-width: 1100px) {
+      main:not(.uploadCollapsed) {
+        grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+      }
+
+      .tabCopy small {
+        display: none;
+      }
+
+      .tabBtn {
+        grid-template-columns: 28px minmax(0, 1fr);
+        gap: 7px;
+      }
+
+      .tabIndex {
+        width: 27px;
+        height: 27px;
+      }
+    }
+
+    @media (max-width: 900px) {
+      main,
+      main.uploadCollapsed {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        grid-template-areas:
+          "navigation"
+          "sidebar"
+          "workspace";
+      }
+
+      aside {
+        position: relative;
+        z-index: 10;
+        height: auto;
+        max-height: none;
+        padding: 20px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      main.uploadCollapsed aside {
+        min-height: 68px;
+        max-height: 68px;
+        padding: 13px 16px;
+      }
+
+      section {
+        padding: 18px 16px 30px;
+      }
+
+      .topTabs {
+        margin: 10px 16px 0;
+      }
+
+      .workspaceHeader {
+        align-items: flex-start;
+      }
+
+      .uploadWelcome {
+        grid-template-columns: 1fr;
+      }
+
+      .welcomeCard {
+        min-height: 380px;
+      }
+
+      .viewerPane {
+        position: static;
+      }
+
+      .canvasWrap {
+        height: clamp(420px, 68dvh, 680px);
+        min-height: 0;
+      }
+
+      .resultsPane {
+        padding-top: 0;
+      }
+    }
+
+    @media (min-width: 681px) and (max-width: 900px) {
+      .metric {
+        grid-template-columns: minmax(150px, 1.35fr) minmax(70px, 0.45fr) 56px minmax(112px, 0.6fr);
+      }
+
+      .metric .hideMobile {
+        display: block;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .workspaceHeader {
+        display: block;
+      }
+
+      .sessionBadge {
+        margin-top: 12px;
+      }
+
+      .topTabs {
+        top: 8px;
+        margin-right: 10px;
+        margin-left: 10px;
+        grid-template-columns: none;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(142px, 1fr);
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
+      }
+
+      .topTabs::-webkit-scrollbar {
+        display: none;
+      }
+
+      .tabBtn {
+        min-height: 50px;
+        scroll-snap-align: start;
+      }
+
+      .tabBtn[data-tab="features"] {
+        box-shadow: none;
+      }
+
+      .tabCopy small {
+        display: block;
+      }
+
+      .welcomeCard {
+        min-height: 410px;
+        padding: 26px;
+      }
+
+      .welcomeCard h3 {
+        font-size: clamp(32px, 11vw, 48px);
+      }
+
+      .workflowMap {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        row-gap: 20px;
+      }
+
+      .workflowMap::before {
+        display: none;
+      }
+
+      .viewerToolbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .viewerMeta,
+      .zoomControls {
+        width: 100%;
+      }
+
+      .zoomControls button {
+        flex: 1;
+        min-height: 42px;
+      }
+
+      .canvasWrap {
+        height: clamp(370px, 62dvh, 600px);
+        border-radius: 16px;
+      }
+
+      .metric.header {
+        display: none;
+      }
+
+      .metric:not(.header) {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+          "name status"
+          "value score";
+        gap: 10px 14px;
+        min-height: 78px;
+        padding: 12px;
+      }
+
+      .metric > span:nth-child(1) {
+        grid-area: name;
+      }
+
+      .metric > span:nth-child(2) {
+        grid-area: value;
+      }
+
+      .metric > span:nth-child(3) {
+        grid-area: score;
+        justify-self: end;
+      }
+
+      .metric > span:nth-child(4) {
+        grid-area: status;
+        justify-self: end;
+      }
+
+      .metric .hideMobile {
+        display: block;
+      }
+
+      .metric > span:nth-child(2)::before,
+      .metric > span:nth-child(3)::before {
+        display: block;
+        margin-bottom: 2px;
+        color: var(--muted);
+        font-size: 8px;
+        font-weight: 750;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .metric > span:nth-child(2)::before {
+        content: "Value";
+      }
+
+      .metric > span:nth-child(3)::before {
+        content: "Score";
+        text-align: right;
+      }
+
+      .help:hover::after,
+      .help:focus::after {
+        position: fixed;
+        right: 12px;
+        bottom: 16px;
+        left: 12px;
+        width: auto;
+        transform: none;
+      }
+
+      .resultsPane > .score .stat:first-child {
+        grid-column: 1 / -1;
+      }
+
+      .appNotice {
+        top: 12px;
+        right: 16px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      aside {
+        padding: 17px;
+      }
+
+      section {
+        padding: 15px 11px 26px;
+      }
+
+      .uploadHeader {
+        padding-bottom: 16px;
+      }
+
+      .brandMark {
+        flex-basis: 40px;
+        width: 40px;
+        height: 40px;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      .settingsCard .row,
+      .controlRows .row {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .score {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .stat {
+        min-height: 76px;
+      }
+
+      .captureCard {
+        padding: 20px;
+      }
+
+      .canvasHint {
+        left: 10px;
+        right: 10px;
+        text-align: center;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
   </style>
 </head>
 
 <body>
+  <a class="skipLink" href="#workspace">Skip to analysis workspace</a>
   <main id="appShell" class="tab-upload">
-    <aside>
+    <nav class="topTabs" role="tablist" aria-label="Analysis workflow">
+      <button id="tabUpload" class="tabBtn active" data-tab="upload" type="button" role="tab"
+        aria-controls="panelUpload" aria-selected="true">
+        <span class="tabIndex">01</span>
+        <span class="tabCopy"><strong>Upload</strong><small>Photo set</small></span>
+      </button>
+      <button id="tabLandmarks" class="tabBtn" data-tab="landmarks" type="button" role="tab"
+        aria-controls="panelLandmarks" aria-selected="false" tabindex="-1">
+        <span class="tabIndex">02</span>
+        <span class="tabCopy"><strong>Landmarks</strong><small>Map points</small></span>
+      </button>
+      <button id="tabMeasurements" class="tabBtn" data-tab="measurements" type="button" role="tab"
+        aria-controls="panelMeasurements" aria-selected="false" tabindex="-1">
+        <span class="tabIndex">03</span>
+        <span class="tabCopy"><strong>Measurements</strong><small>Score geometry</small></span>
+      </button>
+      <button id="tabSummary" class="tabBtn" data-tab="summary" type="button" role="tab"
+        aria-controls="panelSummary" aria-selected="false" tabindex="-1">
+        <span class="tabIndex">04</span>
+        <span class="tabCopy"><strong>Summary</strong><small>Combined report</small></span>
+      </button>
+      <button id="tabFeatures" class="tabBtn" data-tab="features" type="button" role="tab"
+        aria-controls="panelFeatures" aria-selected="false" tabindex="-1">
+        <span class="tabIndex">AI</span>
+        <span class="tabCopy"><strong>Feature signal</strong><small>Independent model</small></span>
+      </button>
+    </nav>
+
+    <aside id="workflowPanel" aria-label="Analysis controls">
       <div class="uploadHeader">
-        <div class="uploadTitle">
-          <h1>mini-faceIQ</h1>
-          <p id="introCopy">Place the front landmarks, then calculate the 30 front profile metrics.</p>
+        <div class="brandLockup">
+          <div class="brandMark" aria-hidden="true">FQ</div>
+          <div class="uploadTitle">
+            <span class="eyebrow">Facial intelligence lab</span>
+            <h1>mini-face<span>IQ</span></h1>
+            <p id="introCopy">Place the front landmarks, then calculate the 30 front profile metrics.</p>
+          </div>
         </div>
-        <button id="uploadToggle" class="collapseBtn" type="button" aria-label="Collapse upload section"
-          aria-expanded="true"></button>
+        <button id="uploadToggle" class="collapseBtn" type="button" aria-label="Collapse workflow panel"
+          aria-controls="workflowBody" aria-expanded="true"></button>
       </div>
 
-      <div class="uploadBody">
-        <div class="tabPanel uploadPanel">
-          <label id="frontImageLabel" for="frontImageInput">Upload front profile</label>
-          <input id="frontImageInput" type="file" accept="image/*">
-          <label id="sideImageLabel" for="sideImageInput">Upload side profile</label>
-          <input id="sideImageInput" type="file" accept="image/*">
-          <button id="uploadConfirmBtn" class="primary" style="width:100%; margin-top:8px">Confirm uploads</button>
-          <div id="uploadConfirmNote" class="confirmNote"></div>
+      <div id="workflowBody" class="uploadBody">
+        <div class="workflowContext" aria-label="Active analysis profile">
+          <span class="contextDot" aria-hidden="true"></span>
+          <div>
+            <small>Current workspace</small>
+            <strong id="profileContext">Front profile</strong>
+          </div>
+          <span class="contextTag">Active</span>
+        </div>
 
-          <div class="row">
-            <div>
-              <label for="gender">Gender</label>
-              <select id="gender">
-                <option value="male">male</option>
-                <option value="female">female</option>
-              </select>
+        <div id="panelUpload" class="tabPanel uploadPanel" role="tabpanel" aria-labelledby="tabUpload">
+          <div class="panelIntro">
+            <span class="eyebrow">Step 01 / Input</span>
+            <h2>Build the analysis set</h2>
+            <p>Pair a straight-on portrait with a clean side profile for the complete geometric report.</p>
+          </div>
+
+          <div class="uploadStack">
+            <div class="fileField">
+              <label id="frontImageLabel" for="frontImageInput">
+                <span class="fileLabelTitle">Front-view photo</span>
+                <span class="fileLabelMeta">Face centered, eyes level, neutral angle</span>
+              </label>
+              <input id="frontImageInput" type="file"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+              <span id="frontFileState" class="fileState" aria-live="polite">No file selected</span>
             </div>
-            <div>
-              <label for="ethnicity">Ethnicity</label>
-              <select id="ethnicity">
-                <option value="asian">asian</option>
-                <option value="caucasian">caucasian</option>
-                <option value="black">black</option>
-                <option value="hispanic">hispanic</option>
-                <option value="middle_eastern">middle_eastern</option>
-                <option value="south_asian">south_asian</option>
-                <option value="mixed">mixed</option>
-              </select>
+
+            <div class="fileField">
+              <label id="sideImageLabel" for="sideImageInput">
+                <span class="fileLabelTitle">Side-profile photo</span>
+                <span class="fileLabelMeta">True 90-degree profile, full forehead and chin</span>
+              </label>
+              <input id="sideImageInput" type="file"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+              <span id="sideFileState" class="fileState" aria-live="polite">No file selected</span>
+            </div>
+          </div>
+
+          <button id="uploadConfirmBtn" class="primary fullButton" type="button">Confirm photo set</button>
+          <div id="uploadConfirmNote" class="confirmNote" aria-live="polite"></div>
+
+          <div class="settingsCard">
+            <span class="sectionLabel">Scoring context</span>
+            <div class="row">
+              <div>
+                <label for="gender">Gender reference</label>
+                <select id="gender">
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+              <div>
+                <label for="ethnicity">Ethnicity reference</label>
+                <select id="ethnicity">
+                  <option value="asian">Asian</option>
+                  <option value="caucasian">Caucasian</option>
+                  <option value="black">Black</option>
+                  <option value="hispanic">Hispanic</option>
+                  <option value="middle_eastern">Middle Eastern</option>
+                  <option value="south_asian">South Asian</option>
+                  <option value="mixed">Mixed</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="tabPanel landmarkPanel">
-          <div class="subTabs">
-            <button class="modeBtn" data-profile-target="side" type="button">Side landmarks</button>
-            <button class="modeBtn" data-profile-target="front" type="button">Front landmarks</button>
+        <div id="panelLandmarks" class="tabPanel landmarkPanel" role="tabpanel" aria-labelledby="tabLandmarks">
+          <div class="panelIntro">
+            <span class="eyebrow">Step 02 / Geometry</span>
+            <h2>Map the face</h2>
+            <p>Choose automatic detection or build the landmark map manually, then drag any dot to refine it.</p>
           </div>
-          <button id="autoBtn" class="success" style="width:100%; margin-top:8px">Auto-detect landmarks</button>
+
+          <div class="subTabs" role="group" aria-label="Landmark profile">
+            <button class="modeBtn" data-profile-target="front" type="button">Front landmarks</button>
+            <button class="modeBtn" data-profile-target="side" type="button">Side landmarks</button>
+          </div>
+          <div class="subTabs landmarkMethodTabs" role="group" aria-label="Landmark placement method">
+            <button class="landmarkMethodBtn active" data-landmark-method="auto" type="button"
+              aria-pressed="true">Automatic</button>
+            <button class="landmarkMethodBtn" data-landmark-method="manual" type="button"
+              aria-pressed="false">Manual</button>
+          </div>
+          <button id="autoBtn" class="success fullButton" type="button">Auto-detect landmarks</button>
 
           <div class="current">
-            <span id="stepText">Load an image to begin.</span>
+            <div class="currentTop">
+              <span id="stepText">Load an image to begin.</span>
+              <span id="landmarkCount" class="countBadge">0 / 0</span>
+            </div>
             <p id="stepHint">Your clicks are stored as normalized x/y points, so image size does not matter.</p>
-            <div class="progress">
+            <div id="landmarkProgress" class="progress" role="progressbar" aria-label="Landmarks placed"
+              aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
               <div id="progressBar" class="bar"></div>
             </div>
           </div>
 
-          <h2>Controls</h2>
-          <div class="row">
-            <button id="prevBtn">Back</button>
-            <button id="nextBtn">Next</button>
+          <div class="controlRows">
+            <div class="controlLabel">Precision controls</div>
+            <div class="row">
+              <button id="prevBtn" type="button">Previous point</button>
+              <button id="nextBtn" type="button">Next point</button>
+            </div>
+            <div class="row buttonGap">
+              <button id="undoBtn" type="button">Undo last point</button>
+              <button id="clearBtn" class="dangerGhost" type="button">Clear profile</button>
+            </div>
           </div>
-          <div class="row" style="margin-top:8px">
-            <button id="undoBtn">Undo point</button>
-            <button id="clearBtn">Clear all</button>
-          </div>
-          <button id="landmarkConfirmBtn" class="primary" style="width:100%; margin-top:8px">Confirm landmarks</button>
-          <div id="landmarkConfirmNote" class="confirmNote"></div>
+          <button id="landmarkConfirmBtn" class="primary fullButton" type="button">Confirm profile landmarks</button>
+          <div id="landmarkConfirmNote" class="confirmNote" aria-live="polite"></div>
 
-          <h2>Landmark JSON</h2>
-          <textarea id="jsonBox" spellcheck="false"></textarea>
-          <button id="loadJsonBtn" style="width:100%; margin-top:8px">Load JSON into canvas</button>
+          <details class="advancedPanel">
+            <summary>Advanced landmark JSON</summary>
+            <div class="advancedContent">
+              <textarea id="jsonBox" spellcheck="false" aria-label="Landmark JSON"></textarea>
+              <button id="loadJsonBtn" class="fullButton" type="button">Load JSON into canvas</button>
+            </div>
+          </details>
         </div>
 
-        <div class="tabPanel measurementPanel">
-          <div class="subTabs">
-            <button class="modeBtn" data-profile-target="side" type="button">Side profile</button>
+        <div id="panelMeasurements" class="tabPanel measurementPanel" role="tabpanel"
+          aria-labelledby="tabMeasurements">
+          <div class="panelIntro">
+            <span class="eyebrow">Step 03 / Analysis</span>
+            <h2>Calculate geometry</h2>
+            <p>Choose a profile for focused results, or calculate the complete paired report.</p>
+          </div>
+
+          <div class="subTabs" role="group" aria-label="Measurement profile">
             <button class="modeBtn" data-profile-target="front" type="button">Front profile</button>
+            <button class="modeBtn" data-profile-target="side" type="button">Side profile</button>
           </div>
-          <button id="calcBtn" class="primary" style="width:100%; margin-top:8px">Calculate current profile</button>
-          <button id="calcAllBtn" class="primary" style="width:100%; margin-top:8px">Calculate both profiles</button>
+          <div class="insightCard">
+            <strong>Interactive measurement map</strong>
+            Hover, focus, or tap any result to isolate its landmarks and zoom the canvas to the measured region.
+          </div>
+          <button id="calcBtn" class="primary fullButton" type="button">Calculate current profile</button>
+          <button id="calcAllBtn" class="fullButton" type="button">Calculate complete report</button>
         </div>
 
-        <div class="tabPanel summaryPanel">
-          <div class="current">
-            <span>Summary</span>
-            <p>Scores appear here after calculation.</p>
+        <div id="panelSummary" class="tabPanel summaryPanel" role="tabpanel" aria-labelledby="tabSummary">
+          <div class="panelIntro">
+            <span class="eyebrow">Step 04 / Report</span>
+            <h2>Your signal, condensed</h2>
+            <p>Review the score hierarchy, then copy the full measurement report in one click.</p>
           </div>
-          <button id="copySummaryBtn" class="primary" style="width:100%; margin-top:12px" type="button">Copy all
-            measurements</button>
+          <div class="current">
+            <span>Report readiness</span>
+            <p>Front and side results stay separate until both are available for a combined score.</p>
+          </div>
+          <button id="copySummaryBtn" class="primary fullButton" type="button">Copy complete report</button>
         </div>
 
-        <div class="tabPanel featurePanel">
-          <label for="featureImageInput">Front face image</label>
-          <input id="featureImageInput" type="file" accept="image/*">
-          <button id="useFrontForFeatureBtn" style="width:100%; margin-top:8px" type="button">Use uploaded front
-            image</button>
-          <button id="featureAnalyzeBtn" class="primary" style="width:100%; margin-top:8px" type="button">Run feature
-            rating</button>
+        <div id="panelFeatures" class="tabPanel featurePanel" role="tabpanel" aria-labelledby="tabFeatures">
+          <div class="panelIntro">
+            <span class="eyebrow">Independent AI signal</span>
+            <h2>Learned feature rating</h2>
+            <p>This model estimate is separate from the deterministic landmark geometry report.</p>
+          </div>
+          <div class="fileField">
+            <label for="featureImageInput">
+              <span class="fileLabelTitle">Front-facing photo</span>
+              <span class="fileLabelMeta">Use the existing front photo or choose another</span>
+            </label>
+            <input id="featureImageInput" type="file"
+              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+          </div>
+          <button id="useFrontForFeatureBtn" class="fullButton" type="button">Use uploaded front photo</button>
+          <button id="featureAnalyzeBtn" class="primary fullButton" type="button">Run feature rating</button>
           <div class="current">
-            <span id="featureStatus">Ready for a front-facing photo.</span>
-            <p>This demo uses the original learned Features-rating model: one prediction, then eight blur-occlusion
-              checks for eyes, brows, nose, mouth, skin, and hair.</p>
+            <span id="featureStatus" aria-live="polite">Ready for a front-facing photo.</span>
+            <p>One prediction plus eight blur-occlusion checks show which visible regions influenced the model.</p>
           </div>
         </div>
       </div>
     </aside>
 
-    <section>
-      <div class="topTabs">
-        <button class="tabBtn active" data-tab="upload" type="button">Upload</button>
-        <button class="tabBtn" data-tab="landmarks" type="button">Landmarks</button>
-        <button class="tabBtn" data-tab="measurements" type="button">Measurements</button>
-        <button class="tabBtn" data-tab="summary" type="button">Summary</button>
-        <button class="tabBtn" data-tab="features" type="button">Features</button>
+    <section id="workspace" aria-label="Analysis workspace">
+      <header class="workspaceHeader">
+        <div>
+          <span id="workspaceEyebrow" class="eyebrow">Step 01 / Input</span>
+          <h2 id="workspaceHeading">Start with two clear photos</h2>
+          <p id="workspaceDescription">A guided workspace for precise landmarks, explainable geometry, and a separate learned feature signal.</p>
+        </div>
+        <span class="sessionBadge">Analysis workspace</span>
+      </header>
+
+      <div class="uploadWelcome" aria-label="Analysis workflow overview">
+        <article class="welcomeCard">
+          <div>
+            <span class="eyebrow">Measure with context</span>
+            <h3>Turn two portraits into one explainable face map.</h3>
+            <p>Upload, verify, measure, then inspect exactly which landmarks create each score. Nothing important hides behind a mystery number.</p>
+          </div>
+          <div class="workflowMap" aria-label="Four analysis steps">
+            <div class="workflowNode" data-step="01"><strong>Upload</strong>Pair the views</div>
+            <div class="workflowNode" data-step="02"><strong>Map</strong>Review landmarks</div>
+            <div class="workflowNode" data-step="03"><strong>Measure</strong>Inspect geometry</div>
+            <div class="workflowNode" data-step="04"><strong>Report</strong>Compare signals</div>
+          </div>
+        </article>
+
+        <article class="captureCard" aria-label="Photo quality checklist">
+          <span class="eyebrow">Input intelligence</span>
+          <h3>Better photos, calmer geometry.</h3>
+          <ul class="captureList">
+            <li><span><strong>Keep the camera level</strong>Avoid looking up, down, or tilting the head.</span></li>
+            <li><span><strong>Use even light</strong>Keep facial edges and landmarks easy to see.</span></li>
+            <li><span><strong>Keep the full outline</strong>Include the hairline, jaw, chin, and ear area.</span></li>
+            <li><span><strong>Use supported files</strong>JPG, PNG, or WebP within the 12 MB request limit.</span></li>
+          </ul>
+        </article>
       </div>
+
       <div class="analysisLayout">
         <div class="viewerPane">
-          <div class="canvasWrap"><canvas id="canvas"></canvas></div>
+          <div class="viewerToolbar">
+            <div class="viewerMeta">
+              <span id="viewerProfile" class="profilePill">Front profile</span>
+              <span id="viewerState" class="viewerState">No image loaded</span>
+            </div>
+            <div class="zoomControls" role="group" aria-label="Canvas display and zoom controls">
+              <button id="linesToggleBtn" class="linesToggle active" type="button" aria-pressed="true">Lines on</button>
+              <button id="zoomOutBtn" type="button" aria-label="Zoom out">−</button>
+              <button id="zoomResetBtn" class="zoomReset" type="button" aria-label="Reset zoom">100%</button>
+              <button id="zoomInBtn" type="button" aria-label="Zoom in">+</button>
+            </div>
+          </div>
+          <div class="canvasWrap">
+            <canvas id="canvas" tabindex="0" aria-label="Interactive facial landmark canvas"
+              aria-describedby="canvasHint"></canvas>
+            <div id="canvasEmpty" class="canvasEmpty">
+              <div class="emptyGlyph" aria-hidden="true">FQ</div>
+              <strong>Photo workspace</strong>
+              <span>Upload a photo, then review its landmarks here with precision zoom.</span>
+            </div>
+            <div id="canvasHint" class="canvasHint" hidden>Scroll or use the controls to zoom · Click or tap the photo to place the active point</div>
+          </div>
         </div>
         <div class="resultsPane">
+          <div class="resultsHeader">
+            <span class="eyebrow">Live analysis</span>
+            <h2>Readiness &amp; scores</h2>
+            <p>The checklist unlocks as its required landmarks become available.</p>
+          </div>
           <div id="score" class="score"></div>
           <div id="measurementCatalog" class="measurementCatalog"></div>
           <div id="resultsToolbar" class="resultsToolbar">
-            <label for="metricSort">Scoring</label>
+            <label for="metricSort">Sort measurements</label>
             <div class="toolbarControls">
               <select id="metricSort">
-                <option value="default">default order</option>
-                <option value="score-desc">highest score first</option>
-                <option value="score-asc">lowest score first</option>
+                <option value="importance">Importance</option>
+                <option value="score-desc">Highest score first</option>
+                <option value="score-asc">Lowest score first</option>
               </select>
-              <button id="copyScoresBtn" class="copyScoresBtn" type="button">Copy scores</button>
+              <button id="copyScoresBtn" class="copyScoresBtn" type="button">Copy current measurements</button>
             </div>
           </div>
-          <div id="metrics" class="metrics"></div>
+          <div id="metrics" class="metrics" role="table" aria-label="Calculated facial measurements"></div>
         </div>
       </div>
       <div id="featureDemo" class="featureDemo">
         <div class="featureCard">
+          <span class="eyebrow">Model output</span>
           <h2>Learned feature rating</h2>
           <div id="featureScore" class="score">
             <div class="stat"><b>--</b><span>feature score</span></div>
             <div class="stat"><b>--</b><span>raw SCUT score</span></div>
           </div>
-          <p>Positive regions mean the model score drops when that area is blurred. Negative regions mean the model
-            score rises when that area is blurred.</p>
+          <p>Positive means the score drops when a region is blurred. Negative means the score rises when it is blurred.</p>
           <div id="featureRegions" class="featureRegions"></div>
         </div>
         <div class="featureCard">
+          <span class="eyebrow">Explainability view</span>
           <h2>Occlusion heatmap</h2>
           <img id="featureHeatmap" class="heatmapPreview" alt="Feature rating heatmap" hidden>
           <p id="featureEmpty">Run analysis to see the original image blended with the contribution heatmap.</p>
         </div>
       </div>
+      <p class="workspaceFootnote">Geometry scores and the learned feature signal are separate analysis paths. Treat them as measurements, not identity or destiny.</p>
     </section>
   </main>
+
+  <div id="appNotice" class="appNotice" role="status" aria-atomic="true">
+    <span class="noticeDot" aria-hidden="true"></span>
+    <span id="noticeText" class="noticeText"></span>
+    <button id="noticeClose" class="noticeClose" type="button" aria-label="Dismiss notification">×</button>
+  </div>
 
   <script>
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
     const appShell = document.getElementById("appShell");
     const uploadToggle = document.getElementById("uploadToggle");
+    const workflowBody = document.getElementById("workflowBody");
     const profileModeInput = document.getElementById("profileMode");
     const introCopy = document.getElementById("introCopy");
     const frontImageInput = document.getElementById("frontImageInput");
@@ -882,9 +2866,12 @@
     const resultsToolbar = document.getElementById("resultsToolbar");
     const metricSort = document.getElementById("metricSort");
     const copyScoresBtn = document.getElementById("copyScoresBtn");
+    const copySummaryBtn = document.getElementById("copySummaryBtn");
     const calcBtn = document.getElementById("calcBtn");
     const calcAllBtn = document.getElementById("calcAllBtn");
     const autoBtn = document.getElementById("autoBtn");
+    const linesToggleBtn = document.getElementById("linesToggleBtn");
+    const clearBtn = document.getElementById("clearBtn");
     const featureImageInput = document.getElementById("featureImageInput");
     const useFrontForFeatureBtn = document.getElementById("useFrontForFeatureBtn");
     const featureAnalyzeBtn = document.getElementById("featureAnalyzeBtn");
@@ -893,6 +2880,58 @@
     const featureRegions = document.getElementById("featureRegions");
     const featureHeatmap = document.getElementById("featureHeatmap");
     const featureEmpty = document.getElementById("featureEmpty");
+    const frontFileState = document.getElementById("frontFileState");
+    const sideFileState = document.getElementById("sideFileState");
+    const landmarkCount = document.getElementById("landmarkCount");
+    const landmarkProgress = document.getElementById("landmarkProgress");
+    const profileContext = document.getElementById("profileContext");
+    const viewerProfile = document.getElementById("viewerProfile");
+    const viewerState = document.getElementById("viewerState");
+    const canvasEmpty = document.getElementById("canvasEmpty");
+    const canvasHint = document.getElementById("canvasHint");
+    const zoomOutBtn = document.getElementById("zoomOutBtn");
+    const zoomResetBtn = document.getElementById("zoomResetBtn");
+    const zoomInBtn = document.getElementById("zoomInBtn");
+    const workspaceEyebrow = document.getElementById("workspaceEyebrow");
+    const workspaceHeading = document.getElementById("workspaceHeading");
+    const workspaceDescription = document.getElementById("workspaceDescription");
+    const appNotice = document.getElementById("appNotice");
+    const noticeText = document.getElementById("noticeText");
+    const noticeClose = document.getElementById("noticeClose");
+    const tabButtons = [...document.querySelectorAll(".tabBtn")];
+    const modeButtons = [...document.querySelectorAll(".modeBtn")];
+    const landmarkMethodButtons = [...document.querySelectorAll(".landmarkMethodBtn")];
+    const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
+    const TAB_CONTEXT = {
+      upload: {
+        eyebrow: "Step 01 / Input",
+        heading: "Start with two clear photos",
+        description: "A guided workspace for precise landmarks, explainable geometry, and a separate learned feature signal."
+      },
+      landmarks: {
+        eyebrow: "Step 02 / Geometry",
+        heading: "Review every landmark with precision",
+        description: "Choose automatic or manual placement, inspect the full face map, and drag any point into position."
+      },
+      measurements: {
+        eyebrow: "Step 03 / Analysis",
+        heading: "See how each measurement is built",
+        description: "Focus any result to isolate its geometry on the photo, then compare the measured value with its ideal range."
+      },
+      summary: {
+        eyebrow: "Step 04 / Report",
+        heading: "Your geometric report at a glance",
+        description: "Front and side signals remain explicit, with a combined score only when both reports are available."
+      },
+      features: {
+        eyebrow: "Independent AI signal",
+        heading: "Inspect the learned feature estimate",
+        description: "A separate model rating and occlusion map—useful context, but not part of the deterministic geometry score."
+      }
+    };
+    let noticeTimer = null;
+    let clearArmTimer = null;
+    let profileLoadRequest = 0;
     let currentMeasurements = [];
     let hasCalculatedResults = false;
     let featureFile = null;
@@ -900,23 +2939,23 @@
       { id: "lateral_canthal_tilt", name: "Lateral Canthal Tilt", category: "Eyes", description: "Eye angle relative to horizontal.", requires: ["left_medial_canthus", "left_lateral_canthus", "right_medial_canthus", "right_lateral_canthus"] },
       { id: "nose_bridge_to_width", name: "Nose Bridge to Nose Width Ratio", category: "Nose", description: "Nose side width compared with nose bridge width.", requires: ["left_nose_side", "right_nose_side", "left_nose_bridge", "right_nose_bridge"] },
       { id: "bitemporal_width", name: "Bitemporal Width", category: "Head", description: "Temple width compared with cheekbone face width.", requires: ["left_temple", "right_temple", "left_cheekbone", "right_cheekbone"] },
-      { id: "cheekbone_height", name: "Cheekbone Height", category: "Cheeks", description: "Vertical positioning of cheekbones.", requires: ["cupids_bow", "left_cheekbone", "right_cheekbone", "left_pupil", "right_pupil"] },
+      { id: "cheekbone_height", name: "Cheekbone Height", category: "Cheeks", description: "Perpendicular Cupid's-bow distances to the cheekbone and pupil lines.", requires: ["cupids_bow", "left_cheekbone", "right_cheekbone", "left_pupil", "right_pupil"] },
       { id: "cupids_bow_depth", name: "Cupid's Bow Depth", category: "Mouth", description: "Vertical depth of the cupid's bow.", requires: ["cupids_bow", "inner_cupids_bow"] },
       { id: "bigonial_width", name: "Bigonial Width", category: "Jaw", description: "Jaw width compared with cheekbone face width.", requires: ["left_upper_jaw_angle", "right_upper_jaw_angle", "left_cheekbone", "right_cheekbone"] },
       { id: "jaw_slope", name: "Jaw Slope", category: "Jaw", description: "Average left and right jaw slope angles.", requires: ["left_cheekbone", "left_upper_jaw_angle", "left_lower_jaw_angle", "left_chin", "right_cheekbone", "right_upper_jaw_angle", "right_lower_jaw_angle", "right_chin"] },
-      { id: "middle_third", name: "Middle Third", category: "Proportions", description: "Middle facial third relative to total face height.", requires: ["right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner", "nasal_base", "hairline", "chin_bottom"] },
+      { id: "middle_third", name: "Middle Third", category: "Proportions", description: "Brow-to-nasal-base share along the hairline-to-chin facial axis.", requires: ["right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner", "nasal_base", "hairline", "chin_bottom"] },
       { id: "eye_aspect_ratio", name: "Eye Aspect Ratio", category: "Eyes", description: "Width-to-height ratio of eyes.", requires: ["left_medial_canthus", "left_lateral_canthus", "left_upper_eyelid", "left_lower_eyelid", "right_medial_canthus", "right_lateral_canthus", "right_upper_eyelid", "right_lower_eyelid"] },
       { id: "mouth_corner_position", name: "Mouth Corner Position", category: "Mouth", description: "Mouth corner height relative to mouth middle.", requires: ["mouth_middle", "left_mouth_corner", "right_mouth_corner"] },
       { id: "eye_separation_ratio", name: "Eye Separation Ratio", category: "Eyes", description: "Interpupillary distance vs face width.", requires: ["left_pupil", "right_pupil", "left_cheekbone", "right_cheekbone"] },
       { id: "eyebrow_tilt", name: "Eyebrow Tilt", category: "Brows", description: "Brow angle from horizontal.", requires: ["left_brow_head", "left_brow_inner_corner", "left_brow_arch", "left_brow_peak", "right_brow_head", "right_brow_inner_corner", "right_brow_arch", "right_brow_peak"] },
-      { id: "lower_third", name: "Lower Third", category: "Proportions", description: "Lower facial third relative to total face height.", requires: ["chin_bottom", "nasal_base", "hairline"] },
-      { id: "face_width_to_height", name: "Face Width to Height Ratio", category: "Proportions", description: "Cheekbone width compared with midface height.", requires: ["left_cheekbone", "right_cheekbone", "cupids_bow", "right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner"] },
+      { id: "lower_third", name: "Lower Third", category: "Proportions", description: "Nasal-base-to-chin share along the hairline-to-chin facial axis.", requires: ["chin_bottom", "nasal_base", "hairline"] },
+      { id: "face_width_to_height", name: "Face Width to Height Ratio", category: "Proportions", description: "Cheekbone width divided by the perpendicular Cupid's-bow distance to the brow-midpoint line.", requires: ["left_cheekbone", "right_cheekbone", "cupids_bow", "right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner"] },
       { id: "interpupillary_mouth_width", name: "Interpupillary-Mouth Width Ratio", category: "Proportions", description: "Mouth width compared with interpupillary distance.", requires: ["left_mouth_corner", "right_mouth_corner", "left_pupil", "right_pupil"] },
       { id: "jaw_frontal_angle", name: "Jaw Frontal Angle", category: "Jaw", description: "Angle between the left and right lower jaw lines.", requires: ["left_lower_jaw_angle", "left_chin", "right_lower_jaw_angle", "right_chin"] },
       { id: "intercanthal_nasal_width", name: "Intercanthal-Nasal Width Ratio", category: "Proportions", description: "Nasal width compared with inner eye corner spacing.", requires: ["left_nose_side", "right_nose_side", "left_medial_canthus", "right_medial_canthus"] },
-      { id: "top_third", name: "Top Third", category: "Proportions", description: "Upper facial third relative to total face height.", requires: ["hairline", "right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner", "chin_bottom"] },
+      { id: "top_third", name: "Top Third", category: "Proportions", description: "Hairline-to-brow share along the hairline-to-chin facial axis.", requires: ["hairline", "right_brow_head", "right_brow_inner_corner", "left_brow_head", "left_brow_inner_corner", "chin_bottom"] },
       { id: "one_eye_apart", name: "One Eye Apart Test", category: "Proportions", description: "Intercanthal spacing validation.", requires: ["left_medial_canthus", "right_medial_canthus", "left_lateral_canthus", "right_lateral_canthus"] },
-      { id: "midface_ratio", name: "Midface Ratio", category: "Proportions", description: "Interpupillary distance compared with midface height.", requires: ["left_pupil", "right_pupil", "inner_cupids_bow"] },
+      { id: "midface_ratio", name: "Midface Ratio", category: "Proportions", description: "Interpupillary distance divided by the perpendicular inner-Cupid's-bow distance to the pupil line.", requires: ["left_pupil", "right_pupil", "inner_cupids_bow"] },
       { id: "ipsilateral_alar_angle", name: "Ipsilateral Alar Angle", category: "Nose", description: "Nasal base angle using eyelid hood endpoints.", requires: ["nasal_base", "left_eyelid_hood_end", "right_eyelid_hood_end"] },
       { id: "mouth_width_to_nose_width", name: "Mouth Width to Nose Width Ratio", category: "Proportions", description: "Mouth width compared with nose width.", requires: ["left_mouth_corner", "right_mouth_corner", "left_nose_side", "right_nose_side"] },
       { id: "total_facial_width_to_height", name: "Total Facial Width to Height Ratio", category: "Proportions", description: "Cheekbone width compared with full face height.", requires: ["hairline", "chin_bottom", "left_cheekbone", "right_cheekbone"] },
@@ -963,15 +3002,71 @@
       { id: "ramus_to_mandible", name: "Ramus to Mandible Ratio", category: "Jaw", description: "Ramus height compared with mandibular body length.", requires: ["chin_bottom", "lower_jaw_angle", "tragus", "upper_jaw_angle", "chin_point"] },
       { id: "gonion_to_mouth", name: "Gonion to Mouth Line", category: "Jaw", description: "Gonion height relative to mouth corner.", requires: ["chin_bottom", "lower_jaw_angle", "tragus", "upper_jaw_angle", "mouth_corner"] }
     ];
+    const metricImportanceGroups = {
+      front: [
+        {
+          groupWeight: 0.40,
+          key: ["midface_ratio", "face_width_to_height", "lower_third"],
+          standard: ["bitemporal_width", "bigonial_width", "jaw_slope", "middle_third", "top_third", "total_facial_width_to_height", "lower_third_proportion"]
+        },
+        {
+          groupWeight: 0.30,
+          key: ["lateral_canthal_tilt", "eye_separation_ratio"],
+          standard: ["cheekbone_height", "eye_aspect_ratio", "eyebrow_tilt", "one_eye_apart", "eyebrow_low_setedness", "brow_length_to_face_width"]
+        },
+        {
+          groupWeight: 0.30,
+          key: ["jaw_frontal_angle", "chin_to_philtrum"],
+          standard: ["nose_bridge_to_width", "cupids_bow_depth", "mouth_corner_position", "interpupillary_mouth_width", "intercanthal_nasal_width", "ipsilateral_alar_angle", "mouth_width_to_nose_width", "nose_tip_position", "deviation_iaa_jfa", "lower_lip_to_upper_lip"]
+        }
+      ],
+      side: [
+        {
+          groupWeight: 0.35,
+          key: ["recession_frankfort", "total_facial_convexity"],
+          standard: ["facial_convexity_nasion", "anterior_facial_depth", "facial_depth_to_height", "facial_convexity_glabella", "interior_midface_projection", "z_angle"]
+        },
+        {
+          groupWeight: 0.35,
+          key: ["nasal_projection", "nasolabial_angle"],
+          standard: ["nasal_tip_angle", "nasal_width_to_height", "nasofrontal_angle", "upper_forehead_slope", "browridge_inclination", "nose_tip_rotation", "nasofacial_angle", "nasomental_angle", "frankfort_tip_angle"]
+        },
+        {
+          groupWeight: 0.30,
+          key: ["gonial_angle", "lower_lip_e_line"],
+          standard: ["upper_lip_s_line", "upper_lip_burstone", "holdaway_h_line", "mentolabial_angle", "upper_lip_e_line", "submental_cervical_angle", "orbital_vector", "lower_lip_s_line", "lower_lip_burstone", "mandibular_plane_angle", "ramus_to_mandible", "gonion_to_mouth"]
+        }
+      ]
+    };
+
+    function buildMetricImportance(groups) {
+      const importance = Object.create(null);
+      groups.forEach(({ groupWeight, key, standard }) => {
+        const totalWeight = key.length * 2 + standard.length;
+        key.forEach(id => { importance[id] = groupWeight * 2 / totalWeight; });
+        standard.forEach(id => { importance[id] = groupWeight / totalWeight; });
+      });
+      return importance;
+    }
+
+    const metricImportanceByProfile = {
+      front: buildMetricImportance(metricImportanceGroups.front),
+      side: buildMetricImportance(metricImportanceGroups.side)
+    };
     let measurementDefs = frontMeasurementDefs;
     let defs = [];
     let defsByProfile = { front: null, side: null };
     let landmarks = [];
     let landmarksByProfile = { front: [], side: [] };
+    let placementHistoryByProfile = { front: [], side: [] };
     let filesByProfile = { front: null, side: null };
+    let pendingFilesByProfile = { front: null, side: null };
+    let imageLoadRequestByProfile = { front: 0, side: 0 };
     let imagesByProfile = { front: new Image(), side: new Image() };
     let imageLoadedByProfile = { front: false, side: false };
     let resultsByProfile = { front: null, side: null };
+    let landmarkMethodByProfile = { front: "auto", side: "auto" };
+    let linesVisibleByProfile = { front: true, side: true };
     let viewByProfile = {
       front: { scale: 1, offsetX: 0, offsetY: 0 },
       side: { scale: 1, offsetX: 0, offsetY: 0 }
@@ -984,28 +3079,234 @@
     let viewCrop = { x: 0, y: 0, w: 1, h: 1 };
     let activeMetricId = null;
     let activeTab = "upload";
+    let canvasDrag = null;
+    let landmarkDrag = null;
+    let suppressCanvasClick = false;
+
+    function showNotice(message, state = "info", duration = 5200) {
+      window.clearTimeout(noticeTimer);
+      noticeText.textContent = message;
+      appNotice.dataset.state = state;
+      appNotice.setAttribute("role", state === "error" ? "alert" : "status");
+      appNotice.classList.add("visible");
+      noticeTimer = window.setTimeout(() => appNotice.classList.remove("visible"), duration);
+    }
+
+    noticeClose.addEventListener("click", () => {
+      window.clearTimeout(noticeTimer);
+      appNotice.classList.remove("visible");
+    });
+
+    function setInlineStatus(element, message, state) {
+      element.textContent = message;
+      element.dataset.state = state;
+      element.setAttribute("aria-live", state === "error" ? "assertive" : "polite");
+    }
+
+    function clearInlineStatus(element) {
+      element.textContent = "";
+      element.removeAttribute("data-state");
+      element.setAttribute("aria-live", "polite");
+    }
+
+    function setModeControlsDisabled(disabled) {
+      modeButtons.forEach(button => { button.disabled = disabled; });
+      landmarkMethodButtons.forEach(button => { button.disabled = disabled; });
+    }
+
+    function disarmClearProfile() {
+      window.clearTimeout(clearArmTimer);
+      clearBtn.dataset.armed = "false";
+      clearBtn.textContent = "Clear profile";
+    }
+
+    function getValidPlacedCount(profileDefs = defs, points = landmarks) {
+      const validIds = new Set(profileDefs.map(def => def.id));
+      return new Set(
+        points
+          .filter(lm => lm && validIds.has(lm.id) && Number.isFinite(Number(lm.x)) && Number.isFinite(Number(lm.y)))
+          .map(lm => lm.id)
+      ).size;
+    }
+
+    function updateWorkspaceChrome() {
+      const context = TAB_CONTEXT[activeTab] || TAB_CONTEXT.upload;
+      workspaceEyebrow.textContent = context.eyebrow;
+      workspaceHeading.textContent = context.heading;
+      workspaceDescription.textContent = context.description;
+
+      const profileLabel = profileMode === "front" ? "Front profile" : "Side profile";
+      profileContext.textContent = profileLabel;
+      viewerProfile.textContent = profileLabel;
+
+      const frontFile = filesByProfile.front;
+      const sideFile = filesByProfile.side;
+      const pendingFront = pendingFilesByProfile.front;
+      const pendingSide = pendingFilesByProfile.side;
+      frontFileState.textContent = pendingFront
+        ? `Checking · ${pendingFront.name || "front photo"}`
+        : frontFile
+          ? `Ready · ${frontFile.name || "front photo"}`
+          : "No file selected";
+      sideFileState.textContent = pendingSide
+        ? `Checking · ${pendingSide.name || "side photo"}`
+        : sideFile
+          ? `Ready · ${sideFile.name || "side photo"}`
+        : "No file selected";
+      frontFileState.classList.toggle("ready", Boolean(frontFile && imageLoadedByProfile.front && !pendingFront));
+      sideFileState.classList.toggle("ready", Boolean(sideFile && imageLoadedByProfile.side && !pendingSide));
+
+      const frontDefs = getDefsForProfile("front");
+      const sideDefs = getDefsForProfile("side");
+      const uploadsComplete = Boolean(
+        frontFile && sideFile && !pendingFront && !pendingSide &&
+        imageLoadedByProfile.front && imageLoadedByProfile.side
+      );
+      const landmarksComplete = Boolean(
+        frontDefs.length && sideDefs.length &&
+        getMissingLandmarksForProfile("front").length === 0 &&
+        getMissingLandmarksForProfile("side").length === 0
+      );
+      const measurementsComplete = Boolean(resultsByProfile.front && resultsByProfile.side);
+      copySummaryBtn.textContent = measurementsComplete
+        ? "Copy complete report"
+        : ((resultsByProfile.front || resultsByProfile.side) ? "Copy available report" : "Copy complete report");
+      const completionByTab = {
+        upload: uploadsComplete,
+        landmarks: landmarksComplete,
+        measurements: measurementsComplete,
+        summary: measurementsComplete,
+        features: !featureHeatmap.hidden
+      };
+
+      tabButtons.forEach((button) => {
+        const isActive = button.dataset.tab === activeTab;
+        const isComplete = Boolean(completionByTab[button.dataset.tab]);
+        const tabName = button.querySelector(".tabCopy strong").textContent;
+        button.classList.toggle("complete", isComplete);
+        button.setAttribute("aria-label", `${tabName}${isComplete ? ", complete" : ""}`);
+        button.setAttribute("aria-selected", String(isActive));
+        button.tabIndex = isActive ? 0 : -1;
+      });
+    }
+
+    function updateCanvasChrome() {
+      const placed = getValidPlacedCount();
+      const readyMetrics = measurementDefs.filter(item => item.requires.every(hasPlacedLandmark)).length;
+      if (!imageLoaded) {
+        viewerState.textContent = "No image loaded";
+      } else if (activeTab === "landmarks") {
+        viewerState.textContent = `${placed}/${defs.length} landmarks placed`;
+      } else if (activeTab === "measurements" && resultsByProfile[profileMode]) {
+        viewerState.textContent = `${currentMeasurements.length} measurements calculated`;
+      } else if (activeTab === "measurements") {
+        viewerState.textContent = `${readyMetrics}/${measurementDefs.length} measurements unlocked`;
+      } else {
+        viewerState.textContent = "Photo ready";
+      }
+
+      canvasEmpty.hidden = imageLoaded;
+      canvasHint.hidden = !imageLoaded;
+      const view = viewByProfile[profileMode];
+      const panHint = view.scale > 1 ? " · Drag or use arrow keys to pan" : "";
+      canvasHint.textContent = activeTab === "landmarks"
+        ? `Click empty space to place the active point · Drag any dot to correct it · Use +/-/0 to zoom${panHint}`
+        : (activeTab === "measurements"
+          ? `Hover, focus, or tap a result to isolate it · Use +/-/0 to zoom${panHint}`
+          : `Scroll or use +/-/0 to inspect the photo${panHint}`);
+      canvas.classList.toggle("isZoomed", imageLoaded && view.scale > 1);
+      linesToggleBtn.disabled = !imageLoaded;
+      linesToggleBtn.classList.toggle("active", linesVisibleByProfile[profileMode]);
+      linesToggleBtn.setAttribute("aria-pressed", String(linesVisibleByProfile[profileMode]));
+      linesToggleBtn.textContent = linesVisibleByProfile[profileMode] ? "Lines on" : "Lines off";
+      zoomResetBtn.textContent = `${Math.round(view.scale * 100)}%`;
+      zoomOutBtn.disabled = !imageLoaded || view.scale <= 1;
+      zoomResetBtn.disabled = !imageLoaded || (view.scale === 1 && view.offsetX === 0 && view.offsetY === 0);
+      zoomInBtn.disabled = !imageLoaded || view.scale >= 5;
+    }
+
+    function setCanvasScale(nextScale) {
+      if (!imageLoaded) return;
+      const view = viewByProfile[profileMode];
+      view.scale = Math.min(5, Math.max(1, nextScale));
+      if (view.scale === 1) {
+        view.offsetX = 0;
+        view.offsetY = 0;
+      }
+      updateCanvasChrome();
+      draw();
+    }
+
+    function panCanvasBy(dx, dy) {
+      const view = viewByProfile[profileMode];
+      if (!imageLoaded || view.scale <= 1) return;
+      view.offsetX += dx;
+      view.offsetY += dy;
+      updateCanvasChrome();
+      draw();
+    }
+
+    function clearRenderedResults() {
+      hasCalculatedResults = false;
+      currentMeasurements = [];
+      activeMetricId = null;
+      metricsEl.innerHTML = "";
+      scoreEl.innerHTML = "";
+      resultsToolbar.classList.remove("active");
+    }
+
+    const FRONT_BROW_CENTER_GUIDE = {
+      midpoint: [
+        { midpoint: ["left_brow_head", "left_brow_inner_corner"] },
+        { midpoint: ["right_brow_head", "right_brow_inner_corner"] }
+      ]
+    };
 
     const MEASUREMENT_GUIDES = {
       lateral_canthal_tilt: { lines: [["left_medial_canthus", "left_lateral_canthus"], ["right_medial_canthus", "right_lateral_canthus"]] },
       nose_bridge_to_width: { lines: [["left_nose_side", "right_nose_side"], ["left_nose_bridge", "right_nose_bridge"]] },
       bitemporal_width: { lines: [["left_temple", "right_temple"], ["left_cheekbone", "right_cheekbone"]] },
-      cheekbone_height: { lines: [["left_cheekbone", "right_cheekbone"], ["left_pupil", "right_pupil"], ["cupids_bow", "left_cheekbone"], ["cupids_bow", "left_pupil"]], points: ["cupids_bow"] },
+      cheekbone_height: {
+        lines: [["left_cheekbone", "right_cheekbone"], ["left_pupil", "right_pupil"]],
+        projections: [["cupids_bow", "left_cheekbone", "right_cheekbone"], ["cupids_bow", "left_pupil", "right_pupil"]]
+      },
       cupids_bow_depth: { lines: [["cupids_bow", "inner_cupids_bow"]] },
       bigonial_width: { lines: [["left_upper_jaw_angle", "right_upper_jaw_angle"], ["left_cheekbone", "right_cheekbone"]] },
       jaw_slope: { lines: [["left_cheekbone", "left_upper_jaw_angle"], ["left_lower_jaw_angle", "left_chin"], ["right_cheekbone", "right_upper_jaw_angle"], ["right_lower_jaw_angle", "right_chin"]] },
-      middle_third: { lines: [["hairline", "chin_bottom"], ["left_brow_head", "nasal_base"], ["right_brow_head", "nasal_base"]] },
+      middle_third: {
+        lines: [["hairline", "chin_bottom"]],
+        axisSegments: [[FRONT_BROW_CENTER_GUIDE, "nasal_base", "hairline", "chin_bottom"]],
+        projections: [[FRONT_BROW_CENTER_GUIDE, "hairline", "chin_bottom"], ["nasal_base", "hairline", "chin_bottom"]]
+      },
       eye_aspect_ratio: { lines: [["left_medial_canthus", "left_lateral_canthus"], ["left_upper_eyelid", "left_lower_eyelid"], ["right_medial_canthus", "right_lateral_canthus"], ["right_upper_eyelid", "right_lower_eyelid"]] },
       mouth_corner_position: { lines: [["left_mouth_corner", "mouth_middle"], ["right_mouth_corner", "mouth_middle"]] },
       eye_separation_ratio: { lines: [["left_pupil", "right_pupil"], ["left_cheekbone", "right_cheekbone"]] },
       eyebrow_tilt: { lines: [["left_brow_head", "left_brow_peak"], ["right_brow_head", "right_brow_peak"]] },
-      lower_third: { lines: [["nasal_base", "chin_bottom"], ["hairline", "chin_bottom"]] },
-      face_width_to_height: { lines: [["left_cheekbone", "right_cheekbone"], ["cupids_bow", "left_brow_head"], ["cupids_bow", "right_brow_head"]] },
+      lower_third: {
+        lines: [["hairline", "chin_bottom"]],
+        axisSegments: [["nasal_base", "chin_bottom", "hairline", "chin_bottom"]],
+        projections: [["nasal_base", "hairline", "chin_bottom"]]
+      },
+      face_width_to_height: {
+        lines: [
+          ["left_cheekbone", "right_cheekbone"],
+          [{ midpoint: ["left_brow_head", "left_brow_inner_corner"] }, { midpoint: ["right_brow_head", "right_brow_inner_corner"] }]
+        ],
+        projections: [["cupids_bow", { midpoint: ["left_brow_head", "left_brow_inner_corner"] }, { midpoint: ["right_brow_head", "right_brow_inner_corner"] }]]
+      },
       interpupillary_mouth_width: { lines: [["left_mouth_corner", "right_mouth_corner"], ["left_pupil", "right_pupil"]] },
       jaw_frontal_angle: { lines: [["left_lower_jaw_angle", "left_chin"], ["right_lower_jaw_angle", "right_chin"]] },
       intercanthal_nasal_width: { lines: [["left_nose_side", "right_nose_side"], ["left_medial_canthus", "right_medial_canthus"]] },
-      top_third: { lines: [["hairline", "left_brow_head"], ["hairline", "right_brow_head"], ["hairline", "chin_bottom"]] },
+      top_third: {
+        lines: [["hairline", "chin_bottom"]],
+        axisSegments: [["hairline", FRONT_BROW_CENTER_GUIDE, "hairline", "chin_bottom"]],
+        projections: [[FRONT_BROW_CENTER_GUIDE, "hairline", "chin_bottom"]]
+      },
       one_eye_apart: { lines: [["left_medial_canthus", "right_medial_canthus"], ["left_medial_canthus", "left_lateral_canthus"], ["right_medial_canthus", "right_lateral_canthus"]] },
-      midface_ratio: { lines: [["left_pupil", "right_pupil"], ["inner_cupids_bow", "left_pupil"], ["inner_cupids_bow", "right_pupil"]] },
+      midface_ratio: {
+        lines: [["left_pupil", "right_pupil"]],
+        projections: [["inner_cupids_bow", "left_pupil", "right_pupil"]]
+      },
       ipsilateral_alar_angle: { lines: [["nasal_base", "left_eyelid_hood_end"], ["nasal_base", "right_eyelid_hood_end"]] },
       mouth_width_to_nose_width: { lines: [["left_mouth_corner", "right_mouth_corner"], ["left_nose_side", "right_nose_side"]] },
       total_facial_width_to_height: { lines: [["left_cheekbone", "right_cheekbone"], ["hairline", "chin_bottom"]] },
@@ -1016,6 +3317,28 @@
       deviation_iaa_jfa: { lines: [["nasal_base", "left_eyelid_hood_end"], ["nasal_base", "right_eyelid_hood_end"], ["left_lower_jaw_angle", "left_chin"], ["right_lower_jaw_angle", "right_chin"]] },
       lower_lip_to_upper_lip: { lines: [["lower_lip_center", "mouth_middle"], ["mouth_middle", "cupids_bow"]] },
       lower_third_proportion: { lines: [["nasal_base", "mouth_middle"], ["nasal_base", "chin_bottom"]] }
+    };
+
+    const FACE_CONTOURS = {
+      front: [
+        ["hairline", "left_temple", "left_cheekbone", "left_upper_jaw_angle", "left_lower_jaw_angle", "left_chin", "chin_bottom", "right_chin", "right_lower_jaw_angle", "right_upper_jaw_angle", "right_cheekbone", "right_temple", "hairline"],
+        ["left_brow_head", "left_brow_inner_corner", "left_brow_arch", "left_brow_peak", "left_brow_tail"],
+        ["right_brow_head", "right_brow_inner_corner", "right_brow_arch", "right_brow_peak", "right_brow_tail"],
+        ["left_medial_canthus", "left_upper_eyelid", "left_lateral_canthus", "left_lower_eyelid", "left_medial_canthus"],
+        ["right_medial_canthus", "right_upper_eyelid", "right_lateral_canthus", "right_lower_eyelid", "right_medial_canthus"],
+        ["left_medial_canthus", "left_upper_eyelid_crease", "left_eyelid_hood_end", "left_lateral_canthus"],
+        ["right_medial_canthus", "right_upper_eyelid_crease", "right_eyelid_hood_end", "right_lateral_canthus"],
+        ["left_nose_bridge", "left_nose_side", "nasal_base", "nose_bottom", "right_nose_side", "right_nose_bridge"],
+        ["left_mouth_corner", "cupids_bow", "inner_cupids_bow", "right_mouth_corner", "mouth_middle", "lower_lip_center", "left_mouth_corner"]
+      ],
+      side: [
+        ["hairline_profile", "top_of_head", "occiput", "neck_point", "cervical_point"],
+        ["hairline_profile", "forehead", "glabella", "nasal_bridge_root", "rhinion", "supratip", "nose_tip", "infratip", "columella", "subnasale", "upper_lip", "mouth_corner", "lower_lip", "labiomental_fold", "chin_point", "chin_bottom", "lower_jaw_angle", "upper_jaw_angle", "cervical_point", "neck_point"],
+        ["porion", "tragus", "intertragic_notch"],
+        ["eyelid_end", "corneal_apex", "lower_eyelid", "orbitale", "eyelid_end"],
+        ["orbitale", "cheekbone", "upper_jaw_angle"],
+        ["nasal_bridge_root", "subalare", "subnasale"]
+      ]
     };
 
     function fitCanvas() {
@@ -1080,6 +3403,42 @@
       };
     }
 
+    function traceFaceContours(landmarkMap) {
+      ctx.beginPath();
+      (FACE_CONTOURS[profileMode] || []).forEach((path) => {
+        let previousPoint = null;
+        path.forEach((id) => {
+          const landmark = landmarkMap.get(id);
+          if (!landmark) {
+            previousPoint = null;
+            return;
+          }
+          const point = toCanvasPoint(landmark);
+          if (previousPoint) {
+            ctx.moveTo(previousPoint.x, previousPoint.y);
+            ctx.lineTo(point.x, point.y);
+          }
+          previousPoint = point;
+        });
+      });
+    }
+
+    function drawFaceContours(landmarkMap) {
+      if (!linesVisibleByProfile[profileMode] || landmarkMap.size < 2) return;
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      traceFaceContours(landmarkMap);
+      ctx.lineWidth = 3.25;
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.52)";
+      ctx.stroke();
+      traceFaceContours(landmarkMap);
+      ctx.lineWidth = 1.35;
+      ctx.strokeStyle = "rgba(46, 238, 132, 0.96)";
+      ctx.stroke();
+      ctx.restore();
+    }
+
     function draw() {
       ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
       viewCrop = getZoomCrop();
@@ -1103,27 +3462,29 @@
       const focusedIds = getActiveMeasurementLandmarkIds();
       const visibleLandmarks = focusedIds
         ? []
-        : activeTab === "landmarks"
-          ? landmarks.filter(lm => defs[index] && lm.id === defs[index].id)
-          : landmarks;
+        : landmarks.filter(landmark => Number.isFinite(Number(landmark.x)) && Number.isFinite(Number(landmark.y)));
+      const landmarkMap = new Map(visibleLandmarks.map(landmark => [landmark.id, landmark]));
+      const defIndexById = new Map(defs.map((def, defIndex) => [def.id, defIndex]));
+      if (!focusedIds) drawFaceContours(landmarkMap);
 
       visibleLandmarks.forEach((lm) => {
-        const def = defs.find(d => d.id === lm.id) || {};
-        const i = defs.findIndex(d => d.id === lm.id);
-        const x = drawBox.x + lm.x * drawBox.w;
-        const y = drawBox.y + lm.y * drawBox.h;
-        const color = def.color || "#2dd4bf";
+        const i = defIndexById.get(lm.id) ?? -1;
+        const point = toCanvasPoint(lm);
+        const isActive = activeTab === "landmarks" && (i === index || landmarkDrag?.id === lm.id);
         ctx.beginPath();
-        ctx.arc(x, y, i === index ? 5 : 3.5, 0, Math.PI * 2);
-        ctx.fillStyle = color;
+        ctx.arc(point.x, point.y, isActive ? 4 : 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = "#ef4444";
         ctx.fill();
-        ctx.lineWidth = 2;
+        ctx.lineWidth = isActive ? 1.75 : 1.25;
         ctx.strokeStyle = "#fff";
         ctx.stroke();
-        ctx.font = "700 11px system-ui";
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#fff";
-        ctx.fillText(String(i + 1), x, y - 9);
+        if (isActive) {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 6.25, 0, Math.PI * 2);
+          ctx.lineWidth = 1.25;
+          ctx.strokeStyle = "rgba(94, 234, 212, 0.95)";
+          ctx.stroke();
+        }
       });
 
       drawActiveMeasurement();
@@ -1133,11 +3494,26 @@
       const guide = getMeasurementGuide(activeMetricId);
       if (!guide) return null;
       const ids = new Set();
+      const addRefIds = (ref) => {
+        if (typeof ref === "string") {
+          ids.add(ref);
+        } else if (ref && Array.isArray(ref.midpoint)) {
+          ref.midpoint.forEach(addRefIds);
+        }
+      };
       (guide.lines || []).forEach((line) => {
-        ids.add(line[0]);
-        ids.add(line[1]);
+        addRefIds(line[0]);
+        addRefIds(line[1]);
       });
-      (guide.points || []).forEach((id) => ids.add(id));
+      (guide.projections || []).forEach((projection) => {
+        addRefIds(projection[0]);
+        addRefIds(projection[1]);
+        addRefIds(projection[2]);
+      });
+      (guide.axisSegments || []).forEach((segment) => {
+        segment.forEach(addRefIds);
+      });
+      (guide.points || []).forEach(addRefIds);
       return ids;
     }
 
@@ -1157,6 +3533,19 @@
       return landmarks.find(lm => lm.id === id && Number.isFinite(Number(lm.x)) && Number.isFinite(Number(lm.y)));
     }
 
+    function resolveGuidePoint(ref) {
+      if (typeof ref === "string") return getLandmark(ref);
+      if (!ref || !Array.isArray(ref.midpoint) || ref.midpoint.length !== 2) return null;
+      const first = resolveGuidePoint(ref.midpoint[0]);
+      const second = resolveGuidePoint(ref.midpoint[1]);
+      if (!first || !second) return null;
+      return {
+        id: `midpoint:${ref.midpoint.join(":")}`,
+        x: (Number(first.x) + Number(second.x)) / 2,
+        y: (Number(first.y) + Number(second.y)) / 2
+      };
+    }
+
     function toCanvasPoint(lm) {
       return {
         x: drawBox.x + ((Number(lm.x) - viewCrop.x) / viewCrop.w) * drawBox.w,
@@ -1164,8 +3553,7 @@
       };
     }
 
-    function drawGuidePoint(lm, label) {
-      const point = toCanvasPoint(lm);
+    function drawCanvasGuidePoint(point, label) {
       ctx.beginPath();
       ctx.arc(point.x, point.y, 3.25, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(45, 212, 191, 0.95)";
@@ -1181,12 +3569,11 @@
       }
     }
 
-    function drawGuideLine(a, b, index) {
-      const start = getLandmark(a);
-      const end = getLandmark(b);
-      if (!start || !end) return;
-      const p1 = toCanvasPoint(start);
-      const p2 = toCanvasPoint(end);
+    function drawGuidePoint(lm, label) {
+      drawCanvasGuidePoint(toCanvasPoint(lm), label);
+    }
+
+    function strokeGuideSegment(p1, p2, index) {
       ctx.save();
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -1204,44 +3591,116 @@
       ctx.lineTo(p2.x, p2.y);
       ctx.stroke();
       ctx.restore();
+    }
+
+    function drawGuideLine(a, b, index) {
+      const start = resolveGuidePoint(a);
+      const end = resolveGuidePoint(b);
+      if (!start || !end) return;
+      const p1 = toCanvasPoint(start);
+      const p2 = toCanvasPoint(end);
+      strokeGuideSegment(p1, p2, index);
       drawGuidePoint(start);
       drawGuidePoint(end);
+    }
+
+    function projectCanvasPointToLine(source, start, end) {
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const lengthSquared = dx * dx + dy * dy;
+      if (lengthSquared <= 0.0001) return null;
+      const t = ((source.x - start.x) * dx + (source.y - start.y) * dy) / lengthSquared;
+      return { x: start.x + t * dx, y: start.y + t * dy };
+    }
+
+    function drawGuideProjection(pointRef, lineStartRef, lineEndRef) {
+      const point = resolveGuidePoint(pointRef);
+      const lineStart = resolveGuidePoint(lineStartRef);
+      const lineEnd = resolveGuidePoint(lineEndRef);
+      if (!point || !lineStart || !lineEnd) return;
+      const source = toCanvasPoint(point);
+      const start = toCanvasPoint(lineStart);
+      const end = toCanvasPoint(lineEnd);
+      const projected = projectCanvasPointToLine(source, start, end);
+      if (!projected) return;
+      strokeGuideSegment(source, projected, 1);
+      drawCanvasGuidePoint(source);
+      drawCanvasGuidePoint(projected);
+    }
+
+    function drawGuideAxisSegment(fromRef, toRef, axisStartRef, axisEndRef) {
+      const from = resolveGuidePoint(fromRef);
+      const to = resolveGuidePoint(toRef);
+      const axisStart = resolveGuidePoint(axisStartRef);
+      const axisEnd = resolveGuidePoint(axisEndRef);
+      if (!from || !to || !axisStart || !axisEnd) return;
+      const start = toCanvasPoint(axisStart);
+      const end = toCanvasPoint(axisEnd);
+      const projectedFrom = projectCanvasPointToLine(toCanvasPoint(from), start, end);
+      const projectedTo = projectCanvasPointToLine(toCanvasPoint(to), start, end);
+      if (!projectedFrom || !projectedTo) return;
+      strokeGuideSegment(projectedFrom, projectedTo, 1);
+      drawCanvasGuidePoint(projectedFrom);
+      drawCanvasGuidePoint(projectedTo);
     }
 
     function drawActiveMeasurement() {
       const guide = getMeasurementGuide(activeMetricId);
       if (!guide || !imageLoaded) return;
       (guide.lines || []).forEach((line, i) => drawGuideLine(line[0], line[1], i));
-      (guide.points || []).forEach((id) => {
-        const lm = getLandmark(id);
+      (guide.axisSegments || []).forEach((segment) => drawGuideAxisSegment(segment[0], segment[1], segment[2], segment[3]));
+      (guide.projections || []).forEach((projection) => drawGuideProjection(projection[0], projection[1], projection[2]));
+      (guide.points || []).forEach((ref) => {
+        const lm = resolveGuidePoint(ref);
         if (lm) drawGuidePoint(lm);
       });
     }
 
     function syncUi() {
       const def = defs[index];
-      const placed = landmarks.length;
+      const placed = getValidPlacedCount();
       progressBar.style.width = defs.length ? `${placed / defs.length * 100}%` : "0%";
+      landmarkCount.textContent = `${placed} / ${defs.length}`;
+      landmarkProgress.setAttribute("aria-valuemax", String(defs.length));
+      landmarkProgress.setAttribute("aria-valuenow", String(placed));
+      landmarkProgress.setAttribute("aria-valuetext", `${placed} of ${defs.length} landmarks placed`);
       calcBtn.disabled = defs.length === 0 || getMissingLandmarks().length > 0;
       calcAllBtn.disabled = !canCalculateBothProfiles();
-      autoBtn.disabled = !imageLoaded;
+      const landmarkMethod = landmarkMethodByProfile[profileMode];
+      autoBtn.hidden = landmarkMethod !== "auto";
+      autoBtn.disabled = !imageLoaded || landmarkMethod !== "auto";
       autoBtn.textContent = "Auto-detect landmarks";
+      landmarkMethodButtons.forEach((button) => {
+        const isActive = button.dataset.landmarkMethod === landmarkMethod;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+      });
+      document.getElementById("prevBtn").disabled = !defs.length || index <= 0;
+      document.getElementById("nextBtn").disabled = !defs.length || index >= defs.length - 1;
+      document.getElementById("undoBtn").disabled = placementHistoryByProfile[profileMode].length === 0;
+      landmarkConfirmBtn.disabled = !defs.length;
       calcBtn.textContent = profileMode === "front" ? "Calculate front metrics" : "Calculate side metrics";
-      document.querySelectorAll(".modeBtn").forEach((button) => {
-        button.classList.toggle("active", button.dataset.profileTarget === profileMode);
+      modeButtons.forEach((button) => {
+        const isActive = button.dataset.profileTarget === profileMode;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
       });
       introCopy.textContent = profileMode === "front"
         ? "Place the front landmarks, then calculate the 30 front profile metrics."
         : "Place the side landmarks, then calculate the side profile metrics.";
       if (def) {
         stepText.innerHTML = `<strong>${index + 1}/${defs.length}</strong> ${def.label}`;
-        stepHint.textContent = "Click the image to place or replace this point.";
+        stepHint.textContent = landmarkMethod === "manual"
+          ? "Click the image to place this point, or drag any visible dot to correct it."
+          : "Run detection for a first draft, then drag any visible dot to correct it.";
       } else {
         stepText.textContent = "Loading landmarks...";
         stepHint.textContent = "";
       }
       jsonBox.value = JSON.stringify(landmarks, null, 2);
       renderMeasurementCatalog();
+      updateWorkspaceChrome();
+      updateCanvasChrome();
       draw();
     }
 
@@ -1289,19 +3748,21 @@
 
     function renderMeasurementCatalog() {
       const readyCount = measurementDefs.filter(item => item.requires.every(hasPlacedLandmark)).length;
+      const calculatedIds = new Set(currentMeasurements.map(item => item.id));
       const shouldCollapse = hasCalculatedResults && readyCount === measurementDefs.length && currentMeasurements.length > 0;
       measurementCatalogEl.classList.toggle("collapsed", shouldCollapse);
       measurementCatalogEl.innerHTML = `
-    <div class="catalogHeader">
+    <button class="catalogHeader" type="button" aria-expanded="${String(!shouldCollapse)}">
       <span>Measurement checklist</span>
-      <span>${shouldCollapse ? "all metrics calculated" : `${readyCount}/${measurementDefs.length} ready`}</span>
-    </div>
+      <span>${shouldCollapse ? `${readyCount}/${measurementDefs.length} ready · open` : `${readyCount}/${measurementDefs.length} ready`}</span>
+    </button>
     ${measurementDefs.map(item => {
         const missing = item.requires.filter(id => !hasPlacedLandmark(id));
-        const state = missing.length === 0 ? "ready" : "waiting";
-        const label = missing.length === 0 ? "ready" : `${missing.length} missing`;
+        const calculated = calculatedIds.has(item.id);
+        const state = calculated ? "calculated" : (missing.length === 0 ? "ready" : "waiting");
+        const label = calculated ? "calculated" : (missing.length === 0 ? "ready" : `${missing.length} missing`);
         return `
-        <div class="catalogItem">
+        <div class="catalogItem${calculated ? " calculated" : ""}">
           <div>
             <div class="catalogName">${item.name}</div>
             <div class="catalogDesc">${item.category}</div>
@@ -1312,13 +3773,28 @@
       `;
       }).join("")}
   `;
+      const catalogToggle = measurementCatalogEl.querySelector(".catalogHeader");
+      catalogToggle.addEventListener("click", () => {
+        const collapsed = measurementCatalogEl.classList.toggle("collapsed");
+        catalogToggle.setAttribute("aria-expanded", String(!collapsed));
+        catalogToggle.lastElementChild.textContent = collapsed
+          ? `${readyCount}/${measurementDefs.length} ready · open`
+          : `${readyCount}/${measurementDefs.length} ready · close`;
+      });
     }
 
     function setPoint(nx, ny) {
       if (!defs[index]) return;
-      hasCalculatedResults = false;
       resultsByProfile[profileMode] = null;
+      clearRenderedResults();
+      clearInlineStatus(landmarkConfirmNote);
       const def = defs[index];
+      const previous = landmarks.find(lm => lm.id === def.id);
+      placementHistoryByProfile[profileMode].push({
+        id: def.id,
+        index,
+        previous: previous ? { ...previous } : null
+      });
       const next = landmarks.filter(l => l.id !== def.id);
       next.push({ id: def.id, x: Number(nx.toFixed(6)), y: Number(ny.toFixed(6)), label: def.label });
       landmarks = next.sort((a, b) => defs.findIndex(d => d.id === a.id) - defs.findIndex(d => d.id === b.id));
@@ -1327,16 +3803,149 @@
       syncUi();
     }
 
-    canvas.addEventListener("click", (event) => {
-      if (!imageLoaded) return;
+    function getCanvasPointerPosition(event) {
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-      const nx = viewCrop.x + ((x - drawBox.x) / drawBox.w) * viewCrop.w;
-      const ny = viewCrop.y + ((y - drawBox.y) / drawBox.h) * viewCrop.h;
+      return {
+        x,
+        y,
+        nx: viewCrop.x + ((x - drawBox.x) / drawBox.w) * viewCrop.w,
+        ny: viewCrop.y + ((y - drawBox.y) / drawBox.h) * viewCrop.h
+      };
+    }
+
+    function findNearestCanvasLandmark(x, y, hitRadius = 10) {
+      let nearest = null;
+      let nearestDistance = hitRadius;
+      landmarks.forEach((landmark) => {
+        const point = toCanvasPoint(landmark);
+        const distance = Math.hypot(point.x - x, point.y - y);
+        if (distance <= nearestDistance) {
+          nearest = landmark;
+          nearestDistance = distance;
+        }
+      });
+      return nearest;
+    }
+
+    canvas.addEventListener("click", (event) => {
+      if (suppressCanvasClick) {
+        suppressCanvasClick = false;
+        return;
+      }
+      if (!imageLoaded || activeTab !== "landmarks") return;
+      const { nx, ny } = getCanvasPointerPosition(event);
       if (nx < 0 || nx > 1 || ny < 0 || ny > 1) return;
       setPoint(nx, ny);
     });
+
+    canvas.addEventListener("pointerdown", (event) => {
+      const view = viewByProfile[profileMode];
+      if (!imageLoaded || (event.pointerType === "mouse" && event.button !== 0)) return;
+      if (activeTab === "landmarks") {
+        const pointer = getCanvasPointerPosition(event);
+        const nearest = findNearestCanvasLandmark(pointer.x, pointer.y);
+        if (nearest) {
+          const landmarkIndex = defs.findIndex(def => def.id === nearest.id);
+          index = landmarkIndex >= 0 ? landmarkIndex : index;
+          landmarkDrag = {
+            pointerId: event.pointerId,
+            id: nearest.id,
+            index,
+            startX: event.clientX,
+            startY: event.clientY,
+            previous: { ...nearest },
+            moved: false,
+            invalidated: false
+          };
+          canvas.setPointerCapture(event.pointerId);
+          canvas.classList.add("isLandmarkDragging");
+          event.preventDefault();
+          syncUi();
+          return;
+        }
+      }
+      if (view.scale <= 1) return;
+      canvasDrag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        offsetX: view.offsetX,
+        offsetY: view.offsetY,
+        moved: false
+      };
+      canvas.setPointerCapture(event.pointerId);
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (landmarkDrag && landmarkDrag.pointerId === event.pointerId) {
+        const dx = event.clientX - landmarkDrag.startX;
+        const dy = event.clientY - landmarkDrag.startY;
+        if (!landmarkDrag.moved && Math.hypot(dx, dy) < 2) return;
+        landmarkDrag.moved = true;
+        event.preventDefault();
+        const pointer = getCanvasPointerPosition(event);
+        const nx = Math.min(1, Math.max(0, pointer.nx));
+        const ny = Math.min(1, Math.max(0, pointer.ny));
+        if (!landmarkDrag.invalidated) {
+          resultsByProfile[profileMode] = null;
+          clearRenderedResults();
+          clearInlineStatus(landmarkConfirmNote);
+          landmarkDrag.invalidated = true;
+        }
+        const def = defs[landmarkDrag.index] || {};
+        landmarks = landmarks.map(landmark => landmark.id === landmarkDrag.id
+          ? { ...landmark, x: Number(nx.toFixed(6)), y: Number(ny.toFixed(6)), label: def.label || landmark.label }
+          : landmark);
+        landmarksByProfile[profileMode] = landmarks;
+        draw();
+        return;
+      }
+      if (!canvasDrag || canvasDrag.pointerId !== event.pointerId) return;
+      const dx = event.clientX - canvasDrag.startX;
+      const dy = event.clientY - canvasDrag.startY;
+      if (!canvasDrag.moved && Math.hypot(dx, dy) < 4) return;
+      canvasDrag.moved = true;
+      event.preventDefault();
+      const view = viewByProfile[profileMode];
+      view.offsetX = canvasDrag.offsetX + dx;
+      view.offsetY = canvasDrag.offsetY + dy;
+      canvas.classList.add("isDragging");
+      draw();
+    });
+
+    function finishCanvasDrag(event) {
+      if (landmarkDrag && landmarkDrag.pointerId === event.pointerId) {
+        const completedDrag = landmarkDrag;
+        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+        landmarkDrag = null;
+        canvas.classList.remove("isLandmarkDragging");
+        if (completedDrag.moved) {
+          placementHistoryByProfile[profileMode].push({
+            id: completedDrag.id,
+            index: completedDrag.index,
+            previous: completedDrag.previous
+          });
+        }
+        suppressCanvasClick = true;
+        window.setTimeout(() => { suppressCanvasClick = false; }, 0);
+        syncUi();
+        return;
+      }
+      if (!canvasDrag || canvasDrag.pointerId !== event.pointerId) return;
+      const didMove = canvasDrag.moved;
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      canvasDrag = null;
+      canvas.classList.remove("isDragging");
+      if (didMove) {
+        suppressCanvasClick = true;
+        window.setTimeout(() => { suppressCanvasClick = false; }, 0);
+      }
+    }
+
+    canvas.addEventListener("pointerup", finishCanvasDrag);
+    canvas.addEventListener("pointercancel", finishCanvasDrag);
 
     canvas.addEventListener("wheel", (event) => {
       if (!imageLoaded) return;
@@ -1355,48 +3964,114 @@
       const afterY = drawBox.y + beforeY * drawBox.h;
       view.offsetX += pointerX - afterX;
       view.offsetY += pointerY - afterY;
+      updateCanvasChrome();
       draw();
     }, { passive: false });
 
+    zoomOutBtn.addEventListener("click", () => {
+      setCanvasScale(viewByProfile[profileMode].scale / 1.25);
+    });
+
+    zoomResetBtn.addEventListener("click", () => {
+      viewByProfile[profileMode] = { scale: 1, offsetX: 0, offsetY: 0 };
+      updateCanvasChrome();
+      draw();
+    });
+
+    zoomInBtn.addEventListener("click", () => {
+      setCanvasScale(viewByProfile[profileMode].scale * 1.25);
+    });
+
+    linesToggleBtn.addEventListener("click", () => {
+      linesVisibleByProfile[profileMode] = !linesVisibleByProfile[profileMode];
+      updateCanvasChrome();
+      draw();
+    });
+
+    canvas.addEventListener("keydown", (event) => {
+      if (!imageLoaded) return;
+      if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        setCanvasScale(viewByProfile[profileMode].scale * 1.25);
+      } else if (event.key === "-") {
+        event.preventDefault();
+        setCanvasScale(viewByProfile[profileMode].scale / 1.25);
+      } else if (event.key === "0") {
+        event.preventDefault();
+        viewByProfile[profileMode] = { scale: 1, offsetX: 0, offsetY: 0 };
+        updateCanvasChrome();
+        draw();
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        panCanvasBy(32, 0);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        panCanvasBy(-32, 0);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        panCanvasBy(0, 32);
+      } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        panCanvasBy(0, -32);
+      }
+    });
+
     async function loadProfileImage(mode, file) {
       if (!file) return;
-      filesByProfile[mode] = file;
-      landmarksByProfile[mode] = [];
-      resultsByProfile[mode] = null;
-      viewByProfile[mode] = { scale: 1, offsetX: 0, offsetY: 0 };
+      if (file.size > MAX_UPLOAD_BYTES) {
+        const input = mode === "front" ? frontImageInput : sideImageInput;
+        input.value = "";
+        showNotice(`${mode === "front" ? "Front" : "Side"} photo is over 12 MB. Choose a smaller JPG, PNG, or WebP file.`, "error");
+        return;
+      }
+      const requestId = ++imageLoadRequestByProfile[mode];
+      pendingFilesByProfile[mode] = file;
+      clearInlineStatus(uploadConfirmNote);
+      updateWorkspaceChrome();
+
       const url = URL.createObjectURL(file);
       const nextImage = new Image();
-      imagesByProfile[mode] = nextImage;
-      imageLoadedByProfile[mode] = false;
       nextImage.onload = () => {
+        URL.revokeObjectURL(url);
+        if (requestId !== imageLoadRequestByProfile[mode]) return;
+
+        pendingFilesByProfile[mode] = null;
+        filesByProfile[mode] = file;
+        imagesByProfile[mode] = nextImage;
         imageLoadedByProfile[mode] = true;
+        landmarksByProfile[mode] = [];
+        placementHistoryByProfile[mode] = [];
+        resultsByProfile[mode] = null;
+        viewByProfile[mode] = { scale: 1, offsetX: 0, offsetY: 0 };
+
         if (profileMode === mode) {
-          image = imagesByProfile[mode];
+          clearRenderedResults();
+          clearInlineStatus(landmarkConfirmNote);
+          landmarks = [];
+          index = 0;
+          image = nextImage;
           imageLoaded = true;
           fitCanvas();
           syncUi();
+        } else {
+          updateWorkspaceChrome();
         }
+      };
+      nextImage.onerror = () => {
+        URL.revokeObjectURL(url);
+        if (requestId !== imageLoadRequestByProfile[mode]) return;
+        pendingFilesByProfile[mode] = null;
+        (mode === "front" ? frontImageInput : sideImageInput).value = "";
+        showNotice(`Could not open the selected ${mode} photo. Try a JPG, PNG, or WebP file.`, "error");
+        updateWorkspaceChrome();
       };
       nextImage.src = url;
 
-      if (profileMode !== mode) {
-        setActiveTab("landmarks");
-        await loadProfileDefs(mode);
-        return;
+      try {
+        await fetchDefsForProfile(mode);
+      } catch (err) {
+        showNotice(err.message || `Could not load the ${mode} landmark map.`, "error");
       }
-
-      activeMetricId = null;
-      hasCalculatedResults = false;
-      resultsByProfile[mode] = null;
-      landmarks = [];
-      index = 0;
-      currentMeasurements = [];
-      metricsEl.innerHTML = "";
-      scoreEl.innerHTML = "";
-      resultsToolbar.classList.remove("active");
-      image = imagesByProfile[mode];
-      imageLoaded = imageLoadedByProfile[mode];
-      syncUi();
     }
 
     frontImageInput.addEventListener("change", () => {
@@ -1407,36 +4082,67 @@
       loadProfileImage("side", sideImageInput.files && sideImageInput.files[0]);
     });
 
+    landmarkMethodButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const nextMethod = button.dataset.landmarkMethod;
+        if (!nextMethod || nextMethod === landmarkMethodByProfile[profileMode]) return;
+        landmarkMethodByProfile[profileMode] = nextMethod;
+        clearInlineStatus(landmarkConfirmNote);
+        syncUi();
+        showNotice(
+          nextMethod === "auto"
+            ? `${profileMode === "front" ? "Front" : "Side"} profile set to automatic detection. Existing points were preserved.`
+            : `${profileMode === "front" ? "Front" : "Side"} profile set to manual placement. Existing points were preserved.`,
+          "info"
+        );
+      });
+    });
+
     autoBtn.onclick = async () => {
-      const file = filesByProfile[profileMode];
+      const requestedMode = profileMode;
+      const file = filesByProfile[requestedMode];
       if (!file) {
-        alert(`Upload a ${profileMode} profile image first.`);
+        showNotice(`Upload a ${requestedMode} profile photo first.`, "error");
         return;
       }
 
       const previousText = autoBtn.textContent;
       autoBtn.disabled = true;
+      setModeControlsDisabled(true);
+      autoBtn.setAttribute("aria-busy", "true");
       autoBtn.textContent = "Detecting...";
 
       try {
         const form = new FormData();
         form.append("image", file);
 
-        const endpoint = profileMode === "front" ? "/api/front-autolandmarks" : "/api/side-autolandmarks";
+        const endpoint = requestedMode === "front" ? "/api/front-autolandmarks" : "/api/side-autolandmarks";
         const res = await fetch(endpoint, {
           method: "POST",
           body: form
         });
         const payload = await res.json();
         if (!payload.success) {
-          alert(payload.error || "Auto-detect failed");
+          showNotice(payload.error || "Auto-detect failed.", "error");
           return;
         }
 
-        hasCalculatedResults = false;
-        resultsByProfile[profileMode] = null;
-        landmarks = (payload.landmarks || []).sort((a, b) => defs.findIndex(d => d.id === a.id) - defs.findIndex(d => d.id === b.id));
-        landmarksByProfile[profileMode] = landmarks;
+        const requestedDefs = getDefsForProfile(requestedMode);
+        const detectedLandmarks = (payload.landmarks || []).sort(
+          (a, b) => requestedDefs.findIndex(d => d.id === a.id) - requestedDefs.findIndex(d => d.id === b.id)
+        );
+        resultsByProfile[requestedMode] = null;
+        placementHistoryByProfile[requestedMode] = [];
+        landmarksByProfile[requestedMode] = detectedLandmarks;
+        if (profileMode !== requestedMode) {
+          updateWorkspaceChrome();
+          showNotice(`${requestedMode === "front" ? "Front" : "Side"} landmarks are ready.`, "success");
+          return;
+        }
+
+        clearRenderedResults();
+        clearInlineStatus(landmarkConfirmNote);
+        landmarks = detectedLandmarks;
         const missing = getMissingLandmarks();
         const nextMissing = missing[0];
         index = nextMissing ? defs.findIndex(def => def.id === nextMissing.id) : Math.max(0, defs.length - 1);
@@ -1446,57 +4152,81 @@
         syncUi();
 
         if (missing.length > 0) {
-          alert(`Auto-detected ${landmarks.length} landmarks. Missing ${missing.length}; place the remaining points manually.`);
+          showNotice(`Detected ${detectedLandmarks.length} landmarks. Review the ${missing.length} missing point${missing.length === 1 ? "" : "s"} manually.`, "info", 6500);
+        } else {
+          showNotice(`Detected all ${detectedLandmarks.length} ${requestedMode} landmarks. Review them before confirming.`, "success");
         }
       } catch (err) {
-        alert(err.message || "Auto-detect failed");
+        showNotice(err.message || "Auto-detect failed.", "error");
       } finally {
+        autoBtn.setAttribute("aria-busy", "false");
         autoBtn.textContent = previousText;
-        syncUi();
+        setModeControlsDisabled(false);
+        if (profileMode === requestedMode) syncUi();
+        else updateWorkspaceChrome();
       }
     };
 
     document.getElementById("prevBtn").onclick = () => { index = Math.max(0, index - 1); syncUi(); };
     document.getElementById("nextBtn").onclick = () => { index = Math.min(defs.length - 1, index + 1); syncUi(); };
     document.getElementById("undoBtn").onclick = () => {
-      const def = defs[index];
-      if (!def) return;
-      hasCalculatedResults = false;
+      const action = placementHistoryByProfile[profileMode].pop();
+      if (!action) return;
       resultsByProfile[profileMode] = null;
-      landmarks = landmarks.filter(l => l.id !== def.id);
+      clearRenderedResults();
+      clearInlineStatus(landmarkConfirmNote);
+      landmarks = landmarks.filter(l => l.id !== action.id);
+      if (action.previous) landmarks.push(action.previous);
+      landmarks.sort((a, b) => defs.findIndex(d => d.id === a.id) - defs.findIndex(d => d.id === b.id));
       landmarksByProfile[profileMode] = landmarks;
+      index = action.index;
       syncUi();
     };
-    document.getElementById("clearBtn").onclick = () => {
-      hasCalculatedResults = false;
+    clearBtn.onclick = () => {
+      if (clearBtn.dataset.armed !== "true") {
+        clearBtn.dataset.armed = "true";
+        clearBtn.textContent = "Click again to clear";
+        showNotice(`Click the clear button again within 3 seconds to erase the ${profileMode} landmarks.`, "info", 3200);
+        clearArmTimer = window.setTimeout(disarmClearProfile, 3000);
+        return;
+      }
+
+      disarmClearProfile();
       resultsByProfile[profileMode] = null;
+      clearRenderedResults();
+      clearInlineStatus(landmarkConfirmNote);
       landmarks = [];
       landmarksByProfile[profileMode] = landmarks;
+      placementHistoryByProfile[profileMode] = [];
       index = 0;
       activeMetricId = null;
       metricsEl.innerHTML = "";
       scoreEl.innerHTML = "";
       syncUi();
+      showNotice(`${profileMode === "front" ? "Front" : "Side"} landmarks cleared.`, "success");
     };
     document.getElementById("loadJsonBtn").onclick = () => {
       try {
         const parsed = JSON.parse(jsonBox.value);
-        hasCalculatedResults = false;
         resultsByProfile[profileMode] = null;
+        clearRenderedResults();
+        clearInlineStatus(landmarkConfirmNote);
         landmarks = Array.isArray(parsed) ? parsed : [];
         landmarksByProfile[profileMode] = landmarks;
+        placementHistoryByProfile[profileMode] = [];
         activeMetricId = null;
         syncUi();
       } catch (err) {
-        alert(err.message);
+        showNotice(err.message || "Could not load that landmark JSON.", "error");
       }
     };
 
     uploadToggle.onclick = () => {
       const collapsed = appShell.classList.toggle("uploadCollapsed");
       uploadToggle.setAttribute("aria-expanded", String(!collapsed));
-      uploadToggle.setAttribute("aria-label", collapsed ? "Expand upload section" : "Collapse upload section");
-      window.setTimeout(fitCanvas, 200);
+      uploadToggle.setAttribute("aria-label", collapsed ? "Expand workflow panel" : "Collapse workflow panel");
+      workflowBody.setAttribute("aria-hidden", String(collapsed));
+      window.setTimeout(fitCanvas, 240);
     };
 
     function getProfileAspect(mode) {
@@ -1532,26 +4262,48 @@
       if (!payload.success) {
         throw new Error(payload.error || "Calculation failed");
       }
+      payload.data.scoringContext = {
+        gender: body.gender,
+        ethnicity: body.ethnicity
+      };
       return payload.data;
     }
 
     calcBtn.onclick = async () => {
+      const requestedMode = profileMode;
+      const previousText = calcBtn.textContent;
+      calcBtn.disabled = true;
+      setModeControlsDisabled(true);
+      calcBtn.setAttribute("aria-busy", "true");
+      calcBtn.textContent = "Calculating...";
       try {
-        const data = await calculateProfile(profileMode);
-        renderResults(data, profileMode);
+        const data = await calculateProfile(requestedMode);
+        renderResults(data, requestedMode);
+        showNotice(`${requestedMode === "front" ? "Front" : "Side"} geometry report is ready.`, "success");
       } catch (err) {
-        alert(err.message || "Calculation failed");
+        showNotice(err.message || "Calculation failed.", "error", 7000);
+      } finally {
+        calcBtn.textContent = previousText;
+        calcBtn.setAttribute("aria-busy", "false");
+        setModeControlsDisabled(false);
+        if (profileMode === requestedMode) syncUi();
+        else updateWorkspaceChrome();
       }
     };
 
     calcAllBtn.onclick = async () => {
+      const previousText = calcAllBtn.textContent;
+      calcAllBtn.disabled = true;
+      setModeControlsDisabled(true);
+      calcAllBtn.setAttribute("aria-busy", "true");
+      calcAllBtn.textContent = "Calculating both profiles...";
       try {
         await fetchDefsForProfile("front");
         await fetchDefsForProfile("side");
         if (!canCalculateBothProfiles()) {
           const frontMissing = getMissingLandmarksForProfile("front").length;
           const sideMissing = getMissingLandmarksForProfile("side").length;
-          alert(`Both profiles need complete uploads and landmarks first. Front missing: ${frontMissing}. Side missing: ${sideMissing}.`);
+          showNotice(`Complete both profiles first. Front missing: ${frontMissing}. Side missing: ${sideMissing}.`, "error", 7000);
           syncUi();
           return;
         }
@@ -1560,8 +4312,14 @@
         resultsByProfile.front = frontData;
         resultsByProfile.side = sideData;
         renderStoredResults();
+        showNotice("Complete front and side geometry report is ready.", "success");
       } catch (err) {
-        alert(err.message || "Calculation failed");
+        showNotice(err.message || "Calculation failed.", "error", 7000);
+      } finally {
+        calcAllBtn.textContent = previousText;
+        calcAllBtn.setAttribute("aria-busy", "false");
+        setModeControlsDisabled(false);
+        syncUi();
       }
     };
 
@@ -1594,8 +4352,11 @@
       const overallScore = hasFrontScore && hasSideScore
         ? (Number(frontScore) + Number(sideScore)) / 2
         : (hasFrontScore ? frontScore : sideScore);
+      const overallLabel = hasFrontScore && hasSideScore
+        ? "combined score"
+        : (hasFrontScore ? "front-only score" : (hasSideScore ? "side-only score" : "combined score"));
       scoreEl.innerHTML = `
-    <div class="stat"><b>${formatScoreValue(overallScore, hasFrontScore || hasSideScore)}</b><span>overall score</span></div>
+    <div class="stat"><b>${formatScoreValue(overallScore, hasFrontScore || hasSideScore)}</b><span>${overallLabel}</span></div>
     <div class="stat"><b>${formatScoreValue(frontScore, hasFrontScore)}</b><span>front score</span></div>
     <div class="stat"><b>${formatScoreValue(sideScore, hasSideScore)}</b><span>side score</span></div>
     <div class="stat"><b>${currentMeasurements.length}/${metricTotal}</b><span>metrics calculated</span></div>
@@ -1605,6 +4366,8 @@
       resultsToolbar.classList.toggle("active", currentMeasurements.length > 0);
       renderMeasurementCatalog();
       renderMetricRows();
+      updateWorkspaceChrome();
+      updateCanvasChrome();
     }
 
     function formatScoreValue(score, isAvailable) {
@@ -1615,7 +4378,10 @@
     function getSortedMeasurements() {
       const mode = metricSort.value;
       const ranked = currentMeasurements.map((item, order) => ({ item, order }));
-      if (mode === "score-desc") {
+      if (mode === "importance") {
+        const importance = metricImportanceByProfile[profileMode] || {};
+        ranked.sort((a, b) => ((importance[b.item.id] || 0) - (importance[a.item.id] || 0)) || a.order - b.order);
+      } else if (mode === "score-desc") {
         ranked.sort((a, b) => (b.item.score - a.item.score) || a.order - b.order);
       } else if (mode === "score-asc") {
         ranked.sort((a, b) => (a.item.score - b.item.score) || a.order - b.order);
@@ -1626,16 +4392,17 @@
     function renderMetricRows() {
       const sortedMeasurements = getSortedMeasurements();
       metricsEl.innerHTML = `
-    <div class="metric header"><span>Metric</span><span>Value</span><span class="hideMobile">Score</span><span>Ideal fit</span></div>
+    <div class="metric header" role="row"><span role="columnheader">Metric</span><span role="columnheader">Value</span><span class="hideMobile" role="columnheader">Score</span><span role="columnheader">Ideal fit</span></div>
     ${sortedMeasurements.map(item => `
-      <div class="metric" data-metric-id="${item.id}">
-        <span class="metricName">
-          <span>${item.name}</span>
-          <span class="help" tabindex="0" aria-label="${idealTip(item)}" data-tip="${idealTip(item)}">?</span>
+      <div class="metric" data-metric-id="${escapeAttr(item.id)}" role="row" tabindex="0"
+        aria-label="${escapeAttr(`${item.name}, ${item.value} ${unitLabel(item.unit)}, score ${item.score} out of 10, ${idealFitLabel(item.deviation)}`)}">
+        <span class="metricName" role="cell">
+          <span>${escapeHtml(item.name)}</span>
+          <button class="help" type="button" aria-label="${idealTip(item)}" data-tip="${idealTip(item)}">?</button>
         </span>
-        <span>${item.value} ${unitLabel(item.unit)}</span>
-        <span class="hideMobile">${item.score}/10</span>
-        <span class="pill ${item.deviation}">${idealFitLabel(item.deviation)}</span>
+        <span role="cell">${escapeHtml(item.value)} ${unitLabel(item.unit)}</span>
+        <span class="hideMobile" role="cell">${escapeHtml(item.score)}/10</span>
+        <span class="pill ${escapeAttr(item.deviation)}" role="cell">${idealFitLabel(item.deviation)}</span>
       </div>
     `).join("")}
   `;
@@ -1649,13 +4416,39 @@
       return "unknown";
     }
 
-    function formatMetricCopyLine(item) {
-      return `${item.name} : ${item.value} ${unitLabel(item.unit)} ${item.score}/10`;
+    function formatCopyNumber(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return String(value);
+      return number.toFixed(2).replace(/\.?0+$/, "");
+    }
+
+    function ethnicityCopyLabel(ethnicity) {
+      const labels = {
+        asian: "east asian",
+        caucasian: "caucasian",
+        black: "black",
+        hispanic: "hispanic",
+        middle_eastern: "middle eastern",
+        south_asian: "south asian",
+        mixed: "mixed"
+      };
+      return labels[ethnicity] || String(ethnicity || "selected ethnicity").replaceAll("_", " ");
+    }
+
+    function formatMetricCopyLine(item, ethnicity) {
+      const unit = unitLabel(item.unit);
+      const ideal = Array.isArray(item.idealRange) ? item.idealRange : [];
+      const idealText = ideal.length >= 2
+        ? `${formatCopyNumber(ideal[0])}${unit}\u2013${formatCopyNumber(ideal[1])}${unit}`
+        : "unknown";
+      return `${item.name} : ${formatCopyNumber(item.value)}${unit} (ideal for ${ethnicityCopyLabel(ethnicity)} ${idealText}) -> ${formatCopyNumber(item.score)}/10`;
     }
 
     async function copyScores() {
       if (!currentMeasurements.length) return;
-      const text = getSortedMeasurements().map(formatMetricCopyLine).join("\n");
+      const activeData = resultsByProfile[profileMode] || {};
+      const ethnicity = activeData.scoringContext?.ethnicity || document.getElementById("ethnicity").value;
+      const text = getSortedMeasurements().map(item => formatMetricCopyLine(item, ethnicity)).join("\n");
       try {
         await navigator.clipboard.writeText(text);
       } catch {
@@ -1694,7 +4487,8 @@
       const fScore = hasFront ? Number(frontData.frontScore) : null;
       const sScore = hasSide ? Number(sideData.sideScore) : null;
       const overall = hasFront && hasSide ? ((fScore + sScore) / 2) : (hasFront ? fScore : sScore);
-      frag.push(`overall score: ${overall.toFixed(2)}`);
+      const headline = hasFront && hasSide ? "combined score" : (hasFront ? "front-only score" : "side-only score");
+      frag.push(`${headline}: ${overall.toFixed(2)}`);
       frag.push(`front score: ${fScore !== null ? fScore.toFixed(2) : "--"}`);
       frag.push(`side score: ${sScore !== null ? sScore.toFixed(2) : "--"}`);
 
@@ -1713,33 +4507,33 @@
       // Side profile measurements
       if (hasSide) {
         frag.push("\nSide profile:");
+        const ethnicity = sideData.scoringContext?.ethnicity || document.getElementById("ethnicity").value;
         sideData.sideMeasurements.forEach(item => {
-          const unit = unitLabel(item.unit);
-          frag.push(`${item.name} : ${item.value} ${unit} => ${item.score}/10`);
+          frag.push(formatMetricCopyLine(item, ethnicity));
         });
       }
 
       // Front profile measurements
       if (hasFront) {
         frag.push("\nFront profile:");
+        const ethnicity = frontData.scoringContext?.ethnicity || document.getElementById("ethnicity").value;
         frontData.frontMeasurements.forEach(item => {
-          const unit = unitLabel(item.unit);
-          frag.push(`${item.name} : ${item.value} ${unit} => ${item.score}/10`);
+          frag.push(formatMetricCopyLine(item, ethnicity));
         });
       }
 
       return frag.join("\n");
     }
 
-    document.getElementById("copySummaryBtn").addEventListener("click", async () => {
+    copySummaryBtn.addEventListener("click", async () => {
       const text = buildSummaryCopyText();
       if (!text) {
-        alert("No measurements calculated yet. Calculate both profiles first.");
+        showNotice("No measurements yet. Calculate a profile before copying the report.", "error");
         return;
       }
       try {
         await navigator.clipboard.writeText(text);
-        const btn = document.getElementById("copySummaryBtn");
+        const btn = copySummaryBtn;
         const oldText = btn.textContent;
         btn.textContent = "Copied!";
         window.setTimeout(() => { btn.textContent = oldText; }, 1200);
@@ -1754,7 +4548,7 @@
         copyBox.select();
         document.execCommand("copy");
         copyBox.remove();
-        const btn = document.getElementById("copySummaryBtn");
+        const btn = copySummaryBtn;
         const oldText = btn.textContent;
         btn.textContent = "Copied!";
         window.setTimeout(() => { btn.textContent = oldText; }, 1200);
@@ -1762,10 +4556,19 @@
     });
 
     function setFeatureFile(file) {
+      if (file && file.size > MAX_UPLOAD_BYTES) {
+        featureFile = null;
+        featureImageInput.value = "";
+        featureStatus.textContent = "That photo is over the 12 MB request limit.";
+        featureStatus.dataset.state = "error";
+        showNotice("Feature photo is over 12 MB. Choose a smaller JPG, PNG, or WebP file.", "error");
+        return;
+      }
       featureFile = file || null;
       featureStatus.textContent = featureFile
         ? `Selected ${featureFile.name || "front image"}.`
         : "Ready for a front-facing photo.";
+      featureStatus.dataset.state = featureFile ? "ready" : "idle";
     }
 
     featureImageInput.addEventListener("change", () => {
@@ -1775,6 +4578,7 @@
     useFrontForFeatureBtn.addEventListener("click", () => {
       if (!filesByProfile.front) {
         featureStatus.textContent = "Upload a front profile image first.";
+        featureStatus.dataset.state = "error";
         return;
       }
       setFeatureFile(filesByProfile.front);
@@ -1783,13 +4587,16 @@
     featureAnalyzeBtn.addEventListener("click", async () => {
       if (!featureFile) {
         featureStatus.textContent = "Choose a front-facing image first.";
+        featureStatus.dataset.state = "error";
         return;
       }
 
       const oldText = featureAnalyzeBtn.textContent;
       featureAnalyzeBtn.disabled = true;
+      featureAnalyzeBtn.setAttribute("aria-busy", "true");
       featureAnalyzeBtn.textContent = "Analyzing...";
       featureStatus.textContent = "Running neural score and eight region occlusions...";
+      featureStatus.dataset.state = "working";
 
       try {
         const form = new FormData();
@@ -1801,10 +4608,15 @@
         }
         renderFeatureRating(payload.data);
         featureStatus.textContent = "Feature rating complete.";
+        featureStatus.dataset.state = "ready";
+        showNotice("Independent feature signal is ready.", "success");
       } catch (err) {
         featureStatus.textContent = err.message || "Feature rating failed.";
+        featureStatus.dataset.state = "error";
+        showNotice(err.message || "Feature rating failed.", "error");
       } finally {
         featureAnalyzeBtn.disabled = false;
+        featureAnalyzeBtn.setAttribute("aria-busy", "false");
         featureAnalyzeBtn.textContent = oldText;
       }
     });
@@ -1825,49 +4637,95 @@
       featureHeatmap.src = data.heatmapPng;
       featureHeatmap.hidden = false;
       featureEmpty.hidden = true;
+      updateWorkspaceChrome();
     }
 
-    function setActiveTab(tab) {
+    function setActiveTab(tab, moveFocus = false) {
       activeTab = tab;
       appShell.classList.remove("tab-upload", "tab-landmarks", "tab-measurements", "tab-summary", "tab-features");
       appShell.classList.add(`tab-${tab}`);
-      document.querySelectorAll(".tabBtn").forEach((button) => {
-        button.classList.toggle("active", button.dataset.tab === tab);
+      tabButtons.forEach((button) => {
+        const isActive = button.dataset.tab === tab;
+        button.classList.toggle("active", isActive);
+        const panel = document.getElementById(button.getAttribute("aria-controls"));
+        if (panel) panel.setAttribute("aria-hidden", String(!isActive));
       });
       activeMetricId = null;
+      metricsEl.querySelectorAll(".metric.active").forEach(row => row.classList.remove("active"));
       if (tab === "summary" && (resultsByProfile.front || resultsByProfile.side)) {
         renderStoredResults();
+      }
+      updateWorkspaceChrome();
+      updateCanvasChrome();
+      if (moveFocus) {
+        const activeButton = tabButtons.find(button => button.dataset.tab === tab);
+        if (activeButton) activeButton.focus();
       }
       window.setTimeout(fitCanvas, 0);
     }
 
-    document.querySelectorAll(".tabBtn").forEach((button) => {
+    tabButtons.forEach((button, buttonIndex) => {
       button.addEventListener("click", () => {
         setActiveTab(button.dataset.tab);
       });
+      button.addEventListener("keydown", (event) => {
+        let nextIndex = null;
+        if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+          nextIndex = (buttonIndex + 1) % tabButtons.length;
+        } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+          nextIndex = (buttonIndex - 1 + tabButtons.length) % tabButtons.length;
+        } else if (event.key === "Home") {
+          nextIndex = 0;
+        } else if (event.key === "End") {
+          nextIndex = tabButtons.length - 1;
+        }
+        if (nextIndex === null) return;
+        event.preventDefault();
+        const nextButton = tabButtons[nextIndex];
+        setActiveTab(nextButton.dataset.tab);
+        nextButton.focus();
+      });
     });
 
-    document.querySelectorAll(".modeBtn").forEach((button) => {
-      button.addEventListener("click", () => {
-        loadProfileDefs(button.dataset.profileTarget);
+    modeButtons.forEach((button) => {
+      button.addEventListener("click", async () => {
+        setModeControlsDisabled(true);
+        try {
+          await loadProfileDefs(button.dataset.profileTarget);
+        } catch (err) {
+          showNotice(err.message || "Could not switch the analysis profile.", "error");
+        } finally {
+          setModeControlsDisabled(false);
+        }
       });
     });
 
     uploadConfirmBtn.addEventListener("click", () => {
-      const hasFront = Boolean(filesByProfile.front);
-      const hasSide = Boolean(filesByProfile.side);
-      uploadConfirmNote.textContent = hasFront && hasSide
-        ? "Uploads confirmed."
-        : `Need ${hasFront ? "" : "front "}${hasSide ? "" : "side "}image.`;
-      if (hasFront && hasSide) setActiveTab("landmarks");
+      const hasFront = Boolean(filesByProfile.front && imageLoadedByProfile.front && !pendingFilesByProfile.front);
+      const hasSide = Boolean(filesByProfile.side && imageLoadedByProfile.side && !pendingFilesByProfile.side);
+      if (hasFront && hasSide) {
+        setInlineStatus(uploadConfirmNote, "Photo set confirmed. Ready to review landmarks.", "success");
+        showNotice("Photo set confirmed. Review the front landmarks first.", "success");
+        setActiveTab("landmarks", true);
+      } else {
+        const missing = [hasFront ? "" : "front", hasSide ? "" : "side"].filter(Boolean).join(" and ");
+        setInlineStatus(uploadConfirmNote, `Add a ready ${missing} photo to continue.`, "error");
+      }
     });
 
     landmarkConfirmBtn.addEventListener("click", () => {
       const missing = getMissingLandmarks();
-      landmarkConfirmNote.textContent = missing.length
-        ? `${profileMode} still missing ${missing.length} landmark${missing.length === 1 ? "" : "s"}.`
-        : `${profileMode} landmarks confirmed.`;
-      if (!missing.length) setActiveTab("measurements");
+      if (missing.length) {
+        setInlineStatus(
+          landmarkConfirmNote,
+          `${profileMode} still needs ${missing.length} landmark${missing.length === 1 ? "" : "s"}.`,
+          "error"
+        );
+      } else {
+        setInlineStatus(landmarkConfirmNote, `${profileMode} landmarks confirmed.`, "success");
+        showNotice(`${profileMode === "front" ? "Front" : "Side"} landmarks confirmed.`, "success");
+        setActiveTab("measurements", true);
+      }
     });
 
     function unitLabel(unit) {
@@ -1906,23 +4764,53 @@
 
     function bindMetricHover() {
       metricsEl.querySelectorAll(".metric[data-metric-id]").forEach((row) => {
-        row.addEventListener("mouseenter", () => {
+        const activate = () => {
           activeMetricId = row.dataset.metricId;
           metricsEl.querySelectorAll(".metric.active").forEach(item => item.classList.remove("active"));
           row.classList.add("active");
           draw();
-        });
-        row.addEventListener("mouseleave", () => {
+        };
+        const deactivate = () => {
           activeMetricId = null;
           row.classList.remove("active");
           draw();
+        };
+        row.addEventListener("mouseenter", activate);
+        row.addEventListener("mouseleave", () => {
+          if (!row.contains(document.activeElement)) deactivate();
+        });
+        row.addEventListener("focusin", activate);
+        row.addEventListener("focusout", (event) => {
+          if (!row.contains(event.relatedTarget)) deactivate();
+        });
+        row.addEventListener("click", (event) => {
+          if (event.target.closest(".help")) return;
+          row.focus();
+          activate();
+        });
+        row.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          deactivate();
+          row.blur();
         });
       });
     }
 
     async function boot() {
-      await loadProfileDefs("front");
+      setActiveTab("upload");
+      setModeControlsDisabled(true);
       fitCanvas();
+      try {
+        await loadProfileDefs("front");
+      } catch (err) {
+        stepText.textContent = "Landmark map unavailable.";
+        stepHint.textContent = "Reload the page after the local service is ready.";
+        showNotice(err.message || "Could not load the front landmark map.", "error", 8000);
+      } finally {
+        setModeControlsDisabled(false);
+        fitCanvas();
+      }
     }
 
     async function fetchDefsForProfile(mode) {
@@ -1934,11 +4822,15 @@
     }
 
     async function loadProfileDefs(nextMode) {
+      const requestId = ++profileLoadRequest;
       landmarksByProfile[profileMode] = landmarks;
+      const nextDefs = await fetchDefsForProfile(nextMode);
+      if (requestId !== profileLoadRequest) return;
+
       profileMode = nextMode;
       if (profileModeInput) profileModeInput.value = profileMode;
       measurementDefs = profileMode === "front" ? frontMeasurementDefs : sideMeasurementDefs;
-      defs = await fetchDefsForProfile(profileMode);
+      defs = nextDefs;
       image = imagesByProfile[profileMode];
       imageLoaded = imageLoadedByProfile[profileMode];
       landmarks = (landmarksByProfile[profileMode] || []).filter(lm => defs.some(def => def.id === lm.id));
@@ -1947,7 +4839,9 @@
       const nextMissing = missing[0];
       index = nextMissing ? defs.findIndex(def => def.id === nextMissing.id) : Math.max(0, defs.length - 1);
       activeMetricId = null;
-      metricSort.value = "default";
+      metricSort.value = "importance";
+      disarmClearProfile();
+      clearInlineStatus(landmarkConfirmNote);
       if (resultsByProfile[profileMode]) {
         renderStoredResults();
       } else {

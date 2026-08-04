@@ -18,6 +18,7 @@ def test_front_ideals_exist_for_every_gender_ethnicity_pair():
         assert set(FRONT_IDEALS[gender]) == expected_ethnicities
         for values in FRONT_IDEALS[gender].values():
             assert set(values) == set(MALE_ASIAN_FRONT)
+            assert all(ideal["decayRate"] > 0 for ideal in values.values())
 
 
 def test_side_ideals_exist_for_every_gender_ethnicity_pair():
@@ -36,6 +37,7 @@ def test_side_ideals_exist_for_every_gender_ethnicity_pair():
         assert set(SIDE_IDEALS[gender]) == expected_ethnicities
         for values in SIDE_IDEALS[gender].values():
             assert set(values) == set(MALE_ASIAN_SIDE)
+            assert all(ideal["decayRate"] > 0 for ideal in values.values())
 
 
 def test_unknown_front_and_side_demographics_fall_back_to_male_asian():

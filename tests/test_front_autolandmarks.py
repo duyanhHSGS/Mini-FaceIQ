@@ -1,7 +1,7 @@
 import types
 from io import BytesIO
 
-import third_party.adapter_front as front_autolandmarks
+import packages.adapter_front as front_autolandmarks
 from front_landmarks import FRONT_LANDMARK_DEFS
 
 

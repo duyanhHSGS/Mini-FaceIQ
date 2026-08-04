@@ -1,0 +1,56 @@
+# HUMAN-REVIEWED LANDMARK MAPPING WORKSHEET
+#
+# PURPOSE
+# -------
+# This file maps Mini-FaceIQ's named side-profile landmarks to the unknown
+# 39-point Multi-PIE profile annotation indices shown by visualizer_temp.py.
+#
+# IMPORTANT FOR OTHER LLMS AND AGENTS
+# -----------------------------------
+# - The human user owns the values in the final column.
+# - Do not guess, auto-fill, reorder, or overwrite that column.
+# - Preserve the user's answers exactly and review them against multiple images.
+# - Multi-PIE dataset indices are 0 through 38.
+# - Legacy sparse indices and legacy dense-mesh indices are DIFFERENT namespaces.
+# - "dynamic" means the legacy code calculates a point instead of using one
+#   permanently fixed mesh vertex.
+# - A dataset point may have no equivalent Mini-FaceIQ landmark.
+#
+# HOW THE USER FILLS THIS
+# -----------------------
+# Put one dataset index (0-38) after the final "|" on each matching row.
+# Use NONE if the 39-point dataset does not contain that landmark.
+# Use ? if the match is still uncertain.
+#
+# landmark name | legacy source | legacy god-code index/reference | new dataset index
+top_of_head | dynamic dense | minimum-y vertex | NONE
+occiput | dynamic dense | rear upper-head vertex search | NONE
+nose_tip | sparse | 30 | 19
+neck_point | dynamic dense | search starting from 35587 | NONE
+porion | dynamic dense | search around base 17327 | 0
+orbitale | dense | 10855 | NONE
+tragus | dynamic dense | search around base 17331 | NONE
+intertragic_notch | dense | 17109 | NONE
+corneal_apex | sparse | 37 | NONE
+cheekbone | dense | 22478 | NONE
+eyelid_end | dense | 1961 | NONE
+lower_eyelid | sparse | 41 | 26?
+hairline_profile | computed dense | line 31615-31670 intersected with bbox top | NONE
+glabella | dense | 31324 | 15
+forehead | dense | 31172 | NONE
+nasal_bridge_root | sparse | 27 | 16
+rhinion | sparse | 28 | 17
+supratip | sparse | 29 | 18
+infratip | dense | 8195 | NONE
+columella | dense | 8197 | NONE
+subnasale | sparse | 33 | 21
+subalare | dense | 13727 | NONE
+upper_lip | sparse | 51 | 27
+mouth_corner | sparse | 48 | 30
+lower_lip | sparse | 57 | 33
+labiomental_fold | dense | 8843 | 11
+chin_point | dense | 36160 | 10
+chin_bottom | dense | 36143 | 9
+cervical_point | dense | 35587 | NONE
+upper_jaw_angle | sparse | 3 | 3
+lower_jaw_angle | sparse | 5 | 6

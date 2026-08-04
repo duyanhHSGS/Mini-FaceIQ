@@ -1,0 +1,188 @@
+[
+    {
+        "id": "top_of_head",
+        "label": "Top of Head",
+        "x": 0.717457,
+        "y": 0.184849
+    },
+    {
+        "id": "occiput",
+        "label": "Occiput",
+        "x": 0.447684,
+        "y": 0.312199
+    },
+    {
+        "id": "nose_tip",
+        "label": "Nose Tip",
+        "x": 0.775468,
+        "y": 0.404225
+    },
+    {
+        "id": "neck_point",
+        "label": "Neck Point",
+        "x": 0.557316,
+        "y": 0.538759
+    },
+    {
+        "id": "porion",
+        "label": "Porion",
+        "x": 0.45248,
+        "y": 0.306171
+    },
+    {
+        "id": "orbitale",
+        "label": "Orbitale",
+        "x": 0.699219,
+        "y": 0.33409
+    },
+    {
+        "id": "tragus",
+        "label": "Tragus",
+        "x": 0.454735,
+        "y": 0.320368
+    },
+    {
+        "id": "intertragic_notch",
+        "label": "Intertragic Notch",
+        "x": 0.444905,
+        "y": 0.356957
+    },
+    {
+        "id": "corneal_apex",
+        "label": "Corneal Apex",
+        "x": 0.686706,
+        "y": 0.305808
+    },
+    {
+        "id": "cheekbone",
+        "label": "Cheekbone",
+        "x": 0.602693,
+        "y": 0.345918
+    },
+    {
+        "id": "eyelid_end",
+        "label": "Eyelid End",
+        "x": 0.658156,
+        "y": 0.310668
+    },
+    {
+        "id": "lower_eyelid",
+        "label": "Lower Eyelid",
+        "x": 0.676485,
+        "y": 0.318674
+    },
+    {
+        "id": "hairline_profile",
+        "label": "Hairline (Profile)",
+        "x": 0.739386,
+        "y": 0.15
+    },
+    {
+        "id": "glabella",
+        "label": "Glabella",
+        "x": 0.744446,
+        "y": 0.280322
+    },
+    {
+        "id": "forehead",
+        "label": "Forehead",
+        "x": 0.732148,
+        "y": 0.20493
+    },
+    {
+        "id": "nasal_bridge_root",
+        "label": "Nasal Bridge Root",
+        "x": 0.740215,
+        "y": 0.323807
+    },
+    {
+        "id": "rhinion",
+        "label": "Rhinion",
+        "x": 0.757267,
+        "y": 0.352693
+    },
+    {
+        "id": "supratip",
+        "label": "Supratip",
+        "x": 0.77539,
+        "y": 0.381806
+    },
+    {
+        "id": "infratip",
+        "label": "Infratip",
+        "x": 0.760532,
+        "y": 0.413304
+    },
+    {
+        "id": "columella",
+        "label": "Columella",
+        "x": 0.749787,
+        "y": 0.415007
+    },
+    {
+        "id": "subnasale",
+        "label": "Subnasale",
+        "x": 0.727577,
+        "y": 0.421002
+    },
+    {
+        "id": "subalare",
+        "label": "Subalare",
+        "x": 0.689299,
+        "y": 0.393735
+    },
+    {
+        "id": "upper_lip",
+        "label": "Upper Lip",
+        "x": 0.720304,
+        "y": 0.448891
+    },
+    {
+        "id": "mouth_corner",
+        "label": "Mouth Corner",
+        "x": 0.656663,
+        "y": 0.454474
+    },
+    {
+        "id": "lower_lip",
+        "label": "Lower Lip",
+        "x": 0.705822,
+        "y": 0.478537
+    },
+    {
+        "id": "labiomental_fold",
+        "label": "Labiomental Fold",
+        "x": 0.685925,
+        "y": 0.496023
+    },
+    {
+        "id": "chin_point",
+        "label": "Chin Point",
+        "x": 0.683173,
+        "y": 0.529006
+    },
+    {
+        "id": "chin_bottom",
+        "label": "Chin Bottom",
+        "x": 0.640524,
+        "y": 0.552145
+    },
+    {
+        "id": "cervical_point",
+        "label": "Cervical Point",
+        "x": 0.544261,
+        "y": 0.529561
+    },
+    {
+        "id": "upper_jaw_angle",
+        "label": "Upper Jaw Angle",
+        "x": 0.454292,
+        "y": 0.405918
+    },
+    {
+        "id": "lower_jaw_angle",
+        "label": "Lower Jaw Angle",
+        "x": 0.509704,
+        "y": 0.487037
+    }
+]

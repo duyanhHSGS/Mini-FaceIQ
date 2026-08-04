@@ -4,7 +4,7 @@ from front_calculator import calculate_front_analysis
 from front_landmarks import FRONT_LANDMARK_DEFS
 from side_calculator import calculate_side_analysis
 from side_landmarks import SIDE_LANDMARK_DEFS
-from third_party import (
+from packages import (
     analyze_features_from_upload,
     detect_front_landmarks_from_upload,
     detect_side_landmarks_from_upload,

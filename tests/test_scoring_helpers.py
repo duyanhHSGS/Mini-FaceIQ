@@ -1,8 +1,7 @@
 from front_calculator import (
     PENALTY_CAP,
-    SCORING_FLOOR,
     calculate_penalty,
-    calculate_plateau_gaussian_score,
+    calculate_plateau_exponential_score,
     classify_deviation,
     clamp_score,
     create_measurement,
@@ -12,13 +11,18 @@ from front_landmarks import normalize_front_landmarks
 from side_landmarks import normalize_side_landmarks
 
 
-def test_plateau_gaussian_score_is_perfect_inside_ideal_range():
-    assert calculate_plateau_gaussian_score(5, 0, 10, 4, 6) == 10.0
+def test_plateau_exponential_score_is_perfect_inside_ideal_range():
+    assert calculate_plateau_exponential_score(5, 4, 6, 0.5) == 10.0
 
 
-def test_plateau_gaussian_score_uses_floor_outside_scored_range():
-    assert calculate_plateau_gaussian_score(-1, 0, 10, 4, 6) == SCORING_FLOOR
-    assert calculate_plateau_gaussian_score(11, 0, 10, 4, 6) == SCORING_FLOOR
+def test_plateau_exponential_score_uses_raw_distance_on_both_sides():
+    assert round(calculate_plateau_exponential_score(2, 4, 6, 0.5), 4) == 3.6788
+    assert round(calculate_plateau_exponential_score(8, 4, 6, 0.5), 4) == 3.6788
+
+
+def test_plateau_exponential_score_has_no_hard_floor():
+    score = calculate_plateau_exponential_score(-100, 4, 6, 0.5)
+    assert 0 < score < 1
 
 
 def test_classify_deviation_marks_low_ideal_and_high_values():
@@ -88,7 +92,7 @@ def test_calculate_penalty_caps_many_low_scores():
 
 
 def test_create_measurement_marks_low_high_and_ideal_states():
-    ideal = {"min": 0, "max": 10, "idealMin": 4, "idealMax": 6}
+    ideal = {"min": 0, "max": 10, "idealMin": 4, "idealMax": 6, "decayRate": 0.5}
 
     low = create_measurement("metric", "Metric", 2, "ratio", "Group", "Description", ideal)
     perfect = create_measurement("metric", "Metric", 5, "ratio", "Group", "Description", ideal)
