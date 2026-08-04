@@ -68,6 +68,16 @@ cannot accidentally resume another landmark.
 
 ## Inference
 
+The Tkinter UI includes a **Brain playground** tab. Choose any local image and
+any compatible `best.pt`, then run the specialist and inspect its point on the
+original image. Arbitrary resolutions, including Ultra HD, are accepted: the
+image is resized to the checkpoint's training size for inference and the
+normalized prediction is mapped back to original pixel coordinates. EXIF phone
+rotation is applied before prediction and display.
+
+Resolution compatibility does not guarantee accuracy on unfamiliar crops,
+poses, or image domains; the specialist still sees a resized 256x256 input.
+
 ```python
 from PIL import Image
 from packages.side_trainer_discrete.inference import DiscreteLandmarkPredictor

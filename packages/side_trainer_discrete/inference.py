@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import torch
 
 from .config import resolve_device
@@ -22,13 +22,15 @@ class DiscreteLandmarkPredictor:
             raise ValueError("Not a Mini-FaceIQ discrete landmark checkpoint")
         self.landmark_id = str(checkpoint["landmark_id"])
         self.image_size = int(checkpoint["config"]["image_size"])
+        self.label_count = int(checkpoint.get("label_count", 0))
+        self.best_validation_nme = checkpoint.get("best_validation_nme")
         self.model = DiscreteLandmarkModel(pretrained=False).to(self.device)
         self.model.load_state_dict(checkpoint["model_state"], strict=True)
         self.model.eval()
 
     @torch.inference_mode()
     def predict(self, image: Image.Image) -> dict[str, Any]:
-        rgb = image.convert("RGB")
+        rgb = ImageOps.exif_transpose(image).convert("RGB")
         original_width, original_height = rgb.size
         resized = rgb.resize((self.image_size, self.image_size), Image.Resampling.BILINEAR)
         pixels = np.asarray(resized, dtype=np.float32).copy()
