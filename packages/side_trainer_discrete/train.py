@@ -128,7 +128,7 @@ def _run_epoch(
             if training:
                 optimizer.zero_grad(set_to_none=True)
             amp_enabled = config.amp and device.type == "cuda"
-            with torch.cuda.amp.autocast(enabled=amp_enabled):
+            with torch.amp.autocast("cuda", enabled=amp_enabled):
                 losses = landmark_loss(
                     model(images),
                     targets,
@@ -209,7 +209,7 @@ def run_training(config: TrainerConfig) -> Path:
     model = DiscreteLandmarkModel(pretrained=config.pretrained and checkpoint is None).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(1, config.epochs))
-    scaler = torch.cuda.amp.GradScaler(enabled=config.amp and device.type == "cuda")
+    scaler = torch.amp.GradScaler("cuda", enabled=config.amp and device.type == "cuda")
     start_epoch = 0
     best_nme = math.inf
     stale_epochs = 0

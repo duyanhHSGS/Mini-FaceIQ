@@ -140,7 +140,7 @@ class FactoryPredictor:
         amp_enabled = self.device.type == "cuda" and bool(
             self.config.get("amp", True)
         )
-        with torch.cuda.amp.autocast(enabled=amp_enabled):
+        with torch.amp.autocast("cuda", enabled=amp_enabled):
             logits = self.model(tensor)
             coordinates, confidence = soft_argmax_2d(logits)
         coordinates_np = coordinates[0].float().cpu().numpy()
