@@ -2503,6 +2503,315 @@
         transition-duration: 0.01ms !important;
       }
     }
+    /* 2026 workflow buff: one calm three-step product flow. */
+    main {
+      grid-template-columns: minmax(300px, 350px) minmax(0, 1fr);
+    }
+
+    main.uploadCollapsed {
+      grid-template-columns: 68px minmax(0, 1fr);
+    }
+
+    aside {
+      padding: 20px;
+      background: rgba(8, 13, 21, 0.94);
+      box-shadow: 12px 0 48px rgba(0, 0, 0, 0.12);
+    }
+
+    section {
+      padding-inline: clamp(16px, 2.2vw, 34px);
+    }
+
+    .topTabs {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      max-width: 840px;
+      margin-right: auto;
+      padding: 4px;
+      border-radius: 15px;
+      background: rgba(8, 13, 21, 0.9);
+    }
+
+    .tabBtn {
+      min-height: 48px;
+      grid-template-columns: 28px minmax(0, 1fr);
+      border-radius: 11px;
+    }
+
+    .tabBtn.active {
+      border-color: rgba(94, 234, 212, 0.3);
+      background: rgba(94, 234, 212, 0.1);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .tabBtn.complete:not(.active) .tabIndex {
+      border-color: rgba(126, 226, 168, 0.26);
+      background: rgba(126, 226, 168, 0.08);
+      color: var(--green);
+    }
+
+    .panelIntro {
+      margin-bottom: 14px;
+    }
+
+    .panelIntro h2 {
+      font-size: 19px;
+      letter-spacing: -0.025em;
+    }
+
+    .fileField {
+      padding: 14px;
+      border-style: dashed;
+      border-color: rgba(148, 163, 184, 0.22);
+      background: rgba(255, 255, 255, 0.018);
+    }
+
+    .fileField:focus-within {
+      border-style: solid;
+    }
+
+    .fileLabelTitle {
+      font-size: 14px;
+    }
+
+    .fileLabelMeta {
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    .settingsCard {
+      background: transparent;
+    }
+
+    .analysisLayout {
+      grid-template-columns: minmax(520px, 1.7fr) minmax(300px, 0.72fr);
+      gap: clamp(16px, 2vw, 26px);
+      max-width: 1680px;
+      margin-inline: auto;
+    }
+
+    main.uploadCollapsed .analysisLayout {
+      grid-template-columns: minmax(580px, 1.8fr) minmax(320px, 0.72fr);
+    }
+
+    .canvasWrap {
+      min-height: 560px;
+      height: calc(100dvh - 190px);
+      border-radius: 18px;
+      border-color: rgba(148, 163, 184, 0.13);
+      background:
+        radial-gradient(circle at 50% 38%, rgba(94, 234, 212, 0.035), transparent 42%),
+        #060a10;
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.22);
+    }
+
+    .viewerToolbar {
+      margin-bottom: 8px;
+    }
+
+    .resultsPane {
+      padding-top: 0;
+    }
+
+    .resultsHeader {
+      padding: 2px 2px 10px;
+    }
+
+    .resultsHeader h2 {
+      font-size: 21px;
+      letter-spacing: -0.03em;
+    }
+
+    .resultsPane > .score {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .resultsPane > .score .stat:first-child {
+      grid-column: 1 / -1;
+      min-height: 112px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-color: rgba(94, 234, 212, 0.3);
+      background:
+        radial-gradient(circle at 82% 20%, rgba(94, 234, 212, 0.18), transparent 45%),
+        linear-gradient(145deg, rgba(94, 234, 212, 0.1), rgba(10, 16, 25, 0.94));
+    }
+
+    .resultsPane > .score .stat:first-child b {
+      font-size: clamp(38px, 4vw, 52px);
+    }
+
+    .measurementCatalog,
+    .metrics {
+      border-color: rgba(148, 163, 184, 0.12);
+    }
+
+    main.tab-measurements .measurementCatalog {
+      display: block;
+    }
+
+    .metric:not(.header) {
+      border-top-color: rgba(148, 163, 184, 0.1);
+    }
+
+    .metric:not(.header):hover,
+    .metric.active,
+    .metric:focus-visible {
+      background: rgba(94, 234, 212, 0.055);
+    }
+
+    .resultGuide {
+      margin: 12px 0 0;
+      border-color: rgba(94, 234, 212, 0.16);
+      background: rgba(94, 234, 212, 0.045);
+    }
+
+    .resultActions {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .resultActions .fullButton {
+      margin-top: 0;
+    }
+
+    .resultAiPanel {
+      margin-top: 12px;
+    }
+
+    .resultAiPanel[open] {
+      border-color: rgba(134, 168, 255, 0.22);
+      background: rgba(134, 168, 255, 0.035);
+    }
+
+    .compactHelp {
+      margin: 0 0 10px;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .compactStatus {
+      margin-top: 10px;
+      padding: 11px;
+    }
+
+    main.tab-measurements .featureDemo {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.82fr) minmax(320px, 1fr);
+      gap: 16px;
+      max-width: 1680px;
+      margin: 18px auto 0;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+
+    main.tab-upload .featureDemo,
+    main.tab-landmarks .featureDemo {
+      display: none;
+    }
+
+    .featureCard {
+      background: rgba(10, 16, 25, 0.62);
+    }
+
+    .workflowMap {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .workflowMap::before {
+      left: calc(16.666% + 18px);
+      right: calc(16.666% + 18px);
+    }
+
+    .workspaceHeader {
+      max-width: 1680px;
+      margin-bottom: 12px;
+    }
+
+    .workspaceHeader p {
+      max-width: 760px;
+    }
+
+    .workspaceFootnote {
+      max-width: 1680px;
+    }
+
+    @media (max-width: 1220px) {
+      .analysisLayout,
+      main.uploadCollapsed .analysisLayout {
+        grid-template-columns: minmax(0, 1.45fr) minmax(290px, 0.72fr);
+      }
+
+      .canvasWrap {
+        min-height: 500px;
+      }
+    }
+
+    @media (max-width: 1040px) {
+      main:not(.uploadCollapsed) {
+        grid-template-columns: minmax(285px, 325px) minmax(0, 1fr);
+      }
+
+      .analysisLayout,
+      main.uploadCollapsed .analysisLayout {
+        grid-template-columns: 1fr;
+      }
+
+      .viewerPane,
+      main.uploadCollapsed .viewerPane {
+        position: static;
+      }
+
+      .canvasWrap {
+        height: min(68dvh, 700px);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .topTabs {
+        width: calc(100% - 32px);
+        max-width: none;
+        margin-inline: 16px;
+      }
+
+      aside {
+        padding: 18px;
+      }
+
+      .analysisLayout {
+        gap: 18px;
+      }
+
+      main.tab-measurements .featureDemo {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .topTabs {
+        grid-template-columns: repeat(3, minmax(118px, 1fr));
+        grid-auto-flow: initial;
+        grid-auto-columns: initial;
+      }
+
+      .tabCopy small {
+        display: none;
+      }
+
+      .workflowMap {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .workflowMap::before {
+        display: none;
+      }
+
+      .canvasWrap {
+        height: clamp(390px, 60dvh, 600px);
+      }
+    }
   </style>
 </head>
 
@@ -2513,27 +2822,17 @@
       <button id="tabUpload" class="tabBtn active" data-tab="upload" type="button" role="tab"
         aria-controls="panelUpload" aria-selected="true">
         <span class="tabIndex">01</span>
-        <span class="tabCopy"><strong>Upload</strong><small>Photo set</small></span>
+        <span class="tabCopy"><strong>Photos</strong><small>Pair the views</small></span>
       </button>
       <button id="tabLandmarks" class="tabBtn" data-tab="landmarks" type="button" role="tab"
         aria-controls="panelLandmarks" aria-selected="false" tabindex="-1">
         <span class="tabIndex">02</span>
-        <span class="tabCopy"><strong>Landmarks</strong><small>Map points</small></span>
+        <span class="tabCopy"><strong>Align</strong><small>Review the map</small></span>
       </button>
       <button id="tabMeasurements" class="tabBtn" data-tab="measurements" type="button" role="tab"
         aria-controls="panelMeasurements" aria-selected="false" tabindex="-1">
         <span class="tabIndex">03</span>
-        <span class="tabCopy"><strong>Measurements</strong><small>Score geometry</small></span>
-      </button>
-      <button id="tabSummary" class="tabBtn" data-tab="summary" type="button" role="tab"
-        aria-controls="panelSummary" aria-selected="false" tabindex="-1">
-        <span class="tabIndex">04</span>
-        <span class="tabCopy"><strong>Summary</strong><small>Combined report</small></span>
-      </button>
-      <button id="tabFeatures" class="tabBtn" data-tab="features" type="button" role="tab"
-        aria-controls="panelFeatures" aria-selected="false" tabindex="-1">
-        <span class="tabIndex">AI</span>
-        <span class="tabCopy"><strong>Feature signal</strong><small>Independent model</small></span>
+        <span class="tabCopy"><strong>Results</strong><small>Geometry + AI</small></span>
       </button>
     </nav>
 
@@ -2676,56 +2975,45 @@
         <div id="panelMeasurements" class="tabPanel measurementPanel" role="tabpanel"
           aria-labelledby="tabMeasurements">
           <div class="panelIntro">
-            <span class="eyebrow">Step 03 / Analysis</span>
-            <h2>Calculate geometry</h2>
-            <p>Choose a profile for focused results, or calculate the complete paired report.</p>
+            <span class="eyebrow">Step 03 / Results</span>
+            <h2>Read the report</h2>
+            <p>Geometry, detailed measurements, export tools, and the independent AI signal now live in one place.</p>
           </div>
 
-          <div class="subTabs" role="group" aria-label="Measurement profile">
-            <button class="modeBtn" data-profile-target="front" type="button">Front profile</button>
-            <button class="modeBtn" data-profile-target="side" type="button">Side profile</button>
+          <div class="subTabs" role="group" aria-label="Results profile">
+            <button class="modeBtn" data-profile-target="front" type="button">Front results</button>
+            <button class="modeBtn" data-profile-target="side" type="button">Side results</button>
           </div>
-          <div class="insightCard">
-            <strong>Interactive measurement map</strong>
-            Hover, focus, or tap any result to isolate its landmarks and zoom the canvas to the measured region.
+          <div class="insightCard resultGuide">
+            <strong>Start big, then go nerd mode</strong>
+            Read the headline score first. Tap a measurement to isolate the landmarks that created it on the photo.
           </div>
-          <button id="calcBtn" class="primary fullButton" type="button">Calculate current profile</button>
-          <button id="calcAllBtn" class="fullButton" type="button">Calculate complete report</button>
-        </div>
+          <div class="resultActions">
+            <button id="calcAllBtn" class="primary fullButton" type="button">Refresh complete report</button>
+            <button id="calcBtn" class="fullButton" type="button">Refresh current profile</button>
+            <button id="copySummaryBtn" class="fullButton" type="button">Copy complete report</button>
+          </div>
 
-        <div id="panelSummary" class="tabPanel summaryPanel" role="tabpanel" aria-labelledby="tabSummary">
-          <div class="panelIntro">
-            <span class="eyebrow">Step 04 / Report</span>
-            <h2>Your signal, condensed</h2>
-            <p>Review the score hierarchy, then copy the full measurement report in one click.</p>
-          </div>
-          <div class="current">
-            <span>Report readiness</span>
-            <p>Front and side results stay separate until both are available for a combined score.</p>
-          </div>
-          <button id="copySummaryBtn" class="primary fullButton" type="button">Copy complete report</button>
-        </div>
-
-        <div id="panelFeatures" class="tabPanel featurePanel" role="tabpanel" aria-labelledby="tabFeatures">
-          <div class="panelIntro">
-            <span class="eyebrow">Independent AI signal</span>
-            <h2>Learned feature rating</h2>
-            <p>This model estimate is separate from the deterministic landmark geometry report.</p>
-          </div>
-          <div class="fileField">
-            <label for="featureImageInput">
-              <span class="fileLabelTitle">Front-facing photo</span>
-              <span class="fileLabelMeta">Use the existing front photo or choose another</span>
-            </label>
-            <input id="featureImageInput" type="file"
-              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
-          </div>
-          <button id="useFrontForFeatureBtn" class="fullButton" type="button">Use uploaded front photo</button>
-          <button id="featureAnalyzeBtn" class="primary fullButton" type="button">Run feature rating</button>
-          <div class="current">
-            <span id="featureStatus" aria-live="polite">Ready for a front-facing photo.</span>
-            <p>One prediction plus eight blur-occlusion checks show which visible regions influenced the model.</p>
-          </div>
+          <details class="advancedPanel resultAiPanel">
+            <summary>Independent AI feature signal</summary>
+            <div class="advancedContent">
+              <p class="compactHelp">Optional model output. It stays separate from the deterministic geometry score.</p>
+              <div class="fileField">
+                <label for="featureImageInput">
+                  <span class="fileLabelTitle">Front-facing photo</span>
+                  <span class="fileLabelMeta">Reuse the uploaded front view or choose another</span>
+                </label>
+                <input id="featureImageInput" type="file"
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+              </div>
+              <button id="useFrontForFeatureBtn" class="fullButton" type="button">Use uploaded front photo</button>
+              <button id="featureAnalyzeBtn" class="primary fullButton" type="button">Run feature rating</button>
+              <div class="current compactStatus">
+                <span id="featureStatus" aria-live="polite">Ready for a front-facing photo.</span>
+                <p>One prediction plus eight blur-occlusion checks explain which visible regions influenced the model.</p>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
     </aside>
@@ -2747,11 +3035,10 @@
             <h3>Turn two portraits into one explainable face map.</h3>
             <p>Upload, verify, measure, then inspect exactly which landmarks create each score. Nothing important hides behind a mystery number.</p>
           </div>
-          <div class="workflowMap" aria-label="Four analysis steps">
-            <div class="workflowNode" data-step="01"><strong>Upload</strong>Pair the views</div>
-            <div class="workflowNode" data-step="02"><strong>Map</strong>Review landmarks</div>
-            <div class="workflowNode" data-step="03"><strong>Measure</strong>Inspect geometry</div>
-            <div class="workflowNode" data-step="04"><strong>Report</strong>Compare signals</div>
+          <div class="workflowMap" aria-label="Three analysis steps">
+            <div class="workflowNode" data-step="01"><strong>Photos</strong>Pair the views</div>
+            <div class="workflowNode" data-step="02"><strong>Align</strong>Review landmarks</div>
+            <div class="workflowNode" data-step="03"><strong>Results</strong>Inspect every signal</div>
           </div>
         </article>
 
@@ -2904,19 +3191,19 @@
     const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
     const TAB_CONTEXT = {
       upload: {
-        eyebrow: "Step 01 / Input",
+        eyebrow: "Step 01 / Photos",
         heading: "Start with two clear photos",
-        description: "A guided workspace for precise landmarks, explainable geometry, and a separate learned feature signal."
+        description: "Pair the front and side views once; the guided flow takes care of what comes next."
       },
       landmarks: {
-        eyebrow: "Step 02 / Geometry",
-        heading: "Review every landmark with precision",
-        description: "Choose automatic or manual placement, inspect the full face map, and drag any point into position."
+        eyebrow: "Step 02 / Align",
+        heading: "Review the map, not a blank canvas",
+        description: "Automatic landmarks are the default. Drag anything that needs correction, then confirm each profile."
       },
       measurements: {
-        eyebrow: "Step 03 / Analysis",
-        heading: "See how each measurement is built",
-        description: "Focus any result to isolate its geometry on the photo, then compare the measured value with its ideal range."
+        eyebrow: "Step 03 / Results",
+        heading: "Start with the signal, then inspect the math",
+        description: "Headline scores, interactive geometry, report export, and the optional AI feature signal share one results workspace."
       },
       summary: {
         eyebrow: "Step 04 / Report",
@@ -4704,16 +4991,23 @@
       const hasFront = Boolean(filesByProfile.front && imageLoadedByProfile.front && !pendingFilesByProfile.front);
       const hasSide = Boolean(filesByProfile.side && imageLoadedByProfile.side && !pendingFilesByProfile.side);
       if (hasFront && hasSide) {
-        setInlineStatus(uploadConfirmNote, "Photo set confirmed. Ready to review landmarks.", "success");
-        showNotice("Photo set confirmed. Review the front landmarks first.", "success");
+        setInlineStatus(uploadConfirmNote, "Photo set confirmed. Starting landmark review.", "success");
+        showNotice("Photos are ready. Auto-detecting the front map so you can review instead of starting from zero.", "success");
         setActiveTab("landmarks", true);
+        const frontAlreadyPlaced = getValidPlacedCount(
+          getDefsForProfile("front"),
+          getLandmarksForProfile("front")
+        ) > 0;
+        if (!frontAlreadyPlaced && landmarkMethodByProfile.front === "auto") {
+          window.setTimeout(() => autoBtn.click(), 0);
+        }
       } else {
         const missing = [hasFront ? "" : "front", hasSide ? "" : "side"].filter(Boolean).join(" and ");
         setInlineStatus(uploadConfirmNote, `Add a ready ${missing} photo to continue.`, "error");
       }
     });
 
-    landmarkConfirmBtn.addEventListener("click", () => {
+    landmarkConfirmBtn.addEventListener("click", async () => {
       const missing = getMissingLandmarks();
       if (missing.length) {
         setInlineStatus(
@@ -4721,10 +5015,32 @@
           `${profileMode} still needs ${missing.length} landmark${missing.length === 1 ? "" : "s"}.`,
           "error"
         );
-      } else {
-        setInlineStatus(landmarkConfirmNote, `${profileMode} landmarks confirmed.`, "success");
-        showNotice(`${profileMode === "front" ? "Front" : "Side"} landmarks confirmed.`, "success");
+        return;
+      }
+
+      const confirmedMode = profileMode;
+      const otherMode = confirmedMode === "front" ? "side" : "front";
+      setInlineStatus(landmarkConfirmNote, `${confirmedMode} landmarks confirmed.`, "success");
+
+      try {
+        await fetchDefsForProfile(otherMode);
+        const otherMissing = getMissingLandmarksForProfile(otherMode);
+        if (otherMissing.length) {
+          showNotice(`${confirmedMode === "front" ? "Front" : "Side"} map confirmed. Moving to the ${otherMode} map next.`, "success");
+          await loadProfileDefs(otherMode);
+          if (landmarkMethodByProfile[otherMode] === "auto" && filesByProfile[otherMode]) {
+            window.setTimeout(() => autoBtn.click(), 0);
+          }
+          return;
+        }
+
+        showNotice("Both landmark maps are confirmed. Building the complete report.", "success");
         setActiveTab("measurements", true);
+        if (canCalculateBothProfiles() && typeof calcAllBtn.onclick === "function") {
+          window.setTimeout(() => calcAllBtn.onclick(), 0);
+        }
+      } catch (err) {
+        showNotice(err.message || "Could not advance the landmark workflow.", "error");
       }
     });
 
