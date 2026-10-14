@@ -4,7 +4,6 @@ from collections import defaultdict
 from front_ideals import get_front_ideals
 from front_landmarks import normalize_front_landmarks
 
-
 PENALTY_THRESHOLD = 3.5
 PENALTY_MULTIPLIER = 0.25
 PENALTY_CAP = 1
@@ -123,7 +122,7 @@ def _interpret(name, value, unit, ideal, score):
     return f"Your {label} of {value_text} is far from the ideal range ({ideal_text})."
 
 
-def calculate_front_measurements(front_landmarks, gender="male", ethnicity="asian", front_aspect=1):
+def calculate_front_measurements(front_landmarks, gender="male", ethnicity="asian", front_aspect: float = 1.0):
     lm = normalize_front_landmarks(front_landmarks) if isinstance(front_landmarks, list) else front_landmarks
     lm = {key: {**value, "x": value["x"] * SCALE * front_aspect, "y": value["y"] * SCALE} for key, value in lm.items()}
     ideals = get_front_ideals(gender, ethnicity)
@@ -395,7 +394,7 @@ def clamp_score(score):
     return round(max(0, min(10, score)), 2)
 
 
-def calculate_front_analysis(front_landmarks, gender="male", ethnicity="asian", front_aspect=1):
+def calculate_front_analysis(front_landmarks, gender="male", ethnicity="asian", front_aspect: float = 1.0):
     measurements = calculate_front_measurements(front_landmarks, gender, ethnicity, front_aspect)
     f1_key = ["midface_ratio", "face_width_to_height", "lower_third"]
     f1_std = ["bitemporal_width", "bigonial_width", "jaw_slope", "middle_third", "top_third", "total_facial_width_to_height", "lower_third_proportion"]

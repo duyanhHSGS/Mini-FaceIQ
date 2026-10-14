@@ -7,17 +7,25 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+FLET_SOURCE = str(Path(__file__).resolve().parents[1] / "src")
+sys.path.insert(0, FLET_SOURCE)
+try:
+    from local_engine import (
+        MAX_IMAGE_BYTES,
+        AnalysisError,
+        _MemoryUpload,
+        analyze_photo,
+        front_autolandmarks,
+        image_aspect_ratio,
+        side_autolandmarks,
+    )
+finally:
+    sys.path.remove(FLET_SOURCE)
 
-from local_engine import (
-    MAX_IMAGE_BYTES,
-    AnalysisError,
-    _MemoryUpload,
-    analyze_photo,
-    front_autolandmarks,
-    image_aspect_ratio,
-    side_autolandmarks,
-)
+
+class FakePackages(types.ModuleType):
+    detect_front_landmarks_from_upload: Mock
+    detect_side_landmarks_from_upload: Mock
 
 
 class LocalEngineTests(unittest.TestCase):
@@ -29,14 +37,16 @@ class LocalEngineTests(unittest.TestCase):
         self.assertEqual(stream.getvalue(), b"raw photo")
 
     def test_auto_landmark_wrappers_call_python_functions_not_flask(self):
-        fake_packages = types.ModuleType("packages")
-        fake_packages.detect_front_landmarks_from_upload = Mock(return_value=[{"id": "front"}])
-        fake_packages.detect_side_landmarks_from_upload = Mock(return_value=[{"id": "side"}])
+        fake_packages = FakePackages("packages")
+        front_detector = Mock(return_value=[{"id": "front"}])
+        side_detector = Mock(return_value=[{"id": "side"}])
+        fake_packages.detect_front_landmarks_from_upload = front_detector
+        fake_packages.detect_side_landmarks_from_upload = side_detector
         with patch.dict(sys.modules, {"packages": fake_packages}):
             self.assertEqual(front_autolandmarks(b"front image", "front.png"), [{"id": "front"}])
             self.assertEqual(side_autolandmarks(b"side image", "side.png"), [{"id": "side"}])
-        front_upload = fake_packages.detect_front_landmarks_from_upload.call_args.args[0]
-        side_upload = fake_packages.detect_side_landmarks_from_upload.call_args.args[0]
+        front_upload = front_detector.call_args.args[0]
+        side_upload = side_detector.call_args.args[0]
         self.assertEqual(front_upload.read(), b"front image")
         self.assertEqual(side_upload.read(), b"side image")
 

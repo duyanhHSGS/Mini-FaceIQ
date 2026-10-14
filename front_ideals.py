@@ -1,6 +1,5 @@
 from copy import deepcopy
 
-
 # These transformations retain the existing legacy reference bounds and female
 # derivation contract. Confirmed non-Asian male ideal plateaus are applied from
 # MALE_LIVE_FRONT_PLATEAUS instead of being inferred from these factors.
@@ -347,17 +346,13 @@ def _build_female_front(male_values):
     for key, val in male_values.items():
         if key == "lateral_canthal_tilt":
             result[key] = _adjust_ideal(val, 1.5, 1.5, 1.5, 1.5)
-        elif key == "jaw_slope":
-            result[key] = _adjust_ideal(val, 3, 3, 2.5, 2.5)
-        elif key == "jaw_frontal_angle":
+        elif key == "jaw_slope" or key == "jaw_frontal_angle":
             result[key] = _adjust_ideal(val, 3, 3, 2.5, 2.5)
         elif key == "eyebrow_tilt":
             result[key] = _adjust_ideal(val, 2, 2, 1.5, 1.5)
         elif key == "bigonial_width":
             result[key] = _adjust_ideal(val, -3, -3, -2.5, -2.5)
-        elif key == "face_width_to_height":
-            result[key] = _scale_ideal(val, 0.95)
-        elif key == "total_facial_width_to_height":
+        elif key == "face_width_to_height" or key == "total_facial_width_to_height":
             result[key] = _scale_ideal(val, 0.95)
         elif key == "eye_aspect_ratio":
             result[key] = _adjust_ideal(val, 0.2, 0.2, 0.15, 0.15)

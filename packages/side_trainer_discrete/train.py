@@ -7,9 +7,9 @@ import gc
 import json
 import math
 import os
-from pathlib import Path
 import sys
 import time
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -110,7 +110,7 @@ def _run_epoch(
     loader: DataLoader,
     config: TrainerConfig,
     device: torch.device,
-    scaler: torch.cuda.amp.GradScaler,
+    scaler: torch.amp.GradScaler,
     optimizer: torch.optim.Optimizer | None,
     stop_path: Path,
 ) -> dict[str, float | int | bool]:
@@ -187,7 +187,10 @@ def run_training(config: TrainerConfig) -> Path:
     checkpoint: dict[str, Any] | None = None
     probe = DiscreteLandmarkDataset(config.shard_path, config.images_root, image_size=config.image_size)
     if resume_path:
-        checkpoint = torch.load(resume_path, map_location=device)
+        loaded_checkpoint = torch.load(resume_path, map_location=device)
+        if not isinstance(loaded_checkpoint, dict):
+            raise TypeError(f"Checkpoint must contain a mapping: {resume_path}")
+        checkpoint = dict(loaded_checkpoint)
         _validate_resume(checkpoint, config)
         split = _split_from_dict(checkpoint["split"])
         run_dir = resume_path.parent

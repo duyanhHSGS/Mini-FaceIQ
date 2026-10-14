@@ -7,7 +7,6 @@ from pathlib import Path
 
 import torch
 
-
 DATASET_LANDMARK_COUNT = 39
 INACTIVE_VALUES = {"", "NONE", "?"}
 

@@ -36,12 +36,12 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
-import sys
 import threading
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 try:
     import requests
@@ -77,6 +77,17 @@ DEFAULT_FRONT_IMAGE = PROJECT_ROOT / "examples" / "chicofront.jpg"
 DEFAULT_SIDE_IMAGE = PROJECT_ROOT / "examples" / "chicoside.jpg"
 DEFAULT_FRONT_LANDMARKS = PROJECT_ROOT / "examples" / "front.json"
 DEFAULT_SIDE_LANDMARKS = PROJECT_ROOT / "examples" / "side.json"
+EXPECTED_TEST_FAILURES = (
+    AssertionError,
+    ImportError,
+    KeyError,
+    OSError,
+    RuntimeError,
+    TypeError,
+    ValueError,
+    requests.RequestException,
+    yaml.YAMLError,
+)
 
 
 @dataclass(slots=True)
@@ -105,7 +116,7 @@ class LiveApiRunner:
             print(f"[SKIP] {name}")
             if str(exc):
                 print(f"       {exc}")
-        except Exception as exc:
+        except EXPECTED_TEST_FAILURES as exc:
             self.results.append(
                 ApiTestResult(name=name, passed=False, details=f"{type(exc).__name__}: {exc}")
             )
@@ -217,12 +228,11 @@ def extract_landmarks(payload: Any) -> list[dict[str, Any]]:
     else:
         landmarks = None
 
-    assert_true(isinstance(landmarks, list), "Could not find a landmark array")
-    assert_true(
-        all(isinstance(item, dict) for item in landmarks),
-        "Every landmark must be a JSON object",
-    )
-    return landmarks
+    if not isinstance(landmarks, list):
+        raise TypeError("Could not find a landmark array")
+    if not all(isinstance(item, dict) for item in landmarks):
+        raise AssertionError("Every landmark must be a JSON object")
+    return [dict(item) for item in landmarks]
 
 
 def open_image_file(path: Path):
@@ -303,7 +313,8 @@ def run_api_suite(args: argparse.Namespace) -> int:
     def test_expected_paths() -> str:
         document = document_holder.get("document") or load_yaml(args.spec)
         paths = document.get("paths")
-        assert_true(isinstance(paths, dict), "OpenAPI document has no paths object")
+        if not isinstance(paths, dict):
+            raise TypeError("OpenAPI document has no paths object")
 
         errors: list[str] = []
         for path, methods in EXPECTED_PATHS.items():
@@ -397,16 +408,19 @@ def run_api_suite(args: argparse.Namespace) -> int:
             payload = decode_json_response(response)
             assert_success_envelope(payload)
             landmarks = payload.get("landmarks")
-            assert_true(isinstance(landmarks, list), "landmarks must be an array")
-            assert_true(len(landmarks) > 0, "landmarks array must not be empty")
-            assert_true(
-                all(isinstance(item, dict) and "id" in item for item in landmarks),
-                "Every landmark definition must be an object containing id",
-            )
-            landmark_definitions[kind] = landmarks
+            if not isinstance(landmarks, list):
+                raise TypeError("landmarks must be an array")
+            if not landmarks:
+                raise AssertionError("landmarks array must not be empty")
+            if not all(isinstance(item, dict) and "id" in item for item in landmarks):
+                raise AssertionError(
+                    "Every landmark definition must be an object containing id"
+                )
+            typed_landmarks = [dict(item) for item in landmarks]
+            landmark_definitions[kind] = typed_landmarks
 
-            id_types = sorted({type(item["id"]).__name__ for item in landmarks})
-            return f"{len(landmarks)} definitions; ID type(s): {', '.join(id_types)}"
+            id_types = sorted({type(item["id"]).__name__ for item in typed_landmarks})
+            return f"{len(typed_landmarks)} definitions; ID type(s): {', '.join(id_types)}"
 
         return inner
 
@@ -510,7 +524,8 @@ def run_api_suite(args: argparse.Namespace) -> int:
             payload = decode_json_response(response)
             assert_error_envelope(payload)
             missing = payload.get("missing")
-            assert_true(isinstance(missing, list), "Expected missing to be an array")
+            if not isinstance(missing, list):
+                raise TypeError("Expected missing to be an array")
 
             expected_defs = landmark_definitions.get(kind)
             if expected_defs is not None:
@@ -552,12 +567,15 @@ def run_api_suite(args: argparse.Namespace) -> int:
 
             if endpoint.endswith("autolandmarks"):
                 landmarks = payload.get("landmarks")
-                assert_true(isinstance(landmarks, list), "landmarks must be an array")
-                assert_true(len(landmarks) > 0, "landmarks array must not be empty")
+                if not isinstance(landmarks, list):
+                    raise TypeError("landmarks must be an array")
+                if not landmarks:
+                    raise AssertionError("landmarks array must not be empty")
                 return f"Detected {len(landmarks)} landmarks"
 
             data = payload.get("data")
-            assert_true(isinstance(data, dict), "features data must be an object")
+            if not isinstance(data, dict):
+                raise TypeError("features data must be an object")
             return f"Returned data keys: {', '.join(sorted(data)[:12]) or '(none)'}"
 
         return inner
@@ -609,7 +627,8 @@ def run_api_suite(args: argparse.Namespace) -> int:
             )
             assert_success_envelope(payload)
             data = payload.get("data")
-            assert_true(isinstance(data, dict), "data must be an object")
+            if not isinstance(data, dict):
+                raise TypeError("data must be an object")
             return f"Returned data keys: {', '.join(sorted(data)[:15]) or '(none)'}"
 
         return inner
@@ -632,8 +651,9 @@ def main() -> int:
 
 def test_live_api_with_default_project_inputs() -> None:
     """Exercise the complete live API suite without requiring an external server."""
-    from main import app
     from werkzeug.serving import make_server
+
+    from main import app
 
     server = make_server("127.0.0.1", 0, app)
     server_thread = threading.Thread(
@@ -662,7 +682,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nCancelled by user.")
         raise SystemExit(130)
-    except Exception:
+    except EXPECTED_TEST_FAILURES:
         print("\nUnexpected fatal error:")
         traceback.print_exc()
         raise SystemExit(2)

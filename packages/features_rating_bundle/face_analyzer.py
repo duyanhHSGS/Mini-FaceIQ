@@ -1,20 +1,27 @@
-import os, sys
+import os
+import sys
+from typing import cast
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "code", "scut"))
-import torch, torch.nn as nn
-import numpy as np
-from PIL import Image
 import cv2
-from torchvision import transforms
-from net import Net
+import numpy as np
+import torch
 from data import mat_process
+from net import Net
+from PIL import Image
+from torch import nn
+from torchvision import transforms
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 os.makedirs(os.path.join(ROOT, "code", "scut", "checkpoint"), exist_ok=True)
 os.makedirs(os.path.join(ROOT, "code", "scut", "scut"), exist_ok=True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 _AUX_INPUT_SEED = 0
-import net as _n
 import Mv2_chaatt as _ch
 import Mv2attn as _at
+import net as _n
+
+
 def _p1():
     m=_ch.MV2_cattn(); m=nn.DataParallel(m)
     m.module.conv=nn.Conv2d(7,32,3,2,1,bias=False); m.module.fc=nn.Linear(7,7)
@@ -46,6 +53,7 @@ DISPLAY = {
     "Skin":"Skin/Cheeks", "Hair":"Hair/Forehead"
 }
 import mediapipe as mp
+
 _landmarker = None
 _MODEL_PATH = os.path.join(ROOT, "face_landmarker.task")
 def get_landmarker():
@@ -67,7 +75,7 @@ def get_landmarks_mp(img_bgr):
         if result.face_landmarks:
             h, w = img_bgr.shape[:2]
             return [(int(lm.x*w), int(lm.y*h)) for lm in result.face_landmarks[0]]
-    except Exception as e:
+    except (AttributeError, OSError, RuntimeError, ValueError) as e:
         print(f"MediaPipe error: {e}")
     return None
 def region_mask_from_landmarks(landmarks, indices, h, w):
@@ -102,10 +110,17 @@ def _haar_masks(img_bgr, target=224):
     h,w=img_bgr.shape[:2]
     fx,fy,fw,fh=(w//4, h//6, w//2, h*2//3)
     try:
-        c=cv2.CascadeClassifier(os.path.join(cv2.data.haarcascades,"haarcascade_frontalface_default.xml"))
+        cv2_data = vars(cv2).get("data")
+        if cv2_data is None:
+            raise RuntimeError("OpenCV data directory is unavailable")
+        haarcascades = vars(cv2_data).get("haarcascades")
+        if not isinstance(haarcascades, str):
+            raise TypeError("OpenCV Haar cascade directory must be a path string")
+        c=cv2.CascadeClassifier(os.path.join(haarcascades,"haarcascade_frontalface_default.xml"))
         faces=c.detectMultiScale(cv2.cvtColor(img_bgr,cv2.COLOR_BGR2GRAY),1.1,5,minSize=(60,60))
         if len(faces)>0: fx,fy,fw,fh=faces[0]
-    except: pass
+    except (cv2.error, OSError):
+        faces = ()
     fx,fy=max(0,fx),max(0,fy); fw,fh=min(fw,w-fx),min(fh,h-fy)
     defs={"Left Eye":(0.20,0.44,0.05,0.44),"Right Eye":(0.20,0.44,0.56,0.95),
           "Nose":(0.38,0.58,0.28,0.72),"Mouth":(0.55,0.80,0.18,0.82),
@@ -146,7 +161,7 @@ def analyze_face(path, mat_path=None, cb=None):
     bgr=cv2.cvtColor(orig,cv2.COLOR_RGB2BGR)
     T=transforms.Compose([transforms.Resize(256),transforms.CenterCrop(224),
          transforms.ToTensor(),transforms.Normalize((.5,.5,.5),(.5,.5,.5))])
-    img_t=T(img).unsqueeze(0).to(device)
+    img_t=cast(torch.Tensor, T(img)).unsqueeze(0).to(device)
     if mat_path and os.path.exists(mat_path):
         mr=np.load(mat_path)
         if mr.ndim != 3 or mr.shape[0] < 18:
@@ -181,7 +196,7 @@ def analyze_face(path, mat_path=None, cb=None):
         norm=5.0+(delta/mx)*5.0; norm=max(0,min(10,norm))
         dn=DISPLAY.get(name,name)
         tag="GOOD" if delta>0.003 else ("BAD" if delta<-0.003 else "---")
-        bar="".join(["\u2581","\u2582","\u2583","\u2584","\u2585","\u2586","\u2587","\u2588","\u2588"])[:max(1,int(norm/10*9))]
+        bar="▁▂▃▄▅▆▇██"[:max(1,int(norm/10*9))]
         lines.append(f"  {dn:14s} {norm:4.1f} [{tag}] {bar}")
     polygons = get_region_polygons(cv2.resize(bgr, (224, 224)))
     return {"score":base,"score_10":s10,"heatmap":hm,"deltas":deltas,"summary":"\n".join(lines), "region_polygons": polygons}

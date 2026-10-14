@@ -1,6 +1,7 @@
 import importlib
 import sys
 import types
+from typing import ClassVar
 
 import pytest
 
@@ -12,10 +13,6 @@ def clean_face_analyzer_module():
     sys.modules.pop("packages.providers.front_mediapipe", None)
 
 
-class FakeImage:
-    shape = (200, 400, 3)
-
-
 class FakeLandmark:
     def __init__(self, x, y):
         self.x = x
@@ -23,19 +20,33 @@ class FakeLandmark:
 
 
 class FakeFaceLandmarks:
-    landmark = [FakeLandmark(0.25, 0.5), FakeLandmark(0.75, 0.1)]
+    landmarks: ClassVar[list[FakeLandmark]] = [
+        FakeLandmark(0.25, 0.5),
+        FakeLandmark(0.75, 0.1),
+    ]
 
 
-class FakeFaceMesh:
-    created_with = None
-    process_calls = []
+class FakeFaceLandmarker:
+    created_options = None
+    detect_calls: ClassVar[list[object]] = []
+    face_landmarks: ClassVar[list[list[FakeLandmark]]] = [
+        FakeFaceLandmarks.landmarks
+    ]
 
-    def __init__(self, **kwargs):
-        type(self).created_with = kwargs
+    @classmethod
+    def create_from_options(cls, options):
+        cls.created_options = options
+        return cls()
 
-    def process(self, image):
-        type(self).process_calls.append(image)
-        return types.SimpleNamespace(multi_face_landmarks=[FakeFaceLandmarks()])
+    def detect(self, image):
+        type(self).detect_calls.append(image)
+        return types.SimpleNamespace(face_landmarks=type(self).face_landmarks)
+
+
+class FakeImage:
+    def __init__(self, *, image_format, data):
+        self.image_format = image_format
+        self.data = data
 
 
 def _reload_face_analyzer(monkeypatch, fake_mediapipe):
@@ -50,71 +61,76 @@ def _reload_face_analyzer(monkeypatch, fake_mediapipe):
     return importlib.import_module("packages.providers.front_mediapipe")
 
 
-def test_face_analyzer_uses_solutions_face_mesh_without_task_file(monkeypatch):
-    FakeFaceMesh.created_with = None
-    FakeFaceMesh.process_calls = []
-    fake_mediapipe = types.SimpleNamespace(
-        solutions=types.SimpleNamespace(
-            face_mesh=types.SimpleNamespace(FaceMesh=FakeFaceMesh)
-        )
+def _fake_mediapipe():
+    return types.SimpleNamespace(
+        Image=FakeImage,
+        ImageFormat=types.SimpleNamespace(SRGB="srgb"),
+        tasks=types.SimpleNamespace(
+            BaseOptions=lambda **kwargs: types.SimpleNamespace(**kwargs),
+            vision=types.SimpleNamespace(
+                FaceLandmarker=FakeFaceLandmarker,
+                FaceLandmarkerOptions=lambda **kwargs: types.SimpleNamespace(**kwargs),
+                RunningMode=types.SimpleNamespace(IMAGE="image"),
+            ),
+        ),
     )
+
+
+def test_face_analyzer_uses_tasks_landmarker(monkeypatch):
+    FakeFaceLandmarker.created_options = None
+    FakeFaceLandmarker.detect_calls = []
+    FakeFaceLandmarker.face_landmarks = [FakeFaceLandmarks.landmarks]
+    fake_mediapipe = _fake_mediapipe()
 
     face_analyzer = _reload_face_analyzer(monkeypatch, fake_mediapipe)
 
-    image = FakeImage()
+    image = types.SimpleNamespace(shape=(200, 400, 3))
     landmarks = face_analyzer.get_landmarks_mp(image)
 
-    assert FakeFaceMesh.created_with == {
-        "static_image_mode": True,
-        "max_num_faces": 1,
-        "refine_landmarks": True,
-        "min_detection_confidence": 0.5,
-    }
-    assert FakeFaceMesh.process_calls == [("rgb", image, "bgr_to_rgb")]
+    options = FakeFaceLandmarker.created_options
+    assert isinstance(options, types.SimpleNamespace)
+    assert options.base_options.model_asset_path.endswith("face_landmarker.task")
+    assert options.running_mode == "image"
+    assert options.num_faces == 1
+    assert options.min_face_detection_confidence == 0.5
+    assert options.min_face_presence_confidence == 0.5
+    assert len(FakeFaceLandmarker.detect_calls) == 1
+    detected_image = FakeFaceLandmarker.detect_calls[0]
+    assert isinstance(detected_image, FakeImage)
+    assert detected_image.image_format == "srgb"
     assert landmarks == [(100, 100), (300, 20)]
-    assert not hasattr(face_analyzer, "_MODEL_PATH")
 
 
-def test_face_analyzer_caches_face_mesh_instance(monkeypatch):
-    FakeFaceMesh.created_with = None
+def test_face_analyzer_caches_tasks_landmarker(monkeypatch):
+    FakeFaceLandmarker.created_options = None
     fake_mediapipe = types.SimpleNamespace(
-        solutions=types.SimpleNamespace(
-            face_mesh=types.SimpleNamespace(FaceMesh=FakeFaceMesh)
-        )
+        **vars(_fake_mediapipe())
     )
     face_analyzer = _reload_face_analyzer(monkeypatch, fake_mediapipe)
 
-    first = face_analyzer.get_face_mesh()
-    second = face_analyzer.get_face_mesh()
+    first = face_analyzer.get_face_landmarker()
+    second = face_analyzer.get_face_landmarker()
 
     assert first is second
 
 
 def test_face_analyzer_returns_none_when_no_face_is_detected(monkeypatch):
-    class EmptyFaceMesh:
-        def __init__(self, **kwargs):
-            pass
-
-        def process(self, image):
-            return types.SimpleNamespace(multi_face_landmarks=[])
-
-    fake_mediapipe = types.SimpleNamespace(
-        solutions=types.SimpleNamespace(
-            face_mesh=types.SimpleNamespace(FaceMesh=EmptyFaceMesh)
-        )
-    )
+    FakeFaceLandmarker.face_landmarks = []
+    fake_mediapipe = _fake_mediapipe()
     face_analyzer = _reload_face_analyzer(monkeypatch, fake_mediapipe)
 
-    assert face_analyzer.get_landmarks_mp(FakeImage()) is None
+    image = types.SimpleNamespace(shape=(200, 400, 3))
+    assert face_analyzer.get_landmarks_mp(image) is None
 
 
-def test_face_analyzer_exposes_mediapipe_install_shape_bug(monkeypatch):
-    fake_mediapipe = types.SimpleNamespace()
+def test_face_analyzer_reports_missing_task_model(monkeypatch, tmp_path):
+    fake_mediapipe = _fake_mediapipe()
     face_analyzer = _reload_face_analyzer(monkeypatch, fake_mediapipe)
+    monkeypatch.setattr(face_analyzer, "_MODEL_PATH", tmp_path / "missing.task")
 
     try:
-        face_analyzer.get_face_mesh()
-    except AttributeError as exc:
-        assert "solutions" in str(exc)
+        face_analyzer.get_face_landmarker()
+    except FileNotFoundError as exc:
+        assert "MediaPipe task model not found" in str(exc)
     else:
-        raise AssertionError("Expected missing mediapipe.solutions to raise AttributeError")
+        raise AssertionError("Expected a missing task model to raise FileNotFoundError")

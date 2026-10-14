@@ -18,10 +18,11 @@ so broken annotations remain visible instead of being silently hidden.
 
 from __future__ import annotations
 
+import random
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-import random
-from typing import Iterable
+from typing import TypedDict
 
 import cv2
 import numpy as np
@@ -38,6 +39,20 @@ except ImportError:
 
 
 PROFILE_LANDMARK_COUNT = 39
+
+
+class ProfileSample(TypedDict):
+    image: torch.Tensor
+    landmarks: torch.Tensor
+    landmarks_flat: torch.Tensor
+    auxiliary_points: torch.Tensor
+    visibility: torch.Tensor
+    bbox_xyxy: torch.Tensor
+    crop_xyxy: torch.Tensor
+    image_path: str
+    relative_image_path: str
+    subject_id: str
+    camera_code: str
 AUXILIARY_POINT_COUNT = 5
 BOUNDING_BOX_VALUE_COUNT = 4
 EXPECTED_FIELD_COUNT = (
@@ -300,8 +315,10 @@ def _select_model_landmarks(
 
     selected = np.zeros((len(mapping.entries), 2), dtype=np.float32)
     for entry in mapping.confirmed_entries:
+        if entry.dataset_index is None:
+            raise ValueError(f"Confirmed landmark has no dataset index: {entry.name}")
         selected[entry.model_index] = dataset_landmarks[
-            int(entry.dataset_index)
+            entry.dataset_index
         ]
     return selected
 
@@ -345,7 +362,7 @@ class ProfileLandmarkDataset(Dataset):
     def __len__(self) -> int:
         return len(self.records)
 
-    def __getitem__(self, index: int) -> dict[str, object]:
+    def __getitem__(self, index: int) -> ProfileSample:
         record = self.records[index]
         if not record.image_path.is_file():
             raise FileNotFoundError(f"Annotated image not found: {record.image_path}")
@@ -446,8 +463,8 @@ def make_subject_split(
     generator = random.Random(seed)
     generator.shuffle(subjects)
 
-    train_count = max(1, int(round(len(subjects) * train_fraction)))
-    validation_count = max(1, int(round(len(subjects) * validation_fraction)))
+    train_count = max(1, round(len(subjects) * train_fraction))
+    validation_count = max(1, round(len(subjects) * validation_fraction))
     if train_count + validation_count >= len(subjects):
         validation_count = 1
         train_count = len(subjects) - 2

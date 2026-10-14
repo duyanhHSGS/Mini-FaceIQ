@@ -1,23 +1,24 @@
-# coding: utf-8
 
 __author__ = 'cleardusk'
 
 import os.path as osp
-import numpy as np
-import cv2
-import onnxruntime
 
-from utils.io import _load
-from utils.functions import (
-    crop_img, parse_roi_box_from_bbox, parse_roi_box_from_landmark,
-)
-from utils.tddfa_util import _parse_param, similar_transform
+import cv2
+import numpy as np
+import onnxruntime
 from bfm.bfm import BFMModel
+from utils.functions import (
+    crop_img,
+    parse_roi_box_from_bbox,
+    parse_roi_box_from_landmark,
+)
+from utils.io import _load
+from utils.tddfa_util import _parse_param, similar_transform
 
 make_abs_path = lambda fn: osp.join(osp.dirname(osp.realpath(__file__)), fn)
 
 
-class TDDFA_ONNX(object):
+class TDDFA_ONNX:
     """TDDFA_ONNX: the ONNX version of Three-D Dense Face Alignment (TDDFA)"""
 
     def __init__(self, **kvs):
@@ -25,6 +26,8 @@ class TDDFA_ONNX(object):
 
         # load onnx version of BFM
         bfm_fp = kvs.get('bfm_fp', make_abs_path('configs/bfm_noneck_v3.pkl'))
+        if not isinstance(bfm_fp, str):
+            raise TypeError('bfm_fp must be a path string')
         bfm_onnx_fp = bfm_fp.replace('.pkl', '.onnx')
         if not osp.exists(bfm_onnx_fp):
             raise FileNotFoundError(f'Prebuilt BFM ONNX model not found: {bfm_onnx_fp}')
@@ -44,17 +47,25 @@ class TDDFA_ONNX(object):
             'param_mean_std_fp', make_abs_path(f'configs/param_mean_std_62d_{self.size}x{self.size}.pkl')
         )
 
-        onnx_fp = kvs.get('onnx_fp', kvs.get('checkpoint_fp').replace('.pth', '.onnx'))
+        checkpoint_fp = kvs.get('checkpoint_fp')
+        default_onnx_fp = (
+            checkpoint_fp.replace('.pth', '.onnx')
+            if isinstance(checkpoint_fp, str)
+            else None
+        )
+        onnx_fp = kvs.get('onnx_fp', default_onnx_fp)
 
-        if onnx_fp is None or not osp.exists(onnx_fp):
+        if not isinstance(onnx_fp, str) or not osp.exists(onnx_fp):
             raise FileNotFoundError(f'Prebuilt 3DDFA ONNX model not found: {onnx_fp}')
 
         self.session = onnxruntime.InferenceSession(onnx_fp, None)
 
         # params normalization config
         r = _load(param_mean_std_fp)
-        self.param_mean = r.get('mean')
-        self.param_std = r.get('std')
+        if not isinstance(r, dict):
+            raise TypeError(f'Expected parameter statistics mapping: {param_mean_std_fp}')
+        self.param_mean = np.asarray(r['mean'])
+        self.param_std = np.asarray(r['std'])
 
     def __call__(self, img_ori, objs, **kvs):
         # Crop image, forward to get the param
@@ -80,7 +91,7 @@ class TDDFA_ONNX(object):
 
             inp_dct = {'input': img}
 
-            param = self.session.run(None, inp_dct)[0]
+            param = np.asarray(self.session.run(None, inp_dct)[0])
             param = param.flatten().astype(np.float32)
             param = param * self.param_std + self.param_mean  # re-scale
             param_lst.append(param)

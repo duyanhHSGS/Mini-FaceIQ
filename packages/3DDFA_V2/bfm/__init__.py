@@ -1,1 +1,1 @@
-from .bfm import BFMModel
+from .bfm import BFMModel as BFMModel

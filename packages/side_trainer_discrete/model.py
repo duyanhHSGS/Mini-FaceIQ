@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 from torchvision.models import MobileNet_V3_Small_Weights, mobilenet_v3_small
 
 
@@ -29,7 +29,11 @@ class DiscreteLandmarkModel(nn.Module):
         self.register_buffer("std", torch.tensor((0.229, 0.224, 0.225)).view(1, 3, 1, 1), persistent=False)
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
-        return self.decoder(self.encoder((images - self.mean) / self.std))
+        mean = self.mean
+        std = self.std
+        if not isinstance(mean, torch.Tensor) or not isinstance(std, torch.Tensor):
+            raise TypeError("Model normalization buffers must be tensors")
+        return self.decoder(self.encoder((images - mean) / std))
 
 
 def soft_argmax_2d(logits: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:

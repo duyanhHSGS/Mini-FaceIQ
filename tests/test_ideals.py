@@ -1,5 +1,5 @@
 from front_ideals import FRONT_IDEALS, MALE_ASIAN_FRONT, get_front_ideals
-from side_ideals import SIDE_IDEALS, MALE_ASIAN_SIDE, get_side_ideals
+from side_ideals import MALE_ASIAN_SIDE, SIDE_IDEALS, get_side_ideals
 
 
 def test_front_ideals_exist_for_every_gender_ethnicity_pair():

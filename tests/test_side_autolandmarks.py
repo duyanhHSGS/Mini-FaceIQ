@@ -1,9 +1,43 @@
+import importlib
 import os
 
+import numpy as np
 import pytest
 
 import packages.adapter_side as side_autolandmarks
 from side_landmarks import SIDE_LANDMARK_DEFS
+
+cpu_nms = importlib.import_module(
+    "packages.3DDFA_V2.faceboxes.utils.nms"
+).cpu_nms
+
+
+def test_cpu_nms_returns_empty_for_empty_input():
+    assert cpu_nms(np.empty((0, 5), dtype=np.float32), 0.3) == []
+
+
+def test_cpu_nms_keeps_highest_score_from_overlapping_boxes():
+    detections = np.array(
+        [[0, 0, 10, 10, 0.7], [1, 1, 11, 11, 0.9]],
+        dtype=np.float32,
+    )
+    assert cpu_nms(detections, 0.3) == [1]
+
+
+def test_cpu_nms_keeps_disjoint_boxes_in_score_order():
+    detections = np.array(
+        [[0, 0, 2, 2, 0.2], [10, 10, 12, 12, 0.8]],
+        dtype=np.float32,
+    )
+    assert cpu_nms(detections, 0.3) == [1, 0]
+
+
+def test_cpu_nms_handles_zero_area_boxes_without_dividing_by_zero():
+    detections = np.array(
+        [[2, 2, 1, 1, 0.9], [5, 5, 4, 4, 0.8]],
+        dtype=np.float32,
+    )
+    assert cpu_nms(detections, 0.3) == [0, 1]
 
 
 def _side_smoke_image_path():
@@ -61,6 +95,7 @@ def test_side_detector_real_smoke_returns_normalized_app_landmarks():
     assert isinstance(result["missing_landmarks"], list)
 
     detected = result["landmarks"]
+    assert isinstance(detected, dict)
     expected_ids = {item["id"] for item in SIDE_LANDMARK_DEFS}
     missing_ids = set(result["missing_landmarks"])
     assert expected_ids <= set(detected) | missing_ids

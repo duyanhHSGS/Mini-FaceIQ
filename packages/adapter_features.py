@@ -22,7 +22,6 @@ import os
 import sys
 import tempfile
 
-
 _BUNDLE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "features_rating_bundle")
 _features_rating_analyzer = None
 

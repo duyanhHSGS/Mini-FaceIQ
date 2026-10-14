@@ -46,7 +46,7 @@ def _angle_at_intersection(a, intersection, b):
     return abs(math.atan2(cross, dot)) * (180 / math.pi)
 
 
-def calculate_side_measurements(side_landmarks, gender="male", ethnicity="asian", side_aspect=1):
+def calculate_side_measurements(side_landmarks, gender="male", ethnicity="asian", side_aspect: float = 1.0):
     lm = normalize_side_landmarks(side_landmarks) if isinstance(side_landmarks, list) else side_landmarks
     lm = {key: {**value, "x": value["x"] * SCALE * side_aspect, "y": value["y"] * SCALE} for key, value in lm.items()}
     ideals = get_side_ideals(gender, ethnicity)
@@ -230,7 +230,7 @@ def calculate_side_measurements(side_landmarks, gender="male", ethnicity="asian"
     return results
 
 
-def calculate_side_analysis(side_landmarks, gender="male", ethnicity="asian", side_aspect=1):
+def calculate_side_analysis(side_landmarks, gender="male", ethnicity="asian", side_aspect: float = 1.0):
     measurements = calculate_side_measurements(side_landmarks, gender, ethnicity, side_aspect)
 
     s1_key = ["recession_frankfort", "total_facial_convexity"]

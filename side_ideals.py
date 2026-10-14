@@ -2,7 +2,6 @@ from copy import deepcopy
 
 from front_ideals import ETHNIC_FACTORS
 
-
 MALE_ASIAN_SIDE = {
     "nasal_tip_angle": {"min": 106.16, "max": 166.84, "idealMin": 131.50, "idealMax": 141.50, "description": "Nasal Tip Angle (degrees)"},
     "nasal_width_to_height": {"min": -0.01, "max": 1.31, "idealMin": 0.57, "idealMax": 0.73, "description": "Nasal Width to Height Ratio"},
@@ -295,15 +294,11 @@ def _build_female_side(male_values):
             result[key] = _adjust_ideal(val, 2, 2, 1.5, 1.5)
         elif key == "total_facial_convexity":
             result[key] = _adjust_ideal(val, 3, 3, 2.5, 2.5)
-        elif key == "gonial_angle":
-            result[key] = _adjust_ideal(val, 2, 2, 1.5, 1.5)
-        elif key == "mandibular_plane_angle":
+        elif key == "gonial_angle" or key == "mandibular_plane_angle":
             result[key] = _adjust_ideal(val, 2, 2, 1.5, 1.5)
         elif key in {"upper_lip_s_line", "upper_lip_e_line", "lower_lip_s_line", "lower_lip_e_line"}:
             result[key] = _adjust_ideal(val, -0.3, -0.3, -0.25, -0.25)
-        elif key == "nasal_projection":
-            result[key] = _adjust_ideal(val, -0.02, -0.02, -0.015, -0.015)
-        elif key == "ramus_to_mandible":
+        elif key == "nasal_projection" or key == "ramus_to_mandible":
             result[key] = _adjust_ideal(val, -0.02, -0.02, -0.015, -0.015)
         else:
             result[key] = deepcopy(val)

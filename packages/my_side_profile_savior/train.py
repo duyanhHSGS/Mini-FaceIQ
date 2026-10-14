@@ -7,10 +7,10 @@ import gc
 import json
 import math
 import os
-from pathlib import Path
 import random
 import sys
 import time
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -36,10 +36,11 @@ from .factory_config import (
 from .mapping import LandmarkMapping, load_landmark_mapping
 from .model import (
     LANDMARK_COUNT as MODEL_LANDMARK_COUNT,
+)
+from .model import (
     ProfileLandmarkModel,
     masked_landmark_loss,
 )
-
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 DEFAULT_ANNOTATIONS = (
@@ -379,7 +380,10 @@ def run_training(config: FactoryConfig) -> Path:
     checkpoint: dict[str, Any] | None = None
     initial_checkpoint: dict[str, Any] | None = None
     if resume_path is not None:
-        checkpoint = torch.load(resume_path, map_location=device)
+        loaded_checkpoint = torch.load(resume_path, map_location=device)
+        if not isinstance(loaded_checkpoint, dict):
+            raise TypeError(f"Checkpoint must contain a mapping: {resume_path}")
+        checkpoint = dict(loaded_checkpoint)
         _validate_resume(checkpoint, config, mapping)
         run_dir = resume_path.parent
         split = _split_from_dict(checkpoint["split"])
@@ -387,7 +391,10 @@ def run_training(config: FactoryConfig) -> Path:
         run_dir = create_run_directory(config.runs_root)
         if config.initial_checkpoint:
             initial_path = Path(config.initial_checkpoint).expanduser().resolve()
-            initial_checkpoint = torch.load(initial_path, map_location=device)
+            loaded_initial_checkpoint = torch.load(initial_path, map_location=device)
+            if not isinstance(loaded_initial_checkpoint, dict):
+                raise TypeError(f"Checkpoint must contain a mapping: {initial_path}")
+            initial_checkpoint = dict(loaded_initial_checkpoint)
             if "model_state" not in initial_checkpoint:
                 raise ValueError(
                     f"Initial checkpoint has no model_state: {initial_path}"

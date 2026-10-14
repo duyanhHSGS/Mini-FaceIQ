@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from datetime import datetime
 import hashlib
 import json
 import os
-from pathlib import Path
 import random
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -119,7 +119,7 @@ class TrainerConfig:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, values: dict[str, Any]) -> "TrainerConfig":
+    def from_dict(cls, values: dict[str, Any]) -> TrainerConfig:
         return cls(**values)
 
 

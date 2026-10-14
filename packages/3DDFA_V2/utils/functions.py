@@ -1,15 +1,25 @@
-# coding: utf-8
 
 __author__ = 'cleardusk'
 
-import numpy as np
-import cv2
 from math import sqrt
+
+import cv2
 import matplotlib.pyplot as plt
+import numpy as np
 
 RED = (0, 0, 255)
 GREEN = (0, 255, 0)
 BLUE = (255, 0, 0)
+
+
+def _plot_close(points, index_a, index_b, *, color, line_width, alpha):
+    plt.plot(
+        [points[0, index_a], points[0, index_b]],
+        [points[1, index_a], points[1, index_b]],
+        color=color,
+        lw=line_width,
+        alpha=alpha - 0.1,
+    )
 
 
 def get_suffix(filename):
@@ -23,7 +33,7 @@ def get_suffix(filename):
 def crop_img(img, roi_box):
     h, w = img.shape[:2]
 
-    sx, sy, ex, ey = [int(round(_)) for _ in roi_box]
+    sx, sy, ex, ey = [round(_) for _ in roi_box]
     dh, dw = ey - sy, ex - sx
     if len(img.shape) == 3:
         res = np.zeros((dh, dw, 3), dtype=np.uint8)
@@ -134,12 +144,16 @@ def draw_landmarks(img, pts, style='fancy', wfp=None, show_flag=False, **kwargs)
             nums = [0, 17, 22, 27, 31, 36, 42, 48, 60, 68]
 
             # close eyes and mouths
-            plot_close = lambda i1, i2: plt.plot([pts[i][0, i1], pts[i][0, i2]], [pts[i][1, i1], pts[i][1, i2]],
-                                                 color=color, lw=lw, alpha=alpha - 0.1)
-            plot_close(41, 36)
-            plot_close(47, 42)
-            plot_close(59, 48)
-            plot_close(67, 60)
+            current_points = pts[i]
+            for index_a, index_b in ((41, 36), (47, 42), (59, 48), (67, 60)):
+                _plot_close(
+                    current_points,
+                    index_a,
+                    index_b,
+                    color=color,
+                    line_width=lw,
+                    alpha=alpha,
+                )
 
             for ind in range(len(nums) - 1):
                 l, r = nums[ind], nums[ind + 1]
@@ -161,11 +175,11 @@ def cv_draw_landmark(img_ori, pts, box=None, color=GREEN, size=1):
     n = pts.shape[1]
     if n <= 106:
         for i in range(n):
-            cv2.circle(img, (int(round(pts[0, i])), int(round(pts[1, i]))), size, color, -1)
+            cv2.circle(img, (round(pts[0, i]), round(pts[1, i])), size, color, -1)
     else:
         sep = 1
         for i in range(0, n, sep):
-            cv2.circle(img, (int(round(pts[0, i])), int(round(pts[1, i]))), size, color, 1)
+            cv2.circle(img, (round(pts[0, i]), round(pts[1, i])), size, color, 1)
 
     if box is not None:
         left, top, right, bottom = np.round(box).astype(np.int32)
@@ -179,4 +193,3 @@ def cv_draw_landmark(img_ori, pts, box=None, color=GREEN, size=1):
         cv2.line(img, left_bottom, left_top, BLUE, 1, cv2.LINE_AA)
 
     return img
-    

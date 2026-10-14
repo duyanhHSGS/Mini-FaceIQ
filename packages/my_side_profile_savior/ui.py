@@ -3,23 +3,24 @@
 from __future__ import annotations
 
 import colorsys
-from datetime import datetime
 import json
-from pathlib import Path
 import queue
 import random
 import subprocess
 import sys
 import threading
 import tkinter as tk
+from datetime import datetime
+from pathlib import Path
 from tkinter import colorchooser, filedialog, messagebox, ttk
 from typing import Any
 
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
-from PIL import Image
 import torch
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+from PIL import Image
 
 from .benchmark import _legacy_on_crop, normalized_landmark_error
 from .dataset import ProfileLandmarkDataset
@@ -33,11 +34,11 @@ from .inference import FactoryPredictor
 from .mapping import load_landmark_mapping
 from .train import DEFAULT_ANNOTATIONS, DEFAULT_MAPPING, DEFAULT_RUNS
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 QA_POINT_ALPHA_DEFAULT = 0.65
 QA_LABEL_ALPHA_DEFAULT = 0.75
 QA_HOVER_DISTANCE_PIXELS = 14.0
+UI_ERRORS = (KeyError, OSError, RuntimeError, TypeError, ValueError, tk.TclError)
 
 
 FIELD_DEFINITIONS = (
@@ -152,8 +153,14 @@ def _zoomed_view_limits(
 ) -> tuple[tuple[float, float], tuple[float, float]]:
     cursor_x, cursor_y = cursor_xy
     return (
-        tuple(cursor_x + (value - cursor_x) * scale for value in x_limits),
-        tuple(cursor_y + (value - cursor_y) * scale for value in y_limits),
+        (
+            cursor_x + (x_limits[0] - cursor_x) * scale,
+            cursor_x + (x_limits[1] - cursor_x) * scale,
+        ),
+        (
+            cursor_y + (y_limits[0] - cursor_y) * scale,
+            cursor_y + (y_limits[1] - cursor_y) * scale,
+        ),
     )
 
 
@@ -275,7 +282,7 @@ class FactoryApp(tk.Tk):
         self.predictor: FactoryPredictor | None = None
         self.predictor_key: tuple[str, int] | None = None
         self.qa_image_path: Path | None = None
-        self.qa_figure = None
+        self.qa_figure: Figure | None = None
         self.qa_canvas: FigureCanvasTkAgg | None = None
         self.qa_point_alpha = tk.DoubleVar(value=QA_POINT_ALPHA_DEFAULT)
         self.qa_label_alpha = tk.DoubleVar(value=QA_LABEL_ALPHA_DEFAULT)
@@ -643,7 +650,7 @@ class FactoryApp(tk.Tk):
             return
         try:
             config = self._config_from_fields()
-        except Exception as exc:
+        except UI_ERRORS as exc:
             messagebox.showerror("Invalid configuration", str(exc))
             return
 
@@ -814,7 +821,7 @@ class FactoryApp(tk.Tk):
         try:
             dataset = self._dataset_for_qa()
             self.qa_index.set(str(random.randrange(len(dataset))))
-        except Exception as exc:
+        except UI_ERRORS as exc:
             messagebox.showerror("Dataset error", str(exc))
 
     def _configure_qa_landmarks(self, mapping) -> None:
@@ -1045,9 +1052,11 @@ class FactoryApp(tk.Tk):
         step = float(getattr(event, "step", 0.0))
         scale = 1.0 / 1.2 if step > 0 else 1.2
         axis = panel["axis"]
+        raw_x_limits = axis.get_xlim()
+        raw_y_limits = axis.get_ylim()
         x_limits, y_limits = _zoomed_view_limits(
-            tuple(float(value) for value in axis.get_xlim()),
-            tuple(float(value) for value in axis.get_ylim()),
+            (float(raw_x_limits[0]), float(raw_x_limits[1])),
+            (float(raw_y_limits[0]), float(raw_y_limits[1])),
             (float(event.xdata), float(event.ydata)),
             scale,
         )
@@ -1065,10 +1074,14 @@ class FactoryApp(tk.Tk):
             self.qa_reset_limits = None
             return
         first_axis = panels[0]["axis"]
+        raw_x_limits = first_axis.get_xlim()
+        raw_y_limits = first_axis.get_ylim()
         self.qa_reset_limits = (
-            tuple(float(value) for value in first_axis.get_xlim()),
-            tuple(float(value) for value in first_axis.get_ylim()),
+            (float(raw_x_limits[0]), float(raw_x_limits[1])),
+            (float(raw_y_limits[0]), float(raw_y_limits[1])),
         )
+        if self.qa_figure is None:
+            raise RuntimeError("QA figure must be shown before interactions activate")
         canvas = self.qa_figure.canvas
         canvas.mpl_connect("button_press_event", self._on_qa_button_press)
         canvas.mpl_connect("button_release_event", self._on_qa_button_release)
@@ -1097,7 +1110,13 @@ class FactoryApp(tk.Tk):
             index = int(self.qa_index.get())
             sample = dataset[index]
             record = dataset.records[index]
-            crop_box = tuple(int(value) for value in sample["crop_xyxy"].tolist())
+            crop_values = sample["crop_xyxy"].tolist()
+            crop_box = (
+                int(crop_values[0]),
+                int(crop_values[1]),
+                int(crop_values[2]),
+                int(crop_values[3]),
+            )
             with Image.open(record.image_path) as source:
                 crop = source.convert("RGB").crop(crop_box)
             custom = predictor.predict_crop(crop)
@@ -1120,15 +1139,19 @@ class FactoryApp(tk.Tk):
                     "y": float(targets[entry.model_index, 1]),
                 }
                 for entry in mapping.confirmed_entries
+                if entry.dataset_index is not None
             ]
             legacy_points = []
+            legacy_landmarks = legacy.get("landmarks", {})
+            if not isinstance(legacy_landmarks, dict):
+                raise TypeError("Legacy landmarks must be a mapping")
             for entry in mapping.confirmed_entries:
-                item = legacy.get("landmarks", {}).get(entry.name)
+                item = legacy_landmarks.get(entry.name)
                 if item is not None:
                     legacy_points.append(
                         {
                             "name": entry.name,
-                            "dataset_index": int(entry.dataset_index),
+                            "dataset_index": entry.dataset_index,
                             "x": item["x"],
                             "y": item["y"],
                         }
@@ -1206,7 +1229,7 @@ class FactoryApp(tk.Tk):
             if "out of memory" in str(exc).lower() and torch.cuda.is_available():
                 torch.cuda.empty_cache()
             messagebox.showerror("QA runtime error", str(exc))
-        except Exception as exc:
+        except UI_ERRORS as exc:
             messagebox.showerror("QA error", str(exc))
 
     def _choose_upload(self) -> None:
@@ -1248,13 +1271,16 @@ class FactoryApp(tk.Tk):
                     "user-custom.txt. Select the matching worksheet/checkpoint."
                 )
             legacy_points = []
+            legacy_landmarks = legacy.get("landmarks", {})
+            if not isinstance(legacy_landmarks, dict):
+                raise TypeError("Legacy landmarks must be a mapping")
             for entry in mapping.confirmed_entries:
-                item = legacy.get("landmarks", {}).get(entry.name)
+                item = legacy_landmarks.get(entry.name)
                 if item is not None:
                     legacy_points.append(
                         {
                             "name": entry.name,
-                            "dataset_index": int(entry.dataset_index),
+                            "dataset_index": entry.dataset_index,
                             "x": item["x"],
                             "y": item["y"],
                         }
@@ -1297,7 +1323,7 @@ class FactoryApp(tk.Tk):
             if "out of memory" in str(exc).lower() and torch.cuda.is_available():
                 torch.cuda.empty_cache()
             messagebox.showerror("QA runtime error", str(exc))
-        except Exception as exc:
+        except UI_ERRORS as exc:
             messagebox.showerror("QA error", str(exc))
 
 
