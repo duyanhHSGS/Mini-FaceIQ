@@ -1,18 +1,16 @@
-# coding: utf-8
 
 import os.path as osp
 
-import torch
-import numpy as np
 import cv2
-
-from .utils.prior_box import PriorBox
-from .utils.nms_wrapper import nms
-from .utils.box_utils import decode
-from .utils.timer import Timer
-from .utils.config import cfg
-
+import numpy as np
 import onnxruntime
+import torch
+
+from .utils.box_utils import decode
+from .utils.config import cfg
+from .utils.nms_wrapper import nms
+from .utils.prior_box import PriorBox
+from .utils.timer import Timer
 
 # some global configs
 confidence_threshold = 0.05
@@ -34,7 +32,7 @@ def viz_bbox(img, dets, wfp='out.jpg'):
     for b in dets:
         if b[4] < vis_thres:
             continue
-        text = "{:.4f}".format(b[4])
+        text = f"{b[4]:.4f}"
         b = list(map(int, b))
         cv2.rectangle(img, (b[0], b[1]), (b[2], b[3]), (0, 0, 255), 2)
         cx = b[0]
@@ -44,7 +42,7 @@ def viz_bbox(img, dets, wfp='out.jpg'):
     print(f'Viz bbox to {wfp}')
 
 
-class FaceBoxes_ONNX(object):
+class FaceBoxes_ONNX:
     def __init__(self, timer_flag=False):
         if not osp.exists(onnx_path):
             raise FileNotFoundError(f'Prebuilt FaceBoxes ONNX model not found: {onnx_path}')
@@ -73,16 +71,17 @@ class FaceBoxes_ONNX(object):
                 img_raw_scale = cv2.resize(img_raw, dsize=(w_s, h_s))
                 # print(img_raw_scale.shape)
 
-            img = np.float32(img_raw_scale)
+            img = np.asarray(img_raw_scale, dtype=np.float32)
         else:
-            img = np.float32(img_raw)
+            img = np.asarray(img_raw, dtype=np.float32)
 
         # forward
         _t = {'forward_pass': Timer(), 'misc': Timer()}
-        im_height, im_width, _ = img.shape
-        scale_bbox = torch.Tensor([img.shape[1], img.shape[0], img.shape[1], img.shape[0]])
+        im_height = int(img.shape[0])
+        im_width = int(img.shape[1])
+        scale_bbox = torch.tensor([im_width, im_height, im_width, im_height])
 
-        img -= (104, 117, 123)
+        img -= np.asarray((104, 117, 123), dtype=np.float32)
         img = img.transpose(2, 0, 1)
         # img = torch.from_numpy(img).unsqueeze(0)
         img = img[np.newaxis, ...]
@@ -90,7 +89,8 @@ class FaceBoxes_ONNX(object):
         _t['forward_pass'].tic()
         # loc, conf = self.net(img)  # forward pass
         out = self.session.run(None, {'input': img})
-        loc, conf = out[0], out[1]
+        loc = np.asarray(out[0])
+        conf = np.asarray(out[1])
         # for compatibility, may need to optimize
         loc = torch.from_numpy(loc)
         _t['forward_pass'].toc()
@@ -149,6 +149,8 @@ def main():
     fn = 'trump_hillary.jpg'
     img_fp = f'../examples/inputs/{fn}'
     img = cv2.imread(img_fp)
+    if img is None:
+        raise FileNotFoundError(f'Input image not found: {img_fp}')
     print(f'input shape: {img.shape}')
     dets = face_boxes(img)  # xmin, ymin, w, h
     # print(dets)

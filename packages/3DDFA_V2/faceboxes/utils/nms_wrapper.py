@@ -1,4 +1,3 @@
-# coding: utf-8
 
 # --------------------------------------------------------
 # Fast R-CNN
@@ -7,7 +6,7 @@
 # Written by Ross Girshick
 # --------------------------------------------------------
 
-from .nms.cpu_nms import cpu_nms, cpu_soft_nms
+from .nms import cpu_nms
 
 
 def nms(dets, thresh):

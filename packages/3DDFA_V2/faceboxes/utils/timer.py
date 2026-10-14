@@ -1,4 +1,3 @@
-# coding: utf-8
 
 # --------------------------------------------------------
 # Fast R-CNN
@@ -10,7 +9,7 @@
 import time
 
 
-class Timer(object):
+class Timer:
     """A simple timer."""
 
     def __init__(self):

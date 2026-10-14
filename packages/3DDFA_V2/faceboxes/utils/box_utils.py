@@ -1,7 +1,6 @@
-# coding: utf-8
 
-import torch
 import numpy as np
+import torch
 
 
 def point_form(boxes):
@@ -24,8 +23,13 @@ def center_size(boxes):
     Return:
         boxes: (tensor) Converted xmin, ymin, xmax, ymax form of boxes.
     """
-    return torch.cat((boxes[:, 2:] + boxes[:, :2]) / 2,  # cx, cy
-                     boxes[:, 2:] - boxes[:, :2], 1)  # w, h
+    return torch.cat(
+        (
+            (boxes[:, 2:] + boxes[:, :2]) / 2,  # cx, cy
+            boxes[:, 2:] - boxes[:, :2],  # w, h
+        ),
+        1,
+    )
 
 
 def intersect(box_a, box_b):
@@ -229,7 +233,7 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
     x2 = boxes[:, 2]
     y2 = boxes[:, 3]
     area = torch.mul(x2 - x1, y2 - y1)
-    v, idx = scores.sort(0)  # sort in ascending order
+    _v, idx = scores.sort(0)  # sort in ascending order
     # I = I[v >= 0.01]
     idx = idx[-top_k:]  # indices of the top-k largest vals
     xx1 = boxes.new()
