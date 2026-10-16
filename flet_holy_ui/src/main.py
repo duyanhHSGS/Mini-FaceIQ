@@ -397,7 +397,12 @@ def main(page: ft.Page) -> None:
     active_profile = "front"
     metric_order = "importance"
     busy = False
-    status = "Ready for local analysis · no API or uploads"
+    android_shell = page.platform == ft.PagePlatform.ANDROID
+    status = (
+        "Android Phase 1: offline photo workspace; AI engines not yet packaged."
+        if android_shell
+        else "Ready for local analysis · no API or uploads"
+    )
     status_color = MUTED
 
     gender = ft.Dropdown(
@@ -569,6 +574,13 @@ def main(page: ft.Page) -> None:
 
     async def run_analysis(profile: str) -> None:
         nonlocal busy, active_tab, active_profile
+        if android_shell:
+            set_status(
+                "Android Phase 1 is UI-only: on-device model ports are pending.",
+                color=AMBER,
+            )
+            render()
+            return
         image = (
             feature_photo or photos.get("front")
             if profile == "features"
@@ -623,6 +635,13 @@ def main(page: ft.Page) -> None:
 
     async def run_pair(_event: ft.Event[ft.Button]) -> None:
         nonlocal busy, active_tab, active_profile
+        if android_shell:
+            set_status(
+                "Android Phase 1 is UI-only: automatic analysis comes after model ports.",
+                color=AMBER,
+            )
+            render()
+            return
         modes = [profile for profile in ("front", "side") if profile in photos]
         if not modes:
             set_status("Choose at least one photo first.", color=AMBER)

@@ -1,17 +1,36 @@
 [project]
 name = "minifaceiq-holy-ui"
-version = "0.2.0"
-description = "Standalone-process Flet interface using local Mini-FaceIQ Python inference"
-requires-python = ">=3.10,<3.12"
+version = "0.3.0"
+description = "Mini-FaceIQ Material 3 interface with an offline-ready Android application shell"
+requires-python = ">=3.14,<3.15"
+# Phase 1: bundle the Flet UI and Python runtime only. Do NOT pull in the
+# Linux requirements.txt: torch, mediapipe and the existing desktop ML stack
+# have not been ported to Android yet.
 dependencies = ["flet==1.0.4"]
 
 [tool.flet]
-product = "Mini FaceIQ Holy UI"
+product = "Mini FaceIQ"
 org = "dev.minifaceiq"
 
 [tool.flet.app]
 path = "src"
 module = "main"
 
-# The native ML dependencies/model assets required for an Android APK are
-# NOT yet available as compatible bundled Android artifacts.
+[tool.flet.splash]
+color = "#0F1118"
+dark_color = "#0F1118"
+
+[tool.flet.android]
+# Android 7.0+; first milestone targets real modern ARM64 phones.
+min_sdk_version = 24
+target_arch = ["arm64-v8a"]
+split_per_abi = false
+adaptive_icon_background = "#0F1118"
+
+# FilePicker uses Android's system picker and needs no broad storage
+# permissions. The APK must run without Wi-Fi or a remote inference server.
+# Keep Flet's default INTERNET manifest setting until its embedded runtime
+# has been tested on-device without network access.
+#
+# PHASE 1: UI, photo picker, and preview are packaged. Automatic landmark
+# detection, 3DDFA, and the PyTorch feature-rater still require Android ports.
