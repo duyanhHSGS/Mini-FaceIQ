@@ -31,7 +31,7 @@ class FakePage:
     def add(self, *controls) -> None:
         self.controls.extend(controls)
 
-    def update(self) -> None:
+    def update(self, *controls) -> None:
         self.update_count += 1
 
 

@@ -13,7 +13,7 @@ This Flet app runs face geometry and AI analysis **locally**. It does not use Fl
 | Feature-rating SCUT | PyTorch checkpoint | Original checkpoint converted to ONNX; deterministic aux input preserved |
 | Region occlusion/heatmap | PyTorch + OpenCV | ONNX + OpenCV + Pillow, eight occlusion passes |
 
-Both ARM64 (`arm64-v8a`) and x86-64 (`x86_64`) are targeted by one APK. The native MediaPipe Tasks dependency includes both ABIs. The models are packaged locally, not downloaded at runtime.
+The APK targets ARM64 (`arm64-v8a`) only. This keeps builds faster and avoids packaging an unused x86-64 emulator ABI. The models are packaged locally, not downloaded at runtime.
 
 ## On Lubuntu
 
@@ -35,10 +35,10 @@ Terminal fallback from the repository root:
 
 ```bash
 cd flet_holy_ui
-../.venv-linux/bin/flet build apk --arch arm64-v8a x86_64
+../.venv-linux/bin/flet build apk --arch arm64-v8a
 ```
 
-The configuration in `pyproject.toml` includes the local native extension, Android ONNX Runtime, OpenCV, NumPy and Pillow. These builds are large because the neural models and both CPU architectures are bundled.
+The configuration in `pyproject.toml` includes the local native extension, Android ONNX Runtime, OpenCV, NumPy and Pillow. The neural models still make the APK substantial, but only the ARM64 native libraries are built and bundled.
 
 ## Verification
 

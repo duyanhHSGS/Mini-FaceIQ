@@ -21,10 +21,10 @@ color = "#0F1118"
 dark_color = "#0F1118"
 
 [tool.flet.android]
-# One universal APK containing both ARM64 phones and x86-64 emulators/devices.
-# Android ABI name x86_64 corresponds to AMD64 (not the literal name amd64).
+# Build only for modern ARM64 Android phones to avoid compiling and packaging
+# the unused x86-64 emulator ABI.
 min_sdk_version = 24
-target_arch = ["arm64-v8a", "x86_64"]
+target_arch = ["arm64-v8a"]
 split_per_abi = false
 adaptive_icon_background = "#0F1118"
 # CPU-only model inference dependencies with Android wheels, separated from Linux.
@@ -43,7 +43,7 @@ extract_packages = ["cv2", "PIL"]
 # has been tested on-device without network access.
 #
 # Front MediaPipe is a bundled native Flet extension; 3DDFA and SCUT run via ONNX.
-# Scores must still be validated on an actual Android phone and x86-64 emulator.
+# TODO: validate scoring and model loading on an actual ARM64 Android phone.
 
 [tool.flet.dev_packages]
 flet-face-landmarker = "extensions/flet-face-landmarker"
