@@ -8,6 +8,3 @@
 -keep public interface com.google.mediapipe.framework.* {
     public *;
 }
-
-# Preserve MediaPipe JNI-facing classes and methods (release-mode R8).
--keep class com.google.mediapipe.** { *; }
