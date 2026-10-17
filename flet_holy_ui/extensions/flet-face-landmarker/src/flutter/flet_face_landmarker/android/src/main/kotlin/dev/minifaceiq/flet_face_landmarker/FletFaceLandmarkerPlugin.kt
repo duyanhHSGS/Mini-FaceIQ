@@ -1,9 +1,11 @@
 package dev.minifaceiq.flet_face_landmarker
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
@@ -21,6 +23,8 @@ class FletFaceLandmarkerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler 
     private val mainThread = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     private var landmarker: FaceLandmarker? = null
+    // Retain direct model buffer while graph remains open.
+    private var modelBuffer: ByteBuffer? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
@@ -40,6 +44,7 @@ class FletFaceLandmarkerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler 
             return
         }
         worker.execute {
+            var stage = "initialize model"
             try {
                 if (landmarker == null) {
                     if (modelBytes == null) {
@@ -49,6 +54,8 @@ class FletFaceLandmarkerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler 
                     val buffer = ByteBuffer.allocateDirect(modelBytes.size)
                     buffer.put(modelBytes)
                     buffer.rewind()
+                    modelBuffer = buffer
+                    Log.i("MINIFACE_MEDIAPIPE", "Initializing face model: ${modelBytes.size} bytes")
                     val options = FaceLandmarker.FaceLandmarkerOptions.builder()
                         .setBaseOptions(BaseOptions.builder().setModelAssetBuffer(buffer).build())
                         .setRunningMode(RunningMode.IMAGE)
@@ -58,23 +65,36 @@ class FletFaceLandmarkerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler 
                         .build()
                     landmarker = FaceLandmarker.createFromOptions(context, options)
                 }
-                val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                    ?: throw IllegalArgumentException("Invalid image bytes")
+                stage = "decode image"
+                val decoded = BitmapFactory.decodeByteArray(
+                    imageBytes, 0, imageBytes.size,
+                    BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
+                ) ?: throw IllegalArgumentException("Invalid image bytes")
+                // The MediaPipe Java API accepts ARGB_8888, not every BitmapFactory format.
+                val bitmap = if (decoded.config == Bitmap.Config.ARGB_8888) decoded else {
+                    decoded.copy(Bitmap.Config.ARGB_8888, false)
+                        ?: throw IllegalArgumentException("Unable to convert photo to ARGB_8888")
+                }
+                stage = "build MPImage"
                 val image = BitmapImageBuilder(bitmap).build()
+                stage = "detect face"
                 val detected = landmarker!!.detect(image).faceLandmarks()
                 val coords: List<List<Double>> = if (detected.isEmpty()) emptyList() else {
                     detected[0].map { listOf(it.x().toDouble(), it.y().toDouble()) }
                 }
                 mainThread.post { result.success(coords) }
             } catch (e: Exception) {
-                mainThread.post { result.error("MEDIAPIPE", e.message ?: e.javaClass.simpleName, null) }
+                // Log the full stack trace, not just the truncated Flet status message.
+                Log.e("MINIFACE_MEDIAPIPE", "Face Landmarker failed at: $stage", e)
+                val reason = "$stage: ${e.javaClass.simpleName}: ${e.message ?: "unknown native error"}"
+                mainThread.post { result.error("MEDIAPIPE", reason, null) }
             }
         }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
-        worker.execute { landmarker?.close(); landmarker = null }
+        worker.execute { landmarker?.close(); landmarker = null; modelBuffer = null }
         worker.shutdown()
     }
 }

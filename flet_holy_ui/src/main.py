@@ -897,7 +897,7 @@ def main(page: ft.Page) -> None:
                     except Exception as exc:  # noqa: BLE001 - independent model failures
                         responses.pop(profile, None)
                         failures.append(
-                            f"{profile}: {type(exc).__name__}: {str(exc)[:100]}"
+                            f"{profile}: {type(exc).__name__}: {str(exc)[:420]}"
                         )
                 incomplete = next(
                     (key for key in targets
