@@ -153,6 +153,111 @@ def _missing_landmarks(landmarks: list[dict], mode: str) -> list[str]:
     return sorted(required - placed)
 
 
+
+def analyze_manual_landmarks(
+    mode: str,
+    image_data: bytes,
+    landmarks: list[dict],
+    gender: str = "male",
+    ethnicity: str = "asian",
+) -> dict:
+    """Run exactly the desktop geometry formulas on manually placed image points.
+
+    Landmark x/y are normalised to the image, not to the enclosing Flet widget.
+    Automatic detectors and optional ML dependencies are not involved.
+    """
+    import math
+
+    if mode not in {"front", "side"}:
+        raise AnalysisError("Manual analysis supports the front and side views.")
+    if not image_data or len(image_data) > MAX_IMAGE_BYTES:
+        raise AnalysisError("Select a valid photo first.")
+    if not isinstance(landmarks, list):
+        raise AnalysisError("Expected a list of landmarks.")
+
+    clean: list[dict] = []
+    for item in landmarks:
+        if not isinstance(item, dict):
+            continue
+        try:
+            x, y = float(item["x"]), float(item["y"])
+            if not (math.isfinite(x) and math.isfinite(y) and 0 <= x <= 1 and 0 <= y <= 1):
+                continue
+            clean.append({"id": str(item["id"]), "x": x, "y": y})
+        except (KeyError, ValueError, TypeError):
+            continue
+    missing = _missing_landmarks(clean, mode)
+    if missing:
+        return {
+            "mode": mode,
+            "data": None,
+            "landmark_count": len(clean),
+            "missing_ids": missing,
+            "warning": f"Place the remaining {len(missing)} {mode} points on the photo.",
+        }
+    analyzer = front_metrics if mode == "front" else side_metrics
+    return {
+        "mode": mode,
+        "data": analyzer(clean, gender, ethnicity, image_aspect_ratio(image_data)),
+        "landmark_count": len(clean),
+    }
+
+
+def analyze_mobile_side_photo(
+    filename: str,
+    image_data: bytes,
+    gender: str = "male",
+    ethnicity: str = "asian",
+) -> dict:
+    """Android-compatible side inference via ONNX Runtime + NumPy/OpenCV.
+
+    Uses the original FaceBoxes/3DDFA ONNX weights, landmarks and calculators.
+    No PyTorch, Flask, or MediaPipe Python are imported by this path.
+    """
+    if Path(filename).suffix.lower() not in SUPPORTED_IMAGE_EXTENSIONS:
+        raise AnalysisError("Select a JPG, JPEG, PNG or WEBP side photo.")
+    if not image_data or len(image_data) > MAX_IMAGE_BYTES:
+        raise AnalysisError("Photo must be nonempty and no larger than 20 MB.")
+
+    from mobile_side_provider import detect_side_from_upload
+
+    from side_landmarks import SIDE_LANDMARK_DEFS
+
+    detection = detect_side_from_upload(_MemoryUpload(image_data, filename))
+    if detection.get("error"):
+        raise AnalysisError(str(detection["error"]))
+    mapped = detection.get("landmarks")
+    if not isinstance(mapped, dict):
+        raise AnalysisError("Side ONNX did not return a valid landmark mapping.")
+
+    ordered = []
+    for definition in SIDE_LANDMARK_DEFS:
+        point = mapped.get(definition["id"])
+        if point is not None:
+            ordered.append({
+                "id": definition["id"],
+                "label": definition["label"],
+                "x": point["x"],
+                "y": point["y"],
+            })
+
+    missing = _missing_landmarks(ordered, "side")
+    if missing:
+        return {
+            "mode": "side",
+            "data": None,
+            "landmark_count": len(ordered),
+            "missing_ids": missing,
+            "warning": f"Side model detected {len(ordered)} points; place the remaining {len(missing)} manually.",
+            "landmarks": ordered,
+        }
+    return {
+        "mode": "side",
+        "data": side_metrics(ordered, gender, ethnicity, image_aspect_ratio(image_data)),
+        "landmark_count": len(ordered),
+        "landmarks": ordered,
+    }
+
 def analyze_photo(
     mode: str,
     filename: str,

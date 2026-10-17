@@ -12,7 +12,17 @@ import binascii
 from collections.abc import Callable
 
 import flet as ft
-from local_engine import MAX_IMAGE_BYTES, AnalysisError, analyze_photo
+from local_engine import (
+    MAX_IMAGE_BYTES,
+    AnalysisError,
+    analyze_manual_landmarks,
+    analyze_mobile_side_photo,
+    analyze_photo,
+    image_aspect_ratio,
+)
+
+from front_landmarks import FRONT_LANDMARK_DEFS
+from side_landmarks import SIDE_LANDMARK_DEFS
 
 # Keep the design tokens aligned with the original HTML workspace.
 BG = "#0F1118"
@@ -398,8 +408,11 @@ def main(page: ft.Page) -> None:
     metric_order = "importance"
     busy = False
     android_shell = page.platform == ft.PagePlatform.ANDROID
+    manual_points: dict[str, dict[str, dict]] = {"front": {}, "side": {}}
+    manual_selected: dict[str, int] = {"front": 0, "side": 0}
+    manual_history: dict[str, list[dict[str, dict]]] = {"front": [], "side": []}
     status = (
-        "Android Phase 1: offline photo workspace; AI engines not yet packaged."
+        "Android: front manual geometry + automatic ONNX side analysis; front auto and SCUT pending."
         if android_shell
         else "Ready for local analysis · no API or uploads"
     )
@@ -549,6 +562,9 @@ def main(page: ft.Page) -> None:
                 responses.pop("features", None)
             else:
                 photos[profile] = image
+                manual_points[profile].clear()
+                manual_history[profile].clear()
+                manual_selected[profile] = 0
                 responses.pop(profile, None)
                 if profile == "front" and feature_photo is None:
                     responses.pop("features", None)
@@ -572,13 +588,98 @@ def main(page: ft.Page) -> None:
             with_data=True,
         )
 
+    async def compute_manual(profile: str) -> None:
+        """Offline front/side geometry path; no native detector packages required."""
+        nonlocal busy, active_tab, active_profile
+        photo = photos.get(profile)
+        if photo is None:
+            set_status(f"Choose a {profile} portrait on Photos first.", color=AMBER)
+            active_tab = "photos"
+            render()
+            return
+        if busy:
+            return
+        busy = True
+        set_status(f"Calculating {profile} landmarks using the desktop formulas...", color=CYAN)
+        render()
+        try:
+            result = await asyncio.to_thread(
+                analyze_manual_landmarks,
+                profile,
+                photo[1],
+                list(manual_points[profile].values()),
+                gender.value or "male",
+                ethnicity.value or "asian",
+            )
+            responses[profile] = result
+            active_profile = profile
+            if result.get("data") is None:
+                active_tab = "align"
+                set_status(result.get("warning", "Place all required points."), color=AMBER)
+            else:
+                active_tab = "results"
+                set_status(f"{profile.title()} manual geometry completed offline.", color=GREEN)
+        except (AnalysisError, ImportError, OSError, ArithmeticError, RuntimeError, ValueError, TypeError, KeyError) as exc:
+            set_status(f"Manual analysis failed ({type(exc).__name__}): {str(exc)[:240]}", color=RED)
+        finally:
+            busy = False
+            render()
+
+    async def compute_mobile_side() -> None:
+        """Automatic, fully local Android side inference with the existing 3DDFA models."""
+        nonlocal busy, active_tab, active_profile
+        photo = photos.get("side")
+        if photo is None:
+            set_status("Choose a side portrait first.", color=AMBER)
+            active_tab = "photos"
+            render()
+            return
+        if busy:
+            return
+        busy = True
+        set_status("Running original 3DDFA ONNX models on device...", color=CYAN)
+        render()
+        try:
+            result = await asyncio.to_thread(
+                analyze_mobile_side_photo,
+                photo[0], photo[1],
+                gender.value or "male", ethnicity.value or "asian",
+            )
+            responses["side"] = result
+            active_profile = "side"
+            if isinstance(result.get("landmarks"), list):
+                manual_points["side"] = {
+                    point["id"]: point for point in result["landmarks"]
+                }
+            active_tab = "results" if result.get("data") is not None else "align"
+            set_status(
+                "Side ONNX analysis complete."
+                if result.get("data") is not None else
+                result.get("warning", "Some side landmarks need manual placement."),
+                color=GREEN if result.get("data") is not None else AMBER,
+            )
+        except (AnalysisError, ImportError, OSError, ArithmeticError, RuntimeError, ValueError, TypeError, KeyError) as exc:
+            active_tab = "align"
+            active_profile = "side"
+            set_status(
+                f"Side ONNX unavailable ({type(exc).__name__}): {str(exc)[:180]}. "
+                "You can still place landmarks manually.",
+                color=RED,
+            )
+        finally:
+            busy = False
+            render()
+
     async def run_analysis(profile: str) -> None:
         nonlocal busy, active_tab, active_profile
+        if android_shell and profile == "side":
+            await compute_mobile_side()
+            return
+        if android_shell and profile == "front":
+            await compute_manual(profile)
+            return
         if android_shell:
-            set_status(
-                "Android Phase 1 is UI-only: on-device model ports are pending.",
-                color=AMBER,
-            )
+            set_status("SCUT AI rating requires an Android ONNX model port; not yet available.", color=AMBER)
             render()
             return
         image = (
@@ -636,11 +737,42 @@ def main(page: ft.Page) -> None:
     async def run_pair(_event: ft.Event[ft.Button]) -> None:
         nonlocal busy, active_tab, active_profile
         if android_shell:
-            set_status(
-                "Android Phase 1 is UI-only: automatic analysis comes after model ports.",
-                color=AMBER,
-            )
-            render()
+            targets = [key for key in ("front", "side") if key in photos]
+            if not targets:
+                set_status("Select a portrait first, then open Align to place landmarks.", color=AMBER)
+                render()
+                return
+            if busy:
+                return
+            busy = True
+            try:
+                for profile in targets:
+                    photo = photos[profile]
+                    responses[profile] = await asyncio.to_thread(
+                        analyze_mobile_side_photo, photo[0], photo[1],
+                        gender.value or "male", ethnicity.value or "asian",
+                    ) if profile == "side" else await asyncio.to_thread(
+                        analyze_manual_landmarks, profile, photo[1],
+                        list(manual_points[profile].values()),
+                        gender.value or "male", ethnicity.value or "asian",
+                    )
+                incomplete = next(
+                    (key for key in targets if responses[key].get("data") is None), None
+                )
+                active_profile = incomplete or targets[0]
+                active_tab = "align" if incomplete else "results"
+                if incomplete:
+                    set_status(
+                        f"{incomplete.title()}: finish placing its landmarks in Align.",
+                        color=AMBER,
+                    )
+                else:
+                    set_status("All loaded profiles calculated offline.", color=GREEN)
+            except (AnalysisError, ImportError, OSError, ArithmeticError, RuntimeError, ValueError, TypeError, KeyError) as exc:
+                set_status(f"Manual analysis failed: {str(exc)[:240]}", color=RED)
+            finally:
+                busy = False
+                render()
             return
         modes = [profile for profile in ("front", "side") if profile in photos]
         if not modes:
@@ -730,6 +862,167 @@ def main(page: ft.Page) -> None:
             bgcolor=RAISED,
         )
 
+
+    def manual_editor() -> ft.Control:
+        """Touch editor with normalized image coordinates, shared on desktop/Android."""
+        profile = active_profile
+        photo = photos.get(profile)
+        if photo is None:
+            return _card(
+                _eyebrow("Manual landmarks"),
+                _text(f"Select a {profile} photo in Photos first.", 13, MUTED),
+                _button("Open photos", on_click=lambda _: switch_tab("photos")),
+                bgcolor=RAISED,
+            )
+        definitions = FRONT_LANDMARK_DEFS if profile == "front" else SIDE_LANDMARK_DEFS
+        points = manual_points[profile]
+        index = min(manual_selected[profile], len(definitions) - 1)
+        current_id = definitions[index]["id"]
+        width = 300.0 if compact_screen() else 285.0
+        # Preserve image aspect ratio: x/y positions refer to actual photo pixels.
+        aspect = max(0.1, image_aspect_ratio(photo[1]))
+        height = width / aspect
+        marker_controls: dict[str, ft.Container] = {}
+        active_drag: list[str | None] = [None]
+
+        def xy(event) -> tuple[float, float]:
+            location = event.local_position
+            return (
+                max(0.0, min(1.0, float(location.x) / width)),
+                max(0.0, min(1.0, float(location.y) / height)),
+            )
+
+        def change_selection(event: ft.Event[ft.Dropdown]) -> None:
+            chosen = event.control.value
+            for position, definition in enumerate(definitions):
+                if chosen == definition["id"]:
+                    manual_selected[profile] = position
+                    render()
+                    return
+
+        def place(event) -> None:
+            x, y = xy(event)
+            manual_history[profile].append({key: value.copy() for key, value in points.items()})
+            points[current_id] = {"id": current_id, "x": x, "y": y}
+            responses.pop(profile, None)
+            # The next unset point is selected automatically.
+            for position in range(index + 1, len(definitions)):
+                if definitions[position]["id"] not in points:
+                    manual_selected[profile] = position
+                    break
+            else:
+                for position, definition in enumerate(definitions):
+                    if definition["id"] not in points:
+                        manual_selected[profile] = position
+                        break
+            set_status(f"{profile.title()}: {len(points)}/{len(definitions)} points placed.", color=GREEN)
+            render()
+
+        def pan_start(event) -> None:
+            x, y = xy(event)
+            if not points:
+                return
+            nearest = min(
+                points.values(),
+                key=lambda item: (item["x"] - x) ** 2 + (item["y"] - y) ** 2,
+            )
+            if ((nearest["x"] - x) ** 2 + (nearest["y"] - y) ** 2) ** 0.5 > 0.075:
+                return
+            active_drag[0] = nearest["id"]
+            manual_history[profile].append({key: value.copy() for key, value in points.items()})
+
+        def pan_update(event) -> None:
+            point_id = active_drag[0]
+            if point_id is None:
+                return
+            x, y = xy(event)
+            points[point_id] = {"id": point_id, "x": x, "y": y}
+            responses.pop(profile, None)
+            marker = marker_controls.get(point_id)
+            if marker is not None:
+                marker.left = x * width - 9
+                marker.top = y * height - 9
+                marker.update()
+
+        def pan_end(_event) -> None:
+            if active_drag[0] is not None:
+                active_drag[0] = None
+                render()
+
+        def undo(_event) -> None:
+            if manual_history[profile]:
+                manual_points[profile] = manual_history[profile].pop()
+                responses.pop(profile, None)
+                render()
+
+        async def calculate(_event) -> None:
+            await compute_manual(profile)
+
+        markers: list[ft.Control] = [
+            ft.Image(src=photo[1], width=width, height=height, fit=ft.BoxFit.FILL)
+        ]
+        for position, definition in enumerate(definitions):
+            point = points.get(definition["id"])
+            if point is None:
+                continue
+            marker = ft.Container(
+                left=point["x"] * width - 9,
+                top=point["y"] * height - 9,
+                width=18,
+                height=18,
+                border_radius=9,
+                bgcolor=CYAN if definition["id"] == current_id else definition["color"],
+                alignment=ft.Alignment.CENTER,
+                content=_text(str(position + 1), 8, CYAN_DARK, bold=True),
+            )
+            markers.append(marker)
+            marker_controls[definition["id"]] = marker
+
+        editor = ft.GestureDetector(
+            content=ft.Stack(controls=markers, width=width, height=height),
+            on_tap_down=place,
+            on_pan_start=pan_start,
+            on_pan_update=pan_update,
+            on_pan_end=pan_end,
+            drag_interval=40,
+        )
+        return _card(
+            _eyebrow("Manual point editor · offline"),
+            _text(f"{len(points)} / {len(definitions)} landmarks placed", 13, GREEN, bold=True),
+            _text("Tap the next point on the portrait. Drag an existing dot to correct it.", 11, MUTED),
+            ft.Dropdown(
+                label="Point to place or reposition",
+                value=current_id,
+                options=[
+                    ft.DropdownOption(key=definition["id"], text=f"{i + 1}. {definition['label']}")
+                    for i, definition in enumerate(definitions)
+                ],
+                on_select=change_selection,
+                bgcolor=SURFACE,
+            ),
+            ft.Container(
+                content=editor,
+                width=width,
+                height=height,
+                clip_behavior=ft.ClipBehavior.HARD_EDGE,
+                border_radius=14,
+            ),
+            ft.Row(
+                controls=[
+                    _button("Undo", icon=ft.Icons.UNDO_ROUNDED, on_click=undo,
+                            disabled=not manual_history[profile], expand=True),
+                    _button("Calculate", icon=ft.Icons.ANALYTICS_OUTLINED,
+                            on_click=calculate, disabled=busy or len(points) < len(definitions),
+                            primary=True, expand=True),
+                ],
+                spacing=8,
+            ),
+            _text("Uses the same Python front/side calculator functions as Linux. "
+                  "Automatic detectors and the AI rating are separate ports.", 10, MUTED),
+            bgcolor=RAISED,
+            padding=12,
+        )
+
     def sidebar() -> list[ft.Control]:
         # The compact AppBar already carries the brand. Avoid duplicating it
         # above the actual photo controls on an Android-sized viewport.
@@ -779,7 +1072,7 @@ def main(page: ft.Page) -> None:
                     padding=12,
                 ),
                 _button(
-                    "Analyze available photos",
+                    "Analyze photos · side ONNX" if android_shell else "Analyze available photos",
                     icon=ft.Icons.AUTO_AWESOME_ROUNDED,
                     on_click=run_pair,
                     primary=True,
@@ -792,7 +1085,7 @@ def main(page: ft.Page) -> None:
             body.extend([
                 _eyebrow("Step 02 / Geometry"),
                 _text("Review landmark readiness", 20, TEXT, bold=True),
-                _text("Automatic detection runs in Python. Check the detected count and missing points.", 12, MUTED),
+                _text("Tap and adjust every required point to compute the real geometry offline.", 12, MUTED),
                 profile_tabs(),
                 _card(
                     _eyebrow("Detection status"),
@@ -811,18 +1104,15 @@ def main(page: ft.Page) -> None:
                     bgcolor=RAISED,
                 ),
                 _button(
-                    "Auto-detect + analyze",
+                    "Auto-detect side" if android_shell and active_profile == "side" else (
+                        "Calculate placed points" if android_shell else "Auto-detect + analyze"
+                    ),
                     icon=ft.Icons.AUTO_AWESOME_ROUNDED,
                     on_click=analyze_action(active_profile),
                     primary=True,
                     disabled=busy or active_profile not in photos,
                 ),
-                _card(
-                    _eyebrow("Manual alignment"),
-                    _text("Point-by-point editing is not implemented in this desktop UI.", 12, MUTED),
-                    _text("Use the HTML canvas for manual placement and precision dragging.", 11, MUTED),
-                    bgcolor=RAISED,
-                ),
+                manual_editor(),
             ])
         elif active_tab == "results":
             body.extend([
@@ -990,7 +1280,7 @@ def main(page: ft.Page) -> None:
                         _eyebrow("Live analysis"),
                         _text("Waiting for analysis", 20, TEXT, bold=True),
                         _text(
-                            "Select a photo and run automatic detection to populate this panel.",
+                            "Choose a photo, place points in Align, and calculate offline.",
                             12,
                             MUTED,
                         ),
@@ -1038,7 +1328,7 @@ def main(page: ft.Page) -> None:
                                 ),
                                 _photo_stage(photos.get(active_profile), PROFILE_NAMES[active_profile], large=not compact_screen()),
                                 _text(
-                                    "Portrait preview · manual landmark editing is available in HTML.",
+                                    "Use the Align tab to edit points directly on the portrait.",
                                     11,
                                     MUTED,
                                 ),
