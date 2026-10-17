@@ -34,7 +34,6 @@ def _asset_bytes(name: str) -> bytes:
     raise FileNotFoundError(inside)
 
 
-@lru_cache(maxsize=1)
 def _model_session() -> ort.InferenceSession:
     opts = ort.SessionOptions()
     opts.intra_op_num_threads = 2
@@ -183,12 +182,17 @@ def analyze_mobile_features(image_data: bytes, normalized: list[list[float]]) ->
     image=_preprocess(image_data)
     masks,polygons=_masks_and_polygons(normalized)
     session=_model_session()
-    base=float(cast(list[np.ndarray], session.run(None, {'image': image}))[0].ravel()[0])
-    deltas={}
-    for name,mask in masks.items():
-        occluded=_blur_occlude(image,mask)
-        score=float(cast(list[np.ndarray], session.run(None, {'image': occluded}))[0].ravel()[0])
-        deltas[name]=base-score
+    try:
+        base=float(cast(list[np.ndarray], session.run(None, {'image': image}))[0].ravel()[0])
+        deltas={}
+        for name,mask in masks.items():
+            occluded=_blur_occlude(image,mask)
+            score=float(cast(list[np.ndarray], session.run(None, {'image': occluded}))[0].ravel()[0])
+            deltas[name]=base-score
+    finally:
+        # Release the ONNX session after the baseline and all eight occlusions,
+        # including when an inference raises. Keep only numeric results.
+        del session
     bgr=cv2.cvtColor(np.asarray(_rgb_photo(image_data)),cv2.COLOR_RGB2BGR)
     bgr=cv2.resize(bgr,(224,224))
     encoded=base64.b64encode(_heatmap(bgr,masks,deltas)).decode('ascii')

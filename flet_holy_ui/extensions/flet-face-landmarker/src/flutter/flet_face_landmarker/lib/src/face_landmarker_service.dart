@@ -8,7 +8,6 @@ class FaceLandmarkerService extends FletService {
   FaceLandmarkerService({required super.control});
 
   static const _channel = MethodChannel('dev.minifaceiq/face_landmarker');
-  bool _initialized = false;
 
   @override
   void init() {
@@ -26,12 +25,12 @@ class FaceLandmarkerService extends FletService {
       );
     }
     final image = base64Decode(args['image'] as String);
-    final model = !_initialized ? base64Decode(args['model'] as String) : null;
+    // Every request owns its native graph, so every request supplies a model.
+    final model = base64Decode(args['model'] as String);
     final response = await _channel.invokeListMethod<dynamic>('detect', {
       'image': image,
-      if (model != null) 'model': model,
+      'model': model,
     });
-    _initialized = true;
     return response ?? <dynamic>[];
   }
 

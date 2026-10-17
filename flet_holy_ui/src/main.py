@@ -430,6 +430,11 @@ def main(page: ft.Page) -> None:
         else "Ready for local analysis · no API or uploads"
     )
     status_color = MUTED
+    # Keep status controls stable so progress updates do not rebuild large
+    # image previews, landmark editors, or measurement cards on Android.
+    status_label = _text(status, 12, status_color)
+    status_progress = ft.ProgressBar(color=CYAN, bgcolor=LINE, visible=False)
+    status_idle = _tag("On-device Python", color=GREEN)
 
     gender = ft.Dropdown(
         label="Gender reference",
@@ -533,6 +538,17 @@ def main(page: ft.Page) -> None:
         nonlocal status, status_color
         status = message
         status_color = color
+
+    def sync_status_controls() -> None:
+        status_label.value = status
+        status_label.color = status_color
+        status_progress.visible = busy
+        status_idle.visible = not busy
+
+    def refresh_status_only() -> None:
+        """Show analysis progress without regenerating the photo workspace."""
+        sync_status_controls()
+        page.update()
 
     def switch_tab(tab: str) -> None:
         nonlocal active_tab
@@ -657,7 +673,7 @@ def main(page: ft.Page) -> None:
             return
         busy = True
         set_status("Running original MediaPipe face landmarker on Android...", color=CYAN)
-        render()
+        refresh_status_only()
         try:
             from mobile_front import get_front_task_model
 
@@ -707,7 +723,7 @@ def main(page: ft.Page) -> None:
         busy = True
         active_tab = "features"
         set_status("Running SCUT ONNX rating and eight region occlusions...", color=CYAN)
-        render()
+        refresh_status_only()
         try:
             from mobile_features import analyze_mobile_features, resized_face_photo
             from mobile_front import get_front_task_model
@@ -748,7 +764,7 @@ def main(page: ft.Page) -> None:
             return
         busy = True
         set_status("Running original 3DDFA ONNX models on device...", color=CYAN)
-        render()
+        refresh_status_only()
         try:
             result = await asyncio.to_thread(
                 analyze_mobile_side_photo,
@@ -805,7 +821,7 @@ def main(page: ft.Page) -> None:
 
         busy = True
         set_status(f"Running {profile} analysis locally...", color=CYAN)
-        render()
+        refresh_status_only()
         try:
             result = await asyncio.to_thread(
                 analyze_photo,
@@ -859,7 +875,7 @@ def main(page: ft.Page) -> None:
                 for profile in targets:
                     photo = photos[profile]
                     set_status(f"Analyzing {profile} on-device...", color=CYAN)
-                    render()
+                    refresh_status_only()
                     try:
                         if profile == "side":
                             result = await asyncio.to_thread(
@@ -933,7 +949,7 @@ def main(page: ft.Page) -> None:
         for profile in modes:
             photo = photos[profile]
             set_status(f"Analyzing {profile} profile...", color=CYAN)
-            render()
+            refresh_status_only()
             try:
                 result = await asyncio.to_thread(
                     analyze_photo,
@@ -1328,8 +1344,9 @@ def main(page: ft.Page) -> None:
                 content=ft.Column(
                     controls=[
                         _eyebrow("System state"),
-                        _text(status, 12, status_color),
-                        ft.ProgressBar(color=CYAN, bgcolor=LINE) if busy else _tag("On-device Python", color=GREEN),
+                        status_label,
+                        status_progress,
+                        status_idle,
                     ],
                     spacing=10,
                 ),
@@ -1524,6 +1541,7 @@ def main(page: ft.Page) -> None:
         return content
 
     def render() -> None:
+        sync_status_controls()
         index = next((idx for idx, item in enumerate(TABS) if item[0] == active_tab), 0)
         bottom_navigation.selected_index = index
         rail_navigation.selected_index = index

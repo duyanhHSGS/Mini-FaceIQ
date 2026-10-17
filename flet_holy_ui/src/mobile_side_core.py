@@ -233,7 +233,7 @@ class MobileTDDFA:
         return outputs
 
 
-@lru_cache(maxsize=1)
 def get_models() -> tuple[MobileFaceBoxes, MobileTDDFA]:
+    """Own ONNX sessions for a single profile job, never cache native models."""
     return MobileFaceBoxes(), MobileTDDFA()
 

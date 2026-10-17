@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
@@ -22,9 +23,6 @@ class FletFaceLandmarkerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler 
     private lateinit var context: Context
     private val mainThread = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
-    private var landmarker: FaceLandmarker? = null
-    // Retain direct model buffer while graph remains open.
-    private var modelBuffer: ByteBuffer? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
@@ -44,33 +42,33 @@ class FletFaceLandmarkerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler 
             return
         }
         worker.execute {
+            // One native graph per analysis: initialize -> detect -> close.
             var stage = "initialize model"
+            var landmarker: FaceLandmarker? = null
+            val startedAt = SystemClock.elapsedRealtime()
             try {
-                if (landmarker == null) {
-                    if (modelBytes == null) {
-                        throw IllegalStateException("The bundled face model was not received")
-                    }
-                    // MediaPipe requires a DIRECT ByteBuffer, not ByteBuffer.wrap().
-                    val buffer = ByteBuffer.allocateDirect(modelBytes.size)
-                    buffer.put(modelBytes)
-                    buffer.rewind()
-                    modelBuffer = buffer
-                    Log.i("MINIFACE_MEDIAPIPE", "Initializing face model: ${modelBytes.size} bytes")
-                    val options = FaceLandmarker.FaceLandmarkerOptions.builder()
-                        .setBaseOptions(BaseOptions.builder().setModelAssetBuffer(buffer).build())
-                        .setRunningMode(RunningMode.IMAGE)
-                        .setNumFaces(1)
-                        .setMinFaceDetectionConfidence(0.5f)
-                        .setMinFacePresenceConfidence(0.5f)
-                        .build()
-                    landmarker = FaceLandmarker.createFromOptions(context, options)
-                }
+                val model = modelBytes
+                    ?: throw IllegalStateException("The bundled face model was not received")
+                // Keep a direct buffer strongly referenced until the native graph closes.
+                val buffer = ByteBuffer.allocateDirect(model.size)
+                buffer.put(model)
+                buffer.rewind()
+                Log.i("MINIFACE_MEDIAPIPE", "Initializing face model: ${model.size} bytes")
+                val options = FaceLandmarker.FaceLandmarkerOptions.builder()
+                    .setBaseOptions(BaseOptions.builder().setModelAssetBuffer(buffer).build())
+                    .setRunningMode(RunningMode.IMAGE)
+                    .setNumFaces(1)
+                    .setMinFaceDetectionConfidence(0.5f)
+                    .setMinFacePresenceConfidence(0.5f)
+                    .build()
+                val detector = FaceLandmarker.createFromOptions(context, options)
+                landmarker = detector
+                val initializedAt = SystemClock.elapsedRealtime()
                 stage = "decode image"
                 val decoded = BitmapFactory.decodeByteArray(
                     imageBytes, 0, imageBytes.size,
                     BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
                 ) ?: throw IllegalArgumentException("Invalid image bytes")
-                // The MediaPipe Java API accepts ARGB_8888, not every BitmapFactory format.
                 val bitmap = if (decoded.config == Bitmap.Config.ARGB_8888) decoded else {
                     decoded.copy(Bitmap.Config.ARGB_8888, false)
                         ?: throw IllegalArgumentException("Unable to convert photo to ARGB_8888")
@@ -78,23 +76,40 @@ class FletFaceLandmarkerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler 
                 stage = "build MPImage"
                 val image = BitmapImageBuilder(bitmap).build()
                 stage = "detect face"
-                val detected = landmarker!!.detect(image).faceLandmarks()
+                val detected = detector.detect(image).faceLandmarks()
                 val coords: List<List<Double>> = if (detected.isEmpty()) emptyList() else {
                     detected[0].map { listOf(it.x().toDouble(), it.y().toDouble()) }
                 }
+                val detectedAt = SystemClock.elapsedRealtime()
+                stage = "release model"
+                detector.close()
+                landmarker = null
+                Log.i(
+                    "MINIFACE_MEDIAPIPE",
+                    "Front model released; initialize=${initializedAt - startedAt}ms, " +
+                        "decode+detect=${detectedAt - initializedAt}ms, " +
+                        "total=${SystemClock.elapsedRealtime() - startedAt}ms"
+                )
+                // Preserve buffer until after close; do not keep it between analyses.
+                buffer.rewind()
                 mainThread.post { result.success(coords) }
             } catch (e: Exception) {
-                // Log the full stack trace, not just the truncated Flet status message.
                 Log.e("MINIFACE_MEDIAPIPE", "Face Landmarker failed at: $stage", e)
                 val reason = "$stage: ${e.javaClass.simpleName}: ${e.message ?: "unknown native error"}"
                 mainThread.post { result.error("MEDIAPIPE", reason, null) }
+            } finally {
+                try {
+                    landmarker?.close()
+                } catch (closeError: Exception) {
+                    Log.e("MINIFACE_MEDIAPIPE", "Failed to release model", closeError)
+                }
             }
         }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
-        worker.execute { landmarker?.close(); landmarker = null; modelBuffer = null }
+        // Queued requests release their own graph in finally.
         worker.shutdown()
     }
 }
