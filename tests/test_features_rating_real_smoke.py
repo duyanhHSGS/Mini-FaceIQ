@@ -1,12 +1,8 @@
 import math
-import os
 
 import numpy as np
-import pytest
-from PIL import Image
-
 from conftest import load_feature_analyzer
-
+from PIL import Image
 
 face_analyzer = load_feature_analyzer()
 

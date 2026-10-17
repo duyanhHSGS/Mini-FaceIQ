@@ -2,8 +2,8 @@ from front_calculator import (
     PENALTY_CAP,
     calculate_penalty,
     calculate_plateau_exponential_score,
-    classify_deviation,
     clamp_score,
+    classify_deviation,
     create_measurement,
     weighted_group_score,
 )

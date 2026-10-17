@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 from torchvision.models import MobileNet_V3_Large_Weights, mobilenet_v3_large
-
 
 LANDMARK_COUNT = 31
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
@@ -51,7 +50,11 @@ class ProfileLandmarkModel(nn.Module):
         )
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
-        normalized = (images - self.image_mean) / self.image_std
+        image_mean = self.image_mean
+        image_std = self.image_std
+        if not isinstance(image_mean, torch.Tensor) or not isinstance(image_std, torch.Tensor):
+            raise TypeError("Model normalization buffers must be tensors")
+        normalized = (images - image_mean) / image_std
         return self.decoder(self.encoder(normalized))
 
 

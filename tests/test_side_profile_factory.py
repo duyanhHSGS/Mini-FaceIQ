@@ -1,12 +1,12 @@
 import random
 from pathlib import Path
 
-from matplotlib import pyplot as plt
-from matplotlib.colors import to_hex
 import numpy as np
-from PIL import Image
 import pytest
 import torch
+from matplotlib import pyplot as plt
+from matplotlib.colors import to_hex
+from PIL import Image
 
 from packages.my_side_profile_savior.benchmark import (
     FAILURE_PENALTY,
@@ -50,7 +50,6 @@ from packages.my_side_profile_savior.ui import (
     _synchronized_view_limits,
     _zoomed_view_limits,
 )
-
 
 PACKAGE_DIR = (
     Path(__file__).resolve().parents[1]
@@ -106,9 +105,10 @@ def test_only_confirmed_multipie_points_enter_31_model_slots():
     assert selected.shape == (31, 2)
     for entry in mapping.entries:
         if entry.confirmed:
+            assert entry.dataset_index is not None
             np.testing.assert_array_equal(
                 selected[entry.model_index],
-                dataset_points[int(entry.dataset_index)],
+                dataset_points[entry.dataset_index],
             )
         else:
             np.testing.assert_array_equal(

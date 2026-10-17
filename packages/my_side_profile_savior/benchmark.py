@@ -16,7 +16,6 @@ from .factory_config import atomic_json_save
 from .inference import FactoryPredictor
 from .mapping import LandmarkMapping
 
-
 PCK_THRESHOLDS = (0.02, 0.05, 0.10)
 FAILURE_PENALTY = 1.0
 
@@ -84,7 +83,7 @@ def _legacy_fingerprint(
 
 
 def _legacy_on_crop(crop: Image.Image) -> dict[str, Any]:
-    from third_party.providers.side_3ddfa import _detect_side_from_image
+    from packages.providers.side_3ddfa import _detect_side_from_image
 
     rgb = np.asarray(crop.convert("RGB"), dtype=np.uint8)
     bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
@@ -102,7 +101,7 @@ def _summarize(errors: dict[str, list[float]]) -> dict[str, Any]:
         array = np.asarray(values, dtype=np.float64)
         all_errors.extend(array.tolist())
         per_landmark[name] = {
-            "count": int(len(array)),
+            "count": len(array),
             "mean_nme": float(array.mean()) if len(array) else FAILURE_PENALTY,
             "failures": int(np.sum(array >= FAILURE_PENALTY)),
             "pck": {
@@ -116,7 +115,7 @@ def _summarize(errors: dict[str, list[float]]) -> dict[str, Any]:
     return {
         "per_landmark": per_landmark,
         "aggregate": {
-            "count": int(len(aggregate)),
+            "count": len(aggregate),
             "mean_nme": float(aggregate.mean())
             if len(aggregate)
             else FAILURE_PENALTY,
@@ -174,7 +173,13 @@ def run_benchmark(
     for dataset_index in test_indices:
         sample = dataset[dataset_index]
         record = dataset.records[dataset_index]
-        crop_box = tuple(int(value) for value in sample["crop_xyxy"].tolist())
+        crop_values = sample["crop_xyxy"].tolist()
+        crop_box = (
+            int(crop_values[0]),
+            int(crop_values[1]),
+            int(crop_values[2]),
+            int(crop_values[3]),
+        )
         with Image.open(record.image_path) as source:
             crop = source.convert("RGB").crop(crop_box)
 

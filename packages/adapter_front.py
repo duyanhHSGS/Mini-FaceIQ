@@ -20,7 +20,6 @@ from front_landmarks import FRONT_LANDMARK_DEFS
 
 from .providers import front_mediapipe
 
-
 DIRECT_MP_MAP = {
     "hairline": 10,
     "left_pupil": 468,

@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from PIL import Image, ImageOps
 import torch
+from PIL import Image, ImageOps
 
 from .config import resolve_device
 from .model import DiscreteLandmarkModel, soft_argmax_2d

@@ -1,4 +1,3 @@
-# coding: utf-8
 
 __author__ = 'cleardusk'
 
@@ -7,6 +6,7 @@ import sys
 sys.path.append('..')
 
 import argparse
+
 import numpy as np
 import torch
 
@@ -30,9 +30,9 @@ def load_model(model, checkpoint_fp):
     checkpoint = torch.load(checkpoint_fp, map_location=lambda storage, loc: storage)['state_dict']
     model_dict = model.state_dict()
     # because the model is trained by multiple gpus, prefix module should be removed
-    for k in checkpoint.keys():
+    for k in checkpoint:
         kc = k.replace('module.', '')
-        if kc in model_dict.keys():
+        if kc in model_dict:
             model_dict[kc] = checkpoint[k]
         if kc in ['fc_param.bias', 'fc_param.weight']:
             model_dict[kc.replace('_param', '')] = checkpoint[k]
@@ -41,7 +41,7 @@ def load_model(model, checkpoint_fp):
     return model
 
 
-class ToTensorGjz(object):
+class ToTensorGjz:
     def __call__(self, pic):
         if isinstance(pic, np.ndarray):
             img = torch.from_numpy(pic.transpose((2, 0, 1)))
@@ -51,7 +51,7 @@ class ToTensorGjz(object):
         return self.__class__.__name__ + '()'
 
 
-class NormalizeGjz(object):
+class NormalizeGjz:
     def __init__(self, mean, std):
         self.mean = mean
         self.std = std
@@ -85,13 +85,13 @@ def _parse_param(param):
     # pre-defined templates for parameter
     n = param.shape[0]
     if n == 62:
-        trans_dim, shape_dim, exp_dim = 12, 40, 10
+        trans_dim, shape_dim, _exp_dim = 12, 40, 10
     elif n == 72:
-        trans_dim, shape_dim, exp_dim = 12, 40, 20
+        trans_dim, shape_dim, _exp_dim = 12, 40, 20
     elif n == 141:
-        trans_dim, shape_dim, exp_dim = 12, 100, 29
+        trans_dim, shape_dim, _exp_dim = 12, 100, 29
     else:
-        raise Exception(f'Undefined templated param parsing rule')
+        raise ValueError('Undefined templated param parsing rule')
 
     R_ = param[:trans_dim].reshape(3, -1)
     R = R_[:, :3]

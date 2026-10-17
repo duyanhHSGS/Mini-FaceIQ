@@ -1,5 +1,6 @@
-import torch.nn as nn
-import math
+from torch import nn
+
+
 def conv_bn(inp, oup, stride):
     return nn.Sequential(
         nn.Conv2d(inp, oup, 3, stride, 1, bias=False),
@@ -14,7 +15,7 @@ def conv_1x1_bn(inp, oup):
     )
 class InvertedResidual(nn.Module):
     def __init__(self, inp, oup, stride, expand_ratio):
-        super(InvertedResidual, self).__init__()
+        super().__init__()
         self.stride = stride
         self.use_res_connect = self.stride == 1 and inp == oup
         self.conv = nn.Sequential(
@@ -34,7 +35,7 @@ class InvertedResidual(nn.Module):
             return self.conv(x)
 class MobileNetV2(nn.Module):
     def __init__(self, n_class=1000, input_size=224, width_mult=1.):
-        super(MobileNetV2, self).__init__()
+        super().__init__()
         self.interverted_residual_setting = [
             [1, 16, 1, 1],
             [6, 24, 2, 2],
@@ -46,18 +47,18 @@ class MobileNetV2(nn.Module):
         ]
         input_channel = int(32 * width_mult)
         self.last_channel = int(1280 * width_mult) if width_mult > 1.0 else 1280
-        self.features = [conv_bn(3, input_channel, 2)]
+        features: list[nn.Module] = [conv_bn(3, input_channel, 2)]
         for t, c, n, s in self.interverted_residual_setting:
             output_channel = int(c * width_mult)
             for i in range(n):
                 if i == 0:
-                    self.features.append(InvertedResidual(input_channel, output_channel, s, t))
+                    features.append(InvertedResidual(input_channel, output_channel, s, t))
                 else:
-                    self.features.append(InvertedResidual(input_channel, output_channel, 1, t))
+                    features.append(InvertedResidual(input_channel, output_channel, 1, t))
                 input_channel = output_channel
-        self.features.append(conv_1x1_bn(input_channel, self.last_channel))
-        self.features.append(nn.AvgPool2d(input_size/32))
-        self.features = nn.Sequential(*self.features)
+        features.append(conv_1x1_bn(input_channel, self.last_channel))
+        features.append(nn.AvgPool2d(input_size // 32))
+        self.features = nn.Sequential(*features)
         self.classifier = nn.Sequential(
             nn.Dropout(),
             nn.Linear(self.last_channel, n_class),

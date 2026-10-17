@@ -1,0 +1,27 @@
+name: flet_face_landmarker
+description: Flet FletFaceLandmarker control
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: ">=1.17.0"
+
+dependencies:
+  flet: ^1.0.4
+  flutter:
+    sdk: flutter
+
+  # Native Android implementation below communicates over MethodChannel.
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: dev.minifaceiq.flet_face_landmarker
+        pluginClass: FletFaceLandmarkerPlugin
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0

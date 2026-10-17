@@ -1,11 +1,11 @@
-# coding: utf-8
 
 __author__ = 'cleardusk'
 
 import os
+import pickle
+
 import numpy as np
 import torch
-import pickle
 
 
 def mkdir(d):
@@ -25,7 +25,8 @@ def _load(fp):
     if suffix == 'npy':
         return np.load(fp)
     elif suffix == 'pkl':
-        return pickle.load(open(fp, 'rb'))
+        with open(fp, 'rb') as file:
+            return pickle.load(file)
 
 
 def _dump(wfp, obj):
@@ -33,9 +34,10 @@ def _dump(wfp, obj):
     if suffix == 'npy':
         np.save(wfp, obj)
     elif suffix == 'pkl':
-        pickle.dump(obj, open(wfp, 'wb'))
+        with open(wfp, 'wb') as file:
+            pickle.dump(obj, file)
     else:
-        raise Exception('Unknown Type: {}'.format(suffix))
+        raise ValueError(f'Unknown Type: {suffix}')
 
 
 def _load_tensor(fp, mode='cpu'):

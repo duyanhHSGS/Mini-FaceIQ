@@ -1,16 +1,20 @@
-import cv2
 import os
 import random
+from typing import cast
+
+import cv2
 import numpy as np
 import torch
-import random
-import scipy.io as sio
-import torchvision.transforms as transforms
-import torch.utils.data as data
-import torchvision.transforms as transforms
 from PIL import Image
-from torch.autograd import Variable
-from torchvision.transforms import ToTensor, RandomCrop, CenterCrop, Normalize,RandomHorizontalFlip
+from torch.utils import data
+from torchvision import transforms
+from torchvision.transforms import (
+	Normalize,
+	RandomHorizontalFlip,
+	ToTensor,
+)
+
+
 def formnames(infofile, if_train,if_test):
 	if if_train == True:
 		if if_test == True:
@@ -53,13 +57,13 @@ def load_inputs(matname, opt, if_train):
 	name = matname.split('.')
 	imgname = name[0]+'.jpg'
 	imgpath = os.path.join(root,'scut_align/', imgname)
-	img = Image.open(imgpath)
+	pil_image = Image.open(imgpath)
 	transform =  transforms.Compose([RandomHorizontalFlip(),ToTensor(),Normalize((0.5, 0.5, 0.5),(0.5, 0.5, 0.5))])
-	img = transform(img)
+	image_tensor = cast(torch.Tensor, transform(pil_image))
 	matname = 'scut/'+name[0]+'.npy'
 	mat = np.load(os.path.join(root, matname))
 	mat = mat_process(mat).transpose(1,2,0)
-	img = np.transpose(img.numpy(), (1,2,0))
+	img = np.transpose(image_tensor.numpy(), (1,2,0))
 	img = cv2.resize(img, (opt.cropSize, opt.cropSize), interpolation=cv2.INTER_CUBIC)
 	w_offset = random.randint(0, opt.resizeSize - opt.cropSize - 1)
 	h_offset = random.randint(0, opt.resizeSize - opt.cropSize- 1)
@@ -68,7 +72,7 @@ def load_inputs(matname, opt, if_train):
 	return img,mat
 class DatasetFromFolder(data.Dataset):
 	def __init__(self, opt, if_train,if_test):
-		super(DatasetFromFolder, self).__init__()
+		super().__init__()
 		self.if_train = if_train
 		self.if_test = if_test
 		self.opt = opt
@@ -90,12 +94,12 @@ def checkpaths(opt):
 	if not os.path.exists('./checkpoint'):
 		os.mkdir('./checkpoint')
 def checkpoint(epoch, net):
-	net_out_path = "./checkpoint/net_epoch_{}.weight".format(epoch)
+	net_out_path = f"./checkpoint/net_epoch_{epoch}.weight"
 	torch.save(net.state_dict(), net_out_path)
-	print("Checkpoint saved to {}".format(net_out_path))
+	print(f"Checkpoint saved to {net_out_path}")
 def usedtime(strat_time, end_time):
 	delta = int(end_time - strat_time)
 	hours = delta // 3600
 	minutes = (delta-hours*3600)//60
 	seconds = delta-hours*3600-minutes*60
-	return ('%2d:%2d:%2d' %(hours,minutes,seconds))
+	return f'{hours:2d}:{minutes:2d}:{seconds:2d}'

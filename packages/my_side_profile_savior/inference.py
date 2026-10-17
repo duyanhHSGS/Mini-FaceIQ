@@ -8,8 +8,8 @@ from typing import Any
 
 import cv2
 import numpy as np
-from PIL import Image, ImageOps
 import torch
+from PIL import Image, ImageOps
 
 from .dataset import _pil_to_float_tensor, _square_crop_box
 from .factory_config import resolve_device
@@ -18,7 +18,7 @@ from .model import LANDMARK_COUNT, ProfileLandmarkModel, soft_argmax_2d
 
 @lru_cache(maxsize=1)
 def _faceboxes_model():
-    from third_party.providers.side_3ddfa import _load_faceboxes_onnx_class
+    from packages.providers.side_3ddfa import _load_faceboxes_onnx_class
 
     return _load_faceboxes_onnx_class()()
 
@@ -54,7 +54,7 @@ def _output_layout_from_checkpoint(
         zip(entries, mapping_entries)
     ):
         if not isinstance(entry, dict) or not isinstance(mapping_entry, dict):
-            raise ValueError("Checkpoint layout entries must be objects")
+            raise TypeError("Checkpoint layout entries must be objects")
         try:
             model_index = int(entry["model_index"])
             name = str(entry["name"])
@@ -140,7 +140,7 @@ class FactoryPredictor:
         amp_enabled = self.device.type == "cuda" and bool(
             self.config.get("amp", True)
         )
-        with torch.cuda.amp.autocast(enabled=amp_enabled):
+        with torch.amp.autocast("cuda", enabled=amp_enabled):
             logits = self.model(tensor)
             coordinates, confidence = soft_argmax_2d(logits)
         coordinates_np = coordinates[0].float().cpu().numpy()

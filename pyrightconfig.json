@@ -1,0 +1,9 @@
+{
+  "pythonVersion": "3.14",
+  "pythonPlatform": "Linux",
+  "extraPaths": [
+    "flet_holy_ui/src",
+    "packages/3DDFA_V2",
+    "packages/features_rating_bundle/code/scut"
+  ]
+}

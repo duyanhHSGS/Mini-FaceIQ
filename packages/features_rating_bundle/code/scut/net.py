@@ -1,9 +1,10 @@
+
 import torch
-import torch.nn as nn
-import math
-import torchvision
 from Mv2_chaatt import *
 from Mv2attn import *
+from torch import nn
+
+
 def parsing_net1():
 	parsing_net1 =MV2_cattn()
 	parsing_net1 = torch.nn.DataParallel(parsing_net1).cuda()
@@ -18,7 +19,7 @@ def image_net1():
 	return image_net1
 class Net(nn.Module):
 	def __init__(self):
-		super(Net, self).__init__()
+		super().__init__()
 		self.bilinear = nn.Bilinear(256,256,1)
 		self.parsing_net1 = parsing_net1()
 		self.image_net1 = image_net1()

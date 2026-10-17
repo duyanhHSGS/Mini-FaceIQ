@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import json
 import os
-from pathlib import Path
 import queue
 import subprocess
 import sys
 import threading
 import tkinter as tk
+from datetime import datetime
+from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from PIL import Image, ImageDraw, ImageOps, ImageTk
@@ -25,10 +25,10 @@ from .config import (
 from .dataset import LandmarkRecord, load_records
 from .inference import DiscreteLandmarkPredictor
 
-
 PACKAGE_DIR = Path(__file__).resolve().parent
 REPOSITORY_ROOT = PACKAGE_DIR.parents[1]
 OUTPUT_ROOT = PACKAGE_DIR / "output"
+UI_ERRORS = (KeyError, OSError, RuntimeError, TypeError, ValueError, tk.TclError)
 
 
 class DiscreteTrainerApp(tk.Tk):
@@ -280,7 +280,7 @@ class DiscreteTrainerApp(tk.Tk):
                     (image_path, checkpoint_path, output_path, result),
                 )
             )
-        except Exception as exc:
+        except UI_ERRORS as exc:
             self.inference_queue.put(("error", str(exc)))
 
     def _draw_inference_image(
@@ -299,8 +299,14 @@ class DiscreteTrainerApp(tk.Tk):
         with Image.open(image_path) as opened:
             image = ImageOps.exif_transpose(opened).convert("RGB")
         if prediction is not None:
-            x = float(prediction["x"])
-            y = float(prediction["y"])
+            raw_x = prediction["x"]
+            raw_y = prediction["y"]
+            if not isinstance(raw_x, int | float | str) or not isinstance(
+                raw_y, int | float | str
+            ):
+                raise TypeError("Prediction coordinates must be numeric")
+            x = float(raw_x)
+            y = float(raw_y)
             radius = max(8, round(min(image.size) * 0.012))
             line_width = max(2, radius // 5)
             draw = ImageDraw.Draw(image)
@@ -351,7 +357,13 @@ class DiscreteTrainerApp(tk.Tk):
         return destination
 
     def _show_inference_result(self, payload: object) -> None:
+        if not isinstance(payload, tuple) or len(payload) != 4:
+            raise TypeError("Inference result payload must contain four values")
         image_path, checkpoint_path, output_path, result = payload
+        if not isinstance(image_path, Path) or not isinstance(checkpoint_path, Path):
+            raise TypeError("Inference result paths must use pathlib.Path")
+        if not isinstance(output_path, Path) or not isinstance(result, dict):
+            raise TypeError("Inference result must include an output path and mapping")
         self._draw_inference_image(output_path, prediction=None)
         with Image.open(image_path) as opened:
             width, height = ImageOps.exif_transpose(opened).size
@@ -392,7 +404,7 @@ class DiscreteTrainerApp(tk.Tk):
             self.preview_index = 0
             self.label_count.configure(text=f"{len(self.records)} placed human labels ready")
             self._draw_preview()
-        except Exception as exc:
+        except UI_ERRORS as exc:
             self.records = []
             self.label_count.configure(text=f"Dataset error: {exc}")
             self.preview.configure(image="", text=str(exc))
@@ -428,7 +440,7 @@ class DiscreteTrainerApp(tk.Tk):
         try:
             config = self._config()
             config.validate()
-        except Exception as exc:
+        except UI_ERRORS as exc:
             messagebox.showerror("Cannot start", str(exc))
             return
         command = [

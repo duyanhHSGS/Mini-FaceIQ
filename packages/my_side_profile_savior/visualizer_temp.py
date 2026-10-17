@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import argparse
 import math
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,6 +37,7 @@ DEFAULT_ANNOTATIONS = (
 )
 DEFAULT_OUTPUT = PACKAGE_DIR / "profile_landmarks_preview.png"
 DEFAULT_MAPPING = PACKAGE_DIR / "user-custom.txt"
+LEGACY_PROVIDER_ERRORS = (AttributeError, ImportError, OSError, RuntimeError, TypeError, ValueError)
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
@@ -158,7 +159,7 @@ def _draw_model_crop(axis, sample, show_auxiliary: bool) -> None:
 def _run_legacy_3ddfa(image_path: Path) -> dict:
     """Lazy-load the heavyweight legacy provider only in comparison mode."""
 
-    from third_party.providers.side_3ddfa import detect_side
+    from packages.providers.side_3ddfa import detect_side
 
     return detect_side(str(image_path))
 
@@ -328,10 +329,12 @@ class InteractiveLandmarkViewer:
             bottom=0.27,
             wspace=0.04,
         )
+        manager = self.figure.canvas.manager
         try:
-            self.figure.canvas.manager.set_window_title(
+            if manager is not None:
+                manager.set_window_title(
                 "Mini-FaceIQ Landmark Mapping HQ"
-            )
+                )
         except AttributeError:
             pass
 
@@ -460,7 +463,7 @@ class InteractiveLandmarkViewer:
         if cache_key not in self.legacy_cache:
             try:
                 self.legacy_cache[cache_key] = _run_legacy_3ddfa(image_path)
-            except Exception as exc:
+            except LEGACY_PROVIDER_ERRORS as exc:
                 self.legacy_cache[cache_key] = {
                     "error": f"{type(exc).__name__}: {exc}"
                 }
@@ -687,7 +690,7 @@ class InteractiveLandmarkViewer:
 
     def _dataset_hover_target(self, event):
         record = self.dataset.records[self.index]
-        candidates = [
+        candidates: list[tuple[float, float, str, str | None]] = [
             (
                 float(x),
                 float(y),

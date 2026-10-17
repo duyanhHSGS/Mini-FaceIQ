@@ -2,16 +2,16 @@ from flask import Flask, jsonify, render_template, request
 
 from front_calculator import calculate_front_analysis
 from front_landmarks import FRONT_LANDMARK_DEFS
-from side_calculator import calculate_side_analysis
-from side_landmarks import SIDE_LANDMARK_DEFS
 from packages import (
     analyze_features_from_upload,
     detect_front_landmarks_from_upload,
     detect_side_landmarks_from_upload,
 )
-
+from side_calculator import calculate_side_analysis
+from side_landmarks import SIDE_LANDMARK_DEFS
 
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+ANALYSIS_ERRORS = (AttributeError, ImportError, OSError, RuntimeError, TypeError, ValueError)
 
 app = Flask(__name__, template_folder="web")
 app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024
@@ -51,7 +51,7 @@ def front_autolandmarks():
     try:
         landmarks = detect_front_landmarks_from_upload(image)
         return jsonify({"success": True, "landmarks": landmarks})
-    except Exception as exc:
+    except ANALYSIS_ERRORS as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -70,7 +70,7 @@ def side_autolandmarks():
     try:
         landmarks = detect_side_landmarks_from_upload(image)
         return jsonify({"success": True, "landmarks": landmarks})
-    except Exception as exc:
+    except ANALYSIS_ERRORS as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -90,7 +90,7 @@ def features_rating():
     try:
         result = analyze_features_from_upload(image, suffix)
         return jsonify({"success": True, "data": result})
-    except Exception as exc:
+    except ANALYSIS_ERRORS as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -139,7 +139,7 @@ def front_metrics():
             front_aspect=float(payload.get("frontAspect", 1)),
         )
         return jsonify({"success": True, "data": data})
-    except Exception as exc:
+    except ANALYSIS_ERRORS as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
@@ -169,7 +169,7 @@ def side_metrics():
             side_aspect=float(payload.get("sideAspect", 1)),
         )
         return jsonify({"success": True, "data": data})
-    except Exception as exc:
+    except ANALYSIS_ERRORS as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
 
 

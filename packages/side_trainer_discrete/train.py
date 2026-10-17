@@ -7,9 +7,9 @@ import gc
 import json
 import math
 import os
-from pathlib import Path
 import sys
 import time
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -110,7 +110,7 @@ def _run_epoch(
     loader: DataLoader,
     config: TrainerConfig,
     device: torch.device,
-    scaler: torch.cuda.amp.GradScaler,
+    scaler: torch.amp.GradScaler,
     optimizer: torch.optim.Optimizer | None,
     stop_path: Path,
 ) -> dict[str, float | int | bool]:
@@ -128,7 +128,7 @@ def _run_epoch(
             if training:
                 optimizer.zero_grad(set_to_none=True)
             amp_enabled = config.amp and device.type == "cuda"
-            with torch.cuda.amp.autocast(enabled=amp_enabled):
+            with torch.amp.autocast("cuda", enabled=amp_enabled):
                 losses = landmark_loss(
                     model(images),
                     targets,
@@ -187,7 +187,10 @@ def run_training(config: TrainerConfig) -> Path:
     checkpoint: dict[str, Any] | None = None
     probe = DiscreteLandmarkDataset(config.shard_path, config.images_root, image_size=config.image_size)
     if resume_path:
-        checkpoint = torch.load(resume_path, map_location=device)
+        loaded_checkpoint = torch.load(resume_path, map_location=device)
+        if not isinstance(loaded_checkpoint, dict):
+            raise TypeError(f"Checkpoint must contain a mapping: {resume_path}")
+        checkpoint = dict(loaded_checkpoint)
         _validate_resume(checkpoint, config)
         split = _split_from_dict(checkpoint["split"])
         run_dir = resume_path.parent
@@ -209,7 +212,7 @@ def run_training(config: TrainerConfig) -> Path:
     model = DiscreteLandmarkModel(pretrained=config.pretrained and checkpoint is None).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(1, config.epochs))
-    scaler = torch.cuda.amp.GradScaler(enabled=config.amp and device.type == "cuda")
+    scaler = torch.amp.GradScaler("cuda", enabled=config.amp and device.type == "cuda")
     start_epoch = 0
     best_nme = math.inf
     stale_epochs = 0

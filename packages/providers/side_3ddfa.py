@@ -1,9 +1,11 @@
+import importlib.util
 import os
 import sys
-import importlib.util
 import types
-import numpy as np
+from typing import Any, Protocol, cast
+
 import cv2
+import numpy as np
 
 _PROVIDER_DIR = os.path.dirname(os.path.abspath(__file__))
 _packages_DIR = os.path.dirname(_PROVIDER_DIR)
@@ -13,10 +15,28 @@ if _3DDFA_DIR not in sys.path:
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.environ['OMP_NUM_THREADS'] = '4'
 
-_model_cache = {
-    "face_boxes": None,
-    "tddfa": None,
-}
+class FaceBoxesModel(Protocol):
+    def __call__(self, image: np.ndarray) -> list[list[float]]: ...
+
+
+class TddfaModel(Protocol):
+    def __call__(
+        self,
+        image: np.ndarray,
+        boxes: list[list[float]],
+        **options: object,
+    ) -> tuple[list[np.ndarray], list[list[float]]]: ...
+
+    def recon_vers(
+        self,
+        parameters: list[np.ndarray],
+        roi_boxes: list[list[float]],
+        **options: object,
+    ) -> list[np.ndarray]: ...
+
+
+_face_boxes_cache: FaceBoxesModel | None = None
+_tddfa_cache: TddfaModel | None = None
 
 
 def _require_3ddfa_dir():
@@ -27,54 +47,18 @@ def _require_3ddfa_dir():
         )
 
 
-def _cpu_nms_numpy(dets, thresh):
-    if dets.shape[0] == 0:
-        return []
-
-    x1 = dets[:, 0]
-    y1 = dets[:, 1]
-    x2 = dets[:, 2]
-    y2 = dets[:, 3]
-    scores = dets[:, 4]
-
-    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
-    order = scores.argsort()[::-1]
-    keep = []
-
-    while order.size > 0:
-        i = order[0]
-        keep.append(i)
-        xx1 = np.maximum(x1[i], x1[order[1:]])
-        yy1 = np.maximum(y1[i], y1[order[1:]])
-        xx2 = np.minimum(x2[i], x2[order[1:]])
-        yy2 = np.minimum(y2[i], y2[order[1:]])
-
-        w = np.maximum(0.0, xx2 - xx1 + 1)
-        h = np.maximum(0.0, yy2 - yy1 + 1)
-        inter = w * h
-        overlap = inter / (areas[i] + areas[order[1:]] - inter)
-        order = order[np.where(overlap <= thresh)[0] + 1]
-
-    return keep
-
-
 def _install_faceboxes_shims():
-    faceboxes_dir = os.path.join(_3DDFA_DIR, "FaceBoxes")
+    faceboxes_dir = os.path.join(_3DDFA_DIR, "faceboxes")
 
-    package = types.ModuleType("FaceBoxes")
+    package = types.ModuleType("faceboxes")
     package.__path__ = [faceboxes_dir]
-    sys.modules["FaceBoxes"] = package
-
-    nms_module = types.ModuleType("FaceBoxes.utils.nms.cpu_nms")
-    nms_module.cpu_nms = _cpu_nms_numpy
-    nms_module.cpu_soft_nms = _cpu_nms_numpy
-    sys.modules["FaceBoxes.utils.nms.cpu_nms"] = nms_module
+    sys.modules["faceboxes"] = package
 
 
-def _load_faceboxes_onnx_class():
+def _load_faceboxes_onnx_class() -> type[FaceBoxesModel]:
     _install_faceboxes_shims()
-    module_name = "FaceBoxes.FaceBoxes_ONNX"
-    module_path = os.path.join(_3DDFA_DIR, "FaceBoxes", "FaceBoxes_ONNX.py")
+    module_name = "faceboxes.faceboxes_onnx"
+    module_path = os.path.join(_3DDFA_DIR, "faceboxes", "faceboxes_onnx.py")
     if not os.path.exists(module_path):
         raise FileNotFoundError(f"FaceBoxes_ONNX.py not found: {module_path}")
 
@@ -84,12 +68,13 @@ def _load_faceboxes_onnx_class():
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
-    return module.FaceBoxes_ONNX
+    return cast(type[FaceBoxesModel], module.FaceBoxes_ONNX)
 
 
-def _load_models():
-    if _model_cache["face_boxes"] is not None:
-        return _model_cache["face_boxes"], _model_cache["tddfa"]
+def _load_models() -> tuple[FaceBoxesModel, TddfaModel]:
+    global _face_boxes_cache, _tddfa_cache
+    if _face_boxes_cache is not None and _tddfa_cache is not None:
+        return _face_boxes_cache, _tddfa_cache
 
     _require_3ddfa_dir()
     try:
@@ -119,9 +104,9 @@ def _load_models():
         if not os.path.exists(cfg["onnx_fp"]):
             raise FileNotFoundError(f"3DDFA ONNX model not found: {cfg['onnx_fp']}")
 
-    _model_cache["face_boxes"] = FaceBoxes_ONNX()
-    _model_cache["tddfa"] = TDDFA_ONNX(**cfg)
-    return _model_cache["face_boxes"], _model_cache["tddfa"]
+    _face_boxes_cache = FaceBoxes_ONNX()
+    _tddfa_cache = cast(TddfaModel, TDDFA_ONNX(**cast(dict[str, Any], cfg)))
+    return _face_boxes_cache, _tddfa_cache
 
 
 SIDE_SPARSE_MAP = {
@@ -254,11 +239,11 @@ def _find_hairline_profile(pts_2d_dense, face_box):
     idx_a = SIDE_DENSE_MAP.get("hairline_line_a", 31615)
     idx_b = SIDE_DENSE_MAP.get("hairline_line_b", 31670)
     if idx_a >= pts_2d_dense.shape[1] or idx_b >= pts_2d_dense.shape[1]:
-        x1, y1, x2, y2 = face_box
+        x1, y1, x2, _ = face_box
         return (float((x1 + x2) / 2.0), float(y1))
     ax, ay = float(pts_2d_dense[0, idx_a]), float(pts_2d_dense[1, idx_a])
     bx, by = float(pts_2d_dense[0, idx_b]), float(pts_2d_dense[1, idx_b])
-    x1, y1, x2, y2 = [float(v) for v in face_box[:4]]
+    x1, y1, x2, _y2 = [float(v) for v in face_box[:4]]
     top_y = y1
     dy = by - ay
     if abs(dy) < 1e-6:
@@ -288,7 +273,7 @@ def _find_porion(pts_2d_dense):
     search_radius = _relative_radius(pts_2d_dense, 0.03)
     min_step = _relative_radius(pts_2d_dense, 0.001)
     candidates = np.where(
-        (np.sqrt((pts_2d_dense[0, :] - base_x)**2 + (pts_2d_dense[1, :] - base_y)**2) < search_radius)
+        np.sqrt((pts_2d_dense[0, :] - base_x)**2 + (pts_2d_dense[1, :] - base_y)**2) < search_radius
     )[0]
     if len(candidates) > 1:
         best_score = -float('inf')
@@ -398,7 +383,7 @@ def _detect_side_from_image(img):
     num_sparse = ver_sparse.shape[1]
     pts_2d_sparse_px = ver_sparse[:2, :]
     best_box = max(boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))
-    x1, y1, x2, y2 = [int(round(float(v))) for v in best_box[:4]]
+    x1, y1, x2, y2 = [round(float(v)) for v in best_box[:4]]
     landmarks = {}
     def add_dense(lm_id, mesh_idx):
         if mesh_idx < num_dense:
@@ -500,5 +485,3 @@ def _detect_side_from_image(img):
         "landmarks": result_landmarks,
         "mesh_points": mesh_points,
     }
-
-

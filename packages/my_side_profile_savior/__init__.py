@@ -5,6 +5,12 @@ Nothing here is imported by ``main.py`` or ``packages.adapter_side``. Public
 symbols are lazy so importing the package does not initialize Torch/torchvision.
 """
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .mapping import LandmarkMapping, load_landmark_mapping
+    from .model import ProfileLandmarkModel
+
 __all__ = [
     "LandmarkMapping",
     "ProfileLandmarkModel",
@@ -12,7 +18,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name):
+def __getattr__(name: str) -> object:
     if name in {"LandmarkMapping", "load_landmark_mapping"}:
         from .mapping import LandmarkMapping, load_landmark_mapping
 
