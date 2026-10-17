@@ -1,12 +1,12 @@
 [project]
 name = "minifaceiq-holy-ui"
 version = "0.3.0"
-description = "Mini-FaceIQ Material 3 Android interface with offline manual geometry"
+description = "Offline Mini-FaceIQ with native MediaPipe, 3DDFA ONNX and SCUT ONNX"
 requires-python = ">=3.14,<3.15"
 # The Flet app bundles pure-Python front/side scoring and landmark definitions.
 # Do NOT include Linux requirements.txt until native ML components are ported:
 # torch and Python mediapipe are not available in this Android runtime.
-dependencies = ["flet==1.0.4"]
+dependencies = ["flet==1.0.4", "flet-face-landmarker"]
 
 [tool.flet]
 product = "Mini FaceIQ"
@@ -32,7 +32,9 @@ dependencies = [
     "numpy==2.4.6",
     "onnxruntime==1.27.0",
     "opencv-contrib-python==5.0.0.93",
+    "pillow==12.2.0",
 ]
+extract_packages = ["cv2", "PIL"]
 
 
 # FilePicker uses Android's system picker and needs no broad storage
@@ -40,5 +42,11 @@ dependencies = [
 # Keep Flet's default INTERNET manifest setting until its embedded runtime
 # has been tested on-device without network access.
 #
-# Offline manual front/side geometry and CPU ONNX side models are bundled.
-# Front MediaPipe and SCUT feature rating still require Android-native ports.
+# Front MediaPipe is a bundled native Flet extension; 3DDFA and SCUT run via ONNX.
+# Scores must still be validated on an actual Android phone and x86-64 emulator.
+
+[tool.flet.dev_packages]
+flet-face-landmarker = "extensions/flet-face-landmarker"
+
+[tool.uv.sources]
+flet-face-landmarker = { path = "extensions/flet-face-landmarker", editable = true }

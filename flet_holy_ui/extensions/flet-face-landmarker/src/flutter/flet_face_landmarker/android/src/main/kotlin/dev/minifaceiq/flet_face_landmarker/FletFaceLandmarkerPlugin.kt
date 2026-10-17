@@ -1,0 +1,80 @@
+package dev.minifaceiq.flet_face_landmarker
+
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.os.Handler
+import android.os.Looper
+import com.google.mediapipe.framework.image.BitmapImageBuilder
+import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.vision.core.RunningMode
+import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
+import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
+import java.nio.ByteBuffer
+import java.util.concurrent.Executors
+
+/** Original MediaPipe Tasks face_landmarker.task, running fully offline on Android. */
+class FletFaceLandmarkerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
+    private lateinit var channel: MethodChannel
+    private lateinit var context: Context
+    private val mainThread = Handler(Looper.getMainLooper())
+    private val worker = Executors.newSingleThreadExecutor()
+    private var landmarker: FaceLandmarker? = null
+
+    override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        context = binding.applicationContext
+        channel = MethodChannel(binding.binaryMessenger, "dev.minifaceiq/face_landmarker")
+        channel.setMethodCallHandler(this)
+    }
+
+    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        if (call.method != "detect") {
+            result.notImplemented()
+            return
+        }
+        val imageBytes = call.argument<ByteArray>("image")
+        val modelBytes = call.argument<ByteArray>("model")
+        if (imageBytes == null) {
+            result.error("NO_IMAGE", "No photo bytes were received", null)
+            return
+        }
+        worker.execute {
+            try {
+                if (landmarker == null) {
+                    if (modelBytes == null) {
+                        throw IllegalStateException("The bundled face model was not received")
+                    }
+                    // MediaPipe requires a DIRECT ByteBuffer, not ByteBuffer.wrap().
+                    val buffer = ByteBuffer.allocateDirect(modelBytes.size)
+                    buffer.put(modelBytes)
+                    buffer.rewind()
+                    val options = FaceLandmarker.FaceLandmarkerOptions.builder()
+                        .setBaseOptions(BaseOptions.builder().setModelAssetBuffer(buffer).build())
+                        .setRunningMode(RunningMode.IMAGE)
+                        .setNumFaces(1)
+                        .setMinFaceDetectionConfidence(0.5f)
+                        .setMinFacePresenceConfidence(0.5f)
+                        .build()
+                    landmarker = FaceLandmarker.createFromOptions(context, options)
+                }
+                val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                    ?: throw IllegalArgumentException("Invalid image bytes")
+                val image = BitmapImageBuilder(bitmap).build()
+                val detected = landmarker!!.detect(image).faceLandmarks()
+                val coords: List<List<Double>> = if (detected.isEmpty()) emptyList() else {
+                    detected[0].map { listOf(it.x().toDouble(), it.y().toDouble()) }
+                }
+                mainThread.post { result.success(coords) }
+            } catch (e: Exception) {
+                mainThread.post { result.error("MEDIAPIPE", e.message ?: e.javaClass.simpleName, null) }
+            }
+        }
+    }
+
+    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        channel.setMethodCallHandler(null)
+        worker.execute { landmarker?.close(); landmarker = null }
+        worker.shutdown()
+    }
+}

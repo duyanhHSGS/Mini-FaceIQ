@@ -1,79 +1,53 @@
-# Mini-FaceIQ Holy Flet UI — Local Inference
+# Mini-FaceIQ — Android & Linux Material 3 UI
 
-This interface uses the Mini-FaceIQ Python detectors/calculators **directly**.
-It does not call `/api/front-autolandmarks` or any other HTTP endpoint. It does
-not start Flask or run a separate backend server.
+This Flet app runs face geometry and AI analysis **locally**. It does not use Flask or an external inference API. The Android model ports reuse Mini-FaceIQ's original MediaPipe `.task`, 3DDFA ONNX checkpoints, original front/side geometry calculators, and SCUT checkpoint exported faithfully to ONNX.
 
-## Run on Lubuntu (desktop)
+## Features
 
-Run in the **Mini-FaceIQ repository checkout**: the UI imports local model
-code and model assets from the parent directory. It is standalone as an
-application **process**, not yet a relocatable copy of this folder.
+| Feature | Lubuntu | Android implementation |
+|---|---|---|
+| Front auto-landmarking | Original Python MediaPipe | Native Android MediaPipe Tasks via bundled Flet extension |
+| Side auto-landmarking | Original ONNX 3DDFA + Python helpers | Original ONNX models + CPU-only NumPy/OpenCV helpers |
+| Manual photo landmark placement | Flet Align tab | Flet Align tab; tap, drag and undo |
+| Original geometric scores | Root Python calculator modules | Exact copies packaged with the APK |
+| Feature-rating SCUT | PyTorch checkpoint | Original checkpoint converted to ONNX; deterministic aux input preserved |
+| Region occlusion/heatmap | PyTorch + OpenCV | ONNX + OpenCV + Pillow, eight occlusion passes |
 
-1. Create/use a Python 3.11 virtual environment with the **root repository's**
-   ML requirements installed (some pinned PyTorch builds do not support 3.12+).
+Both ARM64 (`arm64-v8a`) and x86-64 (`x86_64`) are targeted by one APK. The native MediaPipe Tasks dependency includes both ABIs. The models are packaged locally, not downloaded at runtime.
 
-   ```bash
-   cd /home/labuntu/Desktop/CodeProjects-Linux/Mini-FaceIQ
-   python3.11 -m venv .venv-linux
-   source .venv-linux/bin/activate
-   python -m pip install -r requirements.txt
-   python -m pip install 'flet[all]==1.0.4'
-   ```
+## On Lubuntu
 
-   If the existing `.venv-linux` already contains the required model dependencies,
-   reuse it and install Flet into that environment instead of recreating it.
+GUI: Open `src/main.py` in your editor and select the existing `.venv-linux/bin/python` environment.
 
-2. Run the standalone Flet window, **without starting `python main.py`**:
-
-   ```bash
-   cd /home/labuntu/Desktop/CodeProjects-Linux/Mini-FaceIQ/flet_holy_ui
-   source ../.venv/bin/activate
-   flet run
-   ```
-
-   On Lubuntu, if the photo picker does not open:
-
-   ```bash
-   sudo apt install zenity
-   ```
-
-### How it calls Mini-FaceIQ
-
-`src/main.py` calls `src/local_engine.py` directly. That module defines
-`front_autolandmarks(image_bytes, filename)` and
-`side_autolandmarks(image_bytes, filename)`, wrappers around the existing
-`packages.detect_front_landmarks_from_upload` and
-`packages.detect_side_landmarks_from_upload` functions. It then invokes
-`calculate_front_analysis` or `calculate_side_analysis` in the same Python
-process. `features_rating()` also invokes the existing analyzer locally.
-The in-memory file adapter replaces Flask's `FileStorage` object.
-
-No URL or API client exists. Images are not sent to Flask or any remote service
-by this code. Any model assets must be available locally; separate model
-libraries could attempt external downloads if weights are not preinstalled.
-
-### Current limits
-
-- **Linux desktop:** local inference supported when required native Python
-  dependencies and model assets are installed on the machine.
-- **Android APK:** NOT yet a standalone usable Android build. The root models
-  and native packages (PyTorch 2.0.1, MediaPipe, OpenCV, ONNX Runtime) need
-  Android-compatible builds/wheels, and the engine/model files need to be
-  packaged into the app. Flet alone cannot convert Linux wheels to Android.
-  Do not expect `flet build apk` to work correctly until the inference stack
-  has been ported.
-- Automatic landmarks can be incomplete. If required landmarks are missing,
-  the Flet UI explains why no complete metric score is shown. Manual landmark
-  dragging is still available only in the original browser UI.
-- Scores reflect project-specific heuristics, not an objective measure of
-  attractiveness or a person's worth.
-
-### Tests
+Terminal fallback from the Mini-FaceIQ repository root:
 
 ```bash
-cd /home/labuntu/Desktop/CodeProjects-Linux/Mini-FaceIQ
-python -m pytest flet_holy_ui/tests
+.venv-linux/bin/python flet_holy_ui/src/main.py
 ```
 
-No model weights are loaded by the unit tests.
+The desktop app continues to use the project's original installed Python ML dependencies, without requiring a Flask server.
+
+## Android APK
+
+GUI: In PCManFM, open `flet_holy_ui/build/apk-linux-parity`. Once an APK has successfully been built, copy `minifaceiq-holy-ui.apk` to your Android device. Open it with the phone's Files app and approve installation if prompted.
+
+Terminal fallback from the repository root:
+
+```bash
+cd flet_holy_ui
+../.venv-linux/bin/flet build apk --arch arm64-v8a x86_64
+```
+
+The configuration in `pyproject.toml` includes the local native extension, Android ONNX Runtime, OpenCV, NumPy and Pillow. These builds are large because the neural models and both CPU architectures are bundled.
+
+## Verification
+
+```bash
+.venv-linux/bin/ruff check flet_holy_ui/src flet_holy_ui/tests
+.venv-linux/bin/pyright flet_holy_ui/src/main.py --pythonpath .venv-linux/bin/python
+.venv-linux/bin/python -m pytest flet_holy_ui/tests -q
+```
+
+Linux parity tests have established pixel-exact SCUT preprocessing and eight occlusion masks on a face-containing sample, matching front/side named landmark coordinates, and nearly identical ONNX and PyTorch SCUT scores. **An Android device/emulator run is still mandatory before claiming Android runtime parity.** APK packaging success alone does not prove a button works or models load on a device.
+
+If an Android inference path fails, the error is shown in the UI; the manual landmark editor remains usable. Scores are project-specific estimates, not objective assessments of a person.

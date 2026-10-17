@@ -16,6 +16,7 @@ from local_engine import (
     MAX_IMAGE_BYTES,
     AnalysisError,
     analyze_manual_landmarks,
+    analyze_mobile_front_points,
     analyze_mobile_side_photo,
     analyze_photo,
     image_aspect_ratio,
@@ -408,11 +409,23 @@ def main(page: ft.Page) -> None:
     metric_order = "importance"
     busy = False
     android_shell = page.platform == ft.PagePlatform.ANDROID
+    face_service = None
+    if android_shell:
+        # An installed Flet extension binds the native Android MediaPipe Tasks bridge.
+        # Keep desktop/FakePage tests importable without the Android extension.
+        try:
+            import importlib
+
+            extension = importlib.import_module("flet_face_landmarker")
+            face_service = extension.FletFaceLandmarker()
+            page.services.append(face_service)
+        except ImportError:
+            face_service = None
     manual_points: dict[str, dict[str, dict]] = {"front": {}, "side": {}}
     manual_selected: dict[str, int] = {"front": 0, "side": 0}
     manual_history: dict[str, list[dict[str, dict]]] = {"front": [], "side": []}
     status = (
-        "Android: front manual geometry + automatic ONNX side analysis; front auto and SCUT pending."
+        "Android: original MediaPipe + 3DDFA + SCUT ONNX engines; all inference stays on-device."
         if android_shell
         else "Ready for local analysis · no API or uploads"
     )
@@ -625,6 +638,103 @@ def main(page: ft.Page) -> None:
             busy = False
             render()
 
+    async def compute_mobile_front() -> None:
+        """Run the SAME MediaPipe .task with the original front point index map."""
+        nonlocal busy, active_tab, active_profile
+        photo = photos.get("front")
+        if photo is None:
+            set_status("Choose a front portrait first.", color=AMBER)
+            active_tab = "photos"
+            render()
+            return
+        if busy:
+            return
+        if face_service is None:
+            set_status("Android MediaPipe extension is missing; use Align for manual points.", color=AMBER)
+            active_tab = "align"
+            active_profile = "front"
+            render()
+            return
+        busy = True
+        set_status("Running original MediaPipe face landmarker on Android...", color=CYAN)
+        render()
+        try:
+            from mobile_front import get_front_task_model
+
+            normalized = await face_service.detect(photo[1], get_front_task_model())
+            result = await asyncio.to_thread(
+                analyze_mobile_front_points,
+                photo[1],
+                normalized,
+                gender.value or "male",
+                ethnicity.value or "asian",
+            )
+            responses["front"] = result
+            manual_points["front"] = {
+                point["id"]: point for point in result.get("landmarks", [])
+            }
+            active_profile = "front"
+            active_tab = "results" if result.get("data") is not None else "align"
+            set_status(
+                "Front MediaPipe analysis complete."
+                if result.get("data") is not None
+                else result.get("warning", "Some front landmarks need correction."),
+                color=GREEN if result.get("data") is not None else AMBER,
+            )
+        except Exception as exc:  # noqa: BLE001 - native plugin reports platform failures
+            active_tab = "align"
+            active_profile = "front"
+            set_status(
+                f"Android MediaPipe failed ({type(exc).__name__}): {str(exc)[:180]}. "
+                "Manual landmark placement is still available.",
+                color=RED,
+            )
+        finally:
+            busy = False
+            render()
+
+    async def compute_mobile_features() -> None:
+        """Exact SCUT checkpoint exported to ONNX, with eight occlusion passes."""
+        nonlocal busy, active_tab
+        photo = feature_photo or photos.get("front")
+        if photo is None:
+            set_status("Choose a feature photo first.", color=AMBER)
+            active_tab = "features"
+            render()
+            return
+        if busy:
+            return
+        busy = True
+        active_tab = "features"
+        set_status("Running SCUT ONNX rating and eight region occlusions...", color=CYAN)
+        render()
+        try:
+            from mobile_features import analyze_mobile_features, resized_face_photo
+            from mobile_front import get_front_task_model
+
+            normalized = (
+                await face_service.detect(
+                    resized_face_photo(photo[1]), get_front_task_model()
+                )
+                if face_service is not None else []
+            )
+            result = await asyncio.to_thread(
+                analyze_mobile_features, photo[1], normalized
+            )
+            responses["features"] = {
+                "mode": "features", "data": result,
+                "landmark_count": len(normalized),
+            }
+            set_status("Original SCUT ONNX rating and heatmap completed offline.", color=GREEN)
+        except Exception as exc:  # noqa: BLE001 - model/platform errors are shown to the user
+            set_status(
+                f"SCUT Android inference failed ({type(exc).__name__}): {str(exc)[:240]}",
+                color=RED,
+            )
+        finally:
+            busy = False
+            render()
+
     async def compute_mobile_side() -> None:
         """Automatic, fully local Android side inference with the existing 3DDFA models."""
         nonlocal busy, active_tab, active_profile
@@ -676,11 +786,10 @@ def main(page: ft.Page) -> None:
             await compute_mobile_side()
             return
         if android_shell and profile == "front":
-            await compute_manual(profile)
+            await compute_mobile_front()
             return
-        if android_shell:
-            set_status("SCUT AI rating requires an Android ONNX model port; not yet available.", color=AMBER)
-            render()
+        if android_shell and profile == "features":
+            await compute_mobile_features()
             return
         image = (
             feature_photo or photos.get("front")
@@ -739,37 +848,76 @@ def main(page: ft.Page) -> None:
         if android_shell:
             targets = [key for key in ("front", "side") if key in photos]
             if not targets:
-                set_status("Select a portrait first, then open Align to place landmarks.", color=AMBER)
+                set_status("Select a portrait first, then open Align.", color=AMBER)
                 render()
                 return
             if busy:
                 return
             busy = True
+            failures: list[str] = []
             try:
                 for profile in targets:
                     photo = photos[profile]
-                    responses[profile] = await asyncio.to_thread(
-                        analyze_mobile_side_photo, photo[0], photo[1],
-                        gender.value or "male", ethnicity.value or "asian",
-                    ) if profile == "side" else await asyncio.to_thread(
-                        analyze_manual_landmarks, profile, photo[1],
-                        list(manual_points[profile].values()),
-                        gender.value or "male", ethnicity.value or "asian",
-                    )
+                    set_status(f"Analyzing {profile} on-device...", color=CYAN)
+                    render()
+                    try:
+                        if profile == "side":
+                            result = await asyncio.to_thread(
+                                analyze_mobile_side_photo,
+                                photo[0], photo[1],
+                                gender.value or "male",
+                                ethnicity.value or "asian",
+                            )
+                        elif face_service is not None:
+                            from mobile_front import get_front_task_model
+
+                            normalized = await face_service.detect(
+                                photo[1], get_front_task_model()
+                            )
+                            result = await asyncio.to_thread(
+                                analyze_mobile_front_points,
+                                photo[1], normalized,
+                                gender.value or "male",
+                                ethnicity.value or "asian",
+                            )
+                        else:
+                            result = await asyncio.to_thread(
+                                analyze_manual_landmarks,
+                                profile, photo[1],
+                                list(manual_points[profile].values()),
+                                gender.value or "male",
+                                ethnicity.value or "asian",
+                            )
+                        responses[profile] = result
+                        if isinstance(result.get("landmarks"), list):
+                            manual_points[profile] = {
+                                point["id"]: point
+                                for point in result["landmarks"]
+                            }
+                    except Exception as exc:  # noqa: BLE001 - independent model failures
+                        responses.pop(profile, None)
+                        failures.append(
+                            f"{profile}: {type(exc).__name__}: {str(exc)[:100]}"
+                        )
                 incomplete = next(
-                    (key for key in targets if responses[key].get("data") is None), None
+                    (key for key in targets
+                     if responses.get(key, {}).get("data") is None),
+                    None,
                 )
                 active_profile = incomplete or targets[0]
                 active_tab = "align" if incomplete else "results"
-                if incomplete:
+                if failures:
+                    set_status(
+                        "Some automatic analyses failed: " + "; ".join(failures),
+                        color=RED,
+                    )
+                elif incomplete:
                     set_status(
                         f"{incomplete.title()}: finish placing its landmarks in Align.",
                         color=AMBER,
                     )
                 else:
                     set_status("All loaded profiles calculated offline.", color=GREEN)
-            except (AnalysisError, ImportError, OSError, ArithmeticError, RuntimeError, ValueError, TypeError, KeyError) as exc:
-                set_status(f"Manual analysis failed: {str(exc)[:240]}", color=RED)
             finally:
                 busy = False
                 render()
@@ -1072,7 +1220,7 @@ def main(page: ft.Page) -> None:
                     padding=12,
                 ),
                 _button(
-                    "Analyze photos · side ONNX" if android_shell else "Analyze available photos",
+                    "Auto-analyze front + side" if android_shell else "Analyze available photos",
                     icon=ft.Icons.AUTO_AWESOME_ROUNDED,
                     on_click=run_pair,
                     primary=True,
@@ -1104,9 +1252,7 @@ def main(page: ft.Page) -> None:
                     bgcolor=RAISED,
                 ),
                 _button(
-                    "Auto-detect side" if android_shell and active_profile == "side" else (
-                        "Calculate placed points" if android_shell else "Auto-detect + analyze"
-                    ),
+                    "Auto-detect front/side" if android_shell else "Auto-detect + analyze",
                     icon=ft.Icons.AUTO_AWESOME_ROUNDED,
                     on_click=analyze_action(active_profile),
                     primary=True,

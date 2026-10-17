@@ -294,3 +294,30 @@ def analyze_photo(
     analyzer = front_metrics if mode == "front" else side_metrics
     result = analyzer(landmarks, gender, ethnicity, image_aspect_ratio(image_data))
     return {"mode": mode, "data": result, "landmark_count": len(landmarks)}
+
+
+def analyze_mobile_front_points(
+    image_data: bytes,
+    normalized: list[list[float]],
+    gender: str = "male", ethnicity: str = "asian",
+) -> dict:
+    """Score native Android MediaPipe results using the unchanged Linux calculator."""
+    from mobile_front import map_mediapipe_front
+
+    if not image_data or len(image_data) > MAX_IMAGE_BYTES:
+        raise AnalysisError("Invalid front photo")
+    landmarks = map_mediapipe_front(normalized, image_data)
+    if not landmarks:
+        raise AnalysisError("No face detected by Android MediaPipe")
+    missing = _missing_landmarks(landmarks, "front")
+    if missing:
+        return {
+            "mode": "front", "data": None, "landmark_count": len(landmarks),
+            "landmarks": landmarks, "missing_ids": missing,
+            "warning": f"Auto-detected {len(landmarks)} landmarks; place {len(missing)} missing points.",
+        }
+    return {
+        "mode": "front", "data": front_metrics(
+            landmarks, gender, ethnicity, image_aspect_ratio(image_data)
+        ), "landmark_count": len(landmarks), "landmarks": landmarks,
+    }
