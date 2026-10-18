@@ -45,6 +45,13 @@ extract_packages = ["cv2", "PIL"]
 # Front MediaPipe is a bundled native Flet extension; 3DDFA and SCUT run via ONNX.
 # TODO: validate scoring and model loading on an actual ARM64 Android phone.
 
+# iOS uses the same bundled Flet UI and pure-Python geometry formulas.
+# Automatic front detection uses the native MediaPipeTasksVision Swift plugin.
+# Android ONNX wheels must NOT be added here; side + SCUT native iOS
+# inference is not implemented, and the UI makes that limitation explicit.
+[tool.flet.ios]
+dependencies = []
+
 [tool.flet.dev_packages]
 flet-face-landmarker = "extensions/flet-face-landmarker"
 

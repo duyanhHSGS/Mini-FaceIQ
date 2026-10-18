@@ -48,8 +48,8 @@ class _MemoryUpload:
                 output.write(self._stream.getvalue())
 
 
-def image_aspect_ratio(contents: bytes) -> float:
-    """Read PNG/JPEG/WebP pixel aspect without adding a Pillow dependency."""
+def image_dimensions(contents: bytes) -> tuple[int, int]:
+    """Read PNG/JPEG/WebP dimensions without native image dependencies."""
     width = height = 0
 
     if contents.startswith(bytes.fromhex("89504e470d0a1a0a")) and len(contents) >= 24:
@@ -95,6 +95,12 @@ def image_aspect_ratio(contents: bytes) -> float:
             width = int.from_bytes(contents[26:28], "little") & 0x3FFF
             height = int.from_bytes(contents[28:30], "little") & 0x3FFF
 
+    return width, height
+
+
+def image_aspect_ratio(contents: bytes) -> float:
+    """Read PNG/JPEG/WebP pixel aspect without adding a Pillow dependency."""
+    width, height = image_dimensions(contents)
     return width / height if width > 0 and height > 0 else 1.0
 
 
@@ -301,14 +307,14 @@ def analyze_mobile_front_points(
     normalized: list[list[float]],
     gender: str = "male", ethnicity: str = "asian",
 ) -> dict:
-    """Score native Android MediaPipe results using the unchanged Linux calculator."""
+    """Score native Android/iOS MediaPipe results with pure Python geometry."""
     from mobile_front import map_mediapipe_front
 
     if not image_data or len(image_data) > MAX_IMAGE_BYTES:
         raise AnalysisError("Invalid front photo")
     landmarks = map_mediapipe_front(normalized, image_data)
     if not landmarks:
-        raise AnalysisError("No face detected by Android MediaPipe")
+        raise AnalysisError("No face detected by native MediaPipe")
     missing = _missing_landmarks(landmarks, "front")
     if missing:
         return {

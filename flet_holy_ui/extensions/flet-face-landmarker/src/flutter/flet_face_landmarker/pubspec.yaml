@@ -20,6 +20,8 @@ flutter:
       android:
         package: dev.minifaceiq.flet_face_landmarker
         pluginClass: FletFaceLandmarkerPlugin
+      ios:
+        pluginClass: FletFaceLandmarkerPlugin
 
 dev_dependencies:
   flutter_test:

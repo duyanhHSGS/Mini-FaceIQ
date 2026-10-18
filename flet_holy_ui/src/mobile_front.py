@@ -1,4 +1,4 @@
-"""Android front-face analysis using the ORIGINAL Linux MediaPipe Task + mapper."""
+"""Android/iOS front-face analysis using the ORIGINAL MediaPipe Task + mapper."""
 
 from __future__ import annotations
 
@@ -34,16 +34,14 @@ def map_mediapipe_front(
     Desktop MediaPipe rounds down to integer pixels BEFORE applying the map,
     so we reproduce that truncation for coordinate parity.
     """
-    import cv2
-    import numpy as np
+    from local_engine import image_dimensions
 
     from front_landmarks import FRONT_LANDMARK_DEFS
 
     mapping = json.loads(_front_asset("mapper.json"))
-    pixels = cv2.imdecode(np.frombuffer(image_data, dtype=np.uint8), cv2.IMREAD_COLOR)
-    if pixels is None:
-        raise ValueError("Unable to read image for normalized coordinates")
-    height, width = pixels.shape[:2]
+    width, height = image_dimensions(image_data)
+    if width <= 0 or height <= 0:
+        raise ValueError("Unable to read image dimensions for normalized coordinates")
     if not normalized:
         return []
     points = []

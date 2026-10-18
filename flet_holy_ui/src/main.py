@@ -512,10 +512,12 @@ def main(page: ft.Page) -> None:
     metric_order = "importance"
     busy = False
     android_shell = page.platform == ft.PagePlatform.ANDROID
+    ios_shell = page.platform == ft.PagePlatform.IOS
+    native_face_shell = android_shell or ios_shell
     face_service = None
-    if android_shell:
-        # An installed Flet extension binds the native Android MediaPipe Tasks bridge.
-        # Keep desktop/FakePage tests importable without the Android extension.
+    if native_face_shell:
+        # Both mobile platforms use their native MediaPipe Tasks bridge.
+        # Keep desktop/FakePage tests importable without the extension.
         try:
             import importlib
 
@@ -528,9 +530,14 @@ def main(page: ft.Page) -> None:
     manual_selected: dict[str, int] = {"front": 0, "side": 0}
     manual_history: dict[str, list[dict[str, dict]]] = {"front": [], "side": []}
     status = (
-        "Android: original MediaPipe + 3DDFA + SCUT ONNX engines; all inference stays on-device."
+        "Android: MediaPipe + 3DDFA + SCUT run offline on-device."
         if android_shell
-        else "Ready for local analysis · no API or uploads"
+        else (
+            "iPhone: offline front MediaPipe and manual front/side geometry. "
+            "Side auto-detection and SCUT are not yet available on iOS."
+            if ios_shell
+            else "Ready for local analysis · no API or uploads"
+        )
     )
     status_color = MUTED
     # Keep status controls stable so progress updates do not rebuild large
@@ -705,8 +712,27 @@ def main(page: ft.Page) -> None:
     gender.on_select = change_context
     ethnicity.on_select = change_context
 
-    def picked(profile: str, event: ft.FilePickerResultEvent) -> None:
+    def store_photo(profile: str, name: str, contents: bytes) -> None:
         nonlocal feature_photo, active_profile
+        image = (name, contents)
+        # Create a display-only preview once; keep original pixels for ML.
+        previews[profile] = _image_preview(contents)
+        if profile == "features":
+            feature_photo = image
+            responses.pop("features", None)
+        else:
+            photos[profile] = image
+            manual_points[profile].clear()
+            manual_history[profile].clear()
+            manual_selected[profile] = 0
+            responses.pop(profile, None)
+            if profile == "front" and feature_photo is None:
+                responses.pop("features", None)
+            active_profile = profile
+        set_status(f"{name} loaded · ready to analyze", color=GREEN)
+        render()
+
+    def picked(profile: str, event: ft.FilePickerResultEvent) -> None:
         if not event.files:
             return
         file = event.files[0]
@@ -714,25 +740,35 @@ def main(page: ft.Page) -> None:
             set_status("The file picker could not read this photo.", color=AMBER)
         elif len(file.bytes) > MAX_IMAGE_BYTES:
             set_status("Photo exceeds the 20 MB local limit.", color=AMBER)
-        elif not file.name.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
-            set_status("Use a JPG, PNG, or WebP photo.", color=AMBER)
-        else:
-            image = (file.name, file.bytes)
-            # This is performed once when picking a photo, never when navigating.
-            previews[profile] = _image_preview(file.bytes)
-            if profile == "features":
-                feature_photo = image
-                responses.pop("features", None)
+        elif ios_shell and file.name.lower().endswith((".heic", ".heif")):
+            if face_service is None:
+                set_status(
+                    "HEIC needs the iOS native extension. Use a JPEG or PNG instead.",
+                    color=AMBER,
+                )
             else:
-                photos[profile] = image
-                manual_points[profile].clear()
-                manual_history[profile].clear()
-                manual_selected[profile] = 0
-                responses.pop(profile, None)
-                if profile == "front" and feature_photo is None:
-                    responses.pop("features", None)
-                active_profile = profile
-            set_status(f"{file.name} loaded · ready to analyze", color=GREEN)
+                native_service = face_service
+
+                async def convert_heic() -> None:
+                    try:
+                        jpeg = await native_service.convert_to_jpeg(file.bytes)
+                        if not jpeg or len(jpeg) > MAX_IMAGE_BYTES:
+                            raise ValueError("Converted photo exceeds the 20 MB limit.")
+                        store_photo(profile, file.name.rsplit(".", 1)[0] + ".jpg", jpeg)
+                    except Exception as exc:  # noqa: BLE001 - native plugin errors vary.
+                        set_status(
+                            f"iOS HEIC conversion failed: {type(exc).__name__}: {str(exc)[:140]}",
+                            color=RED,
+                        )
+                        render()
+
+                set_status("Converting HEIC to JPEG offline on this iPhone...", color=CYAN)
+                page.run_task(convert_heic)
+        elif not file.name.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
+            set_status("Use JPG, PNG, WebP, or iPhone HEIC photos.", color=AMBER)
+        else:
+            store_photo(profile, file.name, file.bytes)
+            return
         render()
 
     pickers = {
@@ -747,7 +783,8 @@ def main(page: ft.Page) -> None:
             dialog_title="Select a portrait",
             allow_multiple=False,
             file_type=ft.FilePickerFileType.CUSTOM,
-            allowed_extensions=["jpg", "jpeg", "png", "webp"],
+            allowed_extensions=["jpg", "jpeg", "png", "webp"]
+            + (["heic", "heif"] if ios_shell else []),
             with_data=True,
         )
 
@@ -819,7 +856,7 @@ def main(page: ft.Page) -> None:
             return
         if face_service is None:
             set_status(
-                "Android MediaPipe extension is missing; use Align for manual points.",
+                "Native MediaPipe extension is missing; use Align for manual points.",
                 color=AMBER,
             )
             active_tab = "align"
@@ -828,7 +865,7 @@ def main(page: ft.Page) -> None:
             return
         busy = True
         set_status(
-            "Running original MediaPipe face landmarker on Android...", color=CYAN
+            "Running original MediaPipe face landmarker on-device...", color=CYAN
         )
         refresh_status_only()
         try:
@@ -858,7 +895,7 @@ def main(page: ft.Page) -> None:
             active_tab = "align"
             active_profile = "front"
             set_status(
-                f"Android MediaPipe failed ({type(exc).__name__}): {str(exc)[:180]}. "
+                f"Native MediaPipe failed ({type(exc).__name__}): {str(exc)[:180]}. "
                 "Manual landmark placement is still available.",
                 color=RED,
             )
@@ -974,11 +1011,24 @@ def main(page: ft.Page) -> None:
 
     async def run_analysis(profile: str) -> None:
         nonlocal busy, active_tab, active_profile
+        if ios_shell and profile == "side":
+            # The Python ONNX/OpenCV side engine has Android, not iOS, wheels.
+            # Never fall through to the Linux-only PyTorch detector on iPhone.
+            await compute_manual("side")
+            return
         if android_shell and profile == "side":
             await compute_mobile_side()
             return
-        if android_shell and profile == "front":
+        if native_face_shell and profile == "front":
             await compute_mobile_front()
+            return
+        if ios_shell and profile == "features":
+            set_status(
+                "SCUT inference is not yet ported to native iOS ONNX Runtime.",
+                color=AMBER,
+            )
+            active_tab = "features"
+            render()
             return
         if android_shell and profile == "features":
             await compute_mobile_features()
@@ -1050,7 +1100,7 @@ def main(page: ft.Page) -> None:
 
     async def run_pair(_event: ft.Event[ft.Button]) -> None:
         nonlocal busy, active_tab, active_profile
-        if android_shell:
+        if native_face_shell:
             targets = [key for key in ("front", "side") if key in photos]
             if not targets:
                 set_status("Select a portrait first, then open Align.", color=AMBER)
@@ -1066,7 +1116,7 @@ def main(page: ft.Page) -> None:
                     set_status(f"Analyzing {profile} on-device...", color=CYAN)
                     refresh_status_only()
                     try:
-                        if profile == "side":
+                        if profile == "side" and android_shell:
                             result = await asyncio.to_thread(
                                 analyze_mobile_side_photo,
                                 photo[0],
@@ -1074,7 +1124,7 @@ def main(page: ft.Page) -> None:
                                 gender.value or "male",
                                 ethnicity.value or "asian",
                             )
-                        elif face_service is not None:
+                        elif profile == "front" and face_service is not None:
                             from mobile_front import get_front_task_model
 
                             normalized = await face_service.detect(
@@ -1515,7 +1565,11 @@ def main(page: ft.Page) -> None:
                     _button(
                         "Auto-analyze front + side"
                         if android_shell
-                        else "Analyze available photos",
+                        else (
+                            "Detect front · manually align side"
+                            if ios_shell
+                            else "Analyze available photos"
+                        ),
                         icon=ft.Icons.AUTO_AWESOME_ROUNDED,
                         on_click=run_pair,
                         primary=True,
@@ -1564,7 +1618,15 @@ def main(page: ft.Page) -> None:
                     _button(
                         "Auto-detect front/side"
                         if android_shell
-                        else "Auto-detect + analyze",
+                        else (
+                            "Detect front automatically"
+                            if ios_shell and active_profile == "front"
+                            else (
+                                "Calculate manual geometry"
+                                if ios_shell
+                                else "Auto-detect + analyze"
+                            )
+                        ),
                         icon=ft.Icons.AUTO_AWESOME_ROUNDED,
                         on_click=analyze_action(active_profile),
                         primary=True,
@@ -1645,11 +1707,11 @@ def main(page: ft.Page) -> None:
                         bgcolor=RAISED,
                     ),
                     _button(
-                        "Run feature rating",
+                        "Run feature rating" if not ios_shell else "SCUT: iOS port pending",
                         icon=ft.Icons.BIOTECH_ROUNDED,
                         on_click=analyze_action("features"),
                         primary=True,
-                        disabled=busy or feature is None,
+                        disabled=ios_shell or busy or feature is None,
                     ),
                 ]
             )

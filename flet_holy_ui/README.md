@@ -1,4 +1,4 @@
-# Mini-FaceIQ — Android & Linux Material 3 UI
+# Mini-FaceIQ — Android, Linux & experimental native iOS UI
 
 This Flet app runs face geometry and AI analysis **locally**. It does not use Flask or an external inference API. The Android model ports reuse Mini-FaceIQ's original MediaPipe `.task`, 3DDFA ONNX checkpoints, original front/side geometry calculators, and SCUT checkpoint exported faithfully to ONNX.
 
@@ -14,6 +14,10 @@ This Flet app runs face geometry and AI analysis **locally**. It does not use Fl
 | Region occlusion/heatmap | PyTorch + OpenCV | ONNX + OpenCV + Pillow, eight occlusion passes |
 
 The APK targets ARM64 (`arm64-v8a`) only. This keeps builds faster and avoids packaging an unused x86-64 emulator ABI. The models are packaged locally, not downloaded at runtime.
+
+## Native iOS source port (not yet a tested IPA)
+
+The iOS Flet app uses the existing offline Python geometry calculators and manual point editor. An experimental Swift MediaPipeTasksVision bridge provides front auto-detection and local HEIC conversion. Automatic 3DDFA side inference and SCUT feature rating are **not yet available on iOS**. Native signing and compilation require macOS. See [IOS_PORT.md](IOS_PORT.md) for build, device-installation and testing instructions.
 
 ## On Lubuntu
 
